@@ -1,6 +1,6 @@
 using Raylib_cs;
 
-namespace Keysharp.UI
+namespace Keysharp.Components
 {
     /// <summary>
     /// A container for tab content that can be shown/hidden.
@@ -18,11 +18,8 @@ namespace Keysharp.UI
             this.subtitle = subtitle;
         }
 
-        public override void Draw()
+        protected override void DrawSelf()
         {
-            if (!IsVisible)
-                return;
-
             // Draw title (relative to bounds)
             if (!string.IsNullOrEmpty(title))
             {
@@ -34,9 +31,6 @@ namespace Keysharp.UI
             {
                 FontManager.DrawText(font, subtitle, (int)Bounds.X + 20, (int)Bounds.Y + 60, 16, UITheme.TextSecondaryColor);
             }
-
-            // Draw children
-            base.Draw();
         }
     }
 }

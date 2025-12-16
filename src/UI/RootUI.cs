@@ -1,9 +1,9 @@
 using Raylib_cs;
-using Keysharp.Panels;
+using Keysharp.Components;
 
 namespace Keysharp.UI
 {
-    public class RootUI : UIElement
+    public class RootUI : Components.UIElement
     {
         private SidePanel sidePanel;
         private MainPanel mainPanel;

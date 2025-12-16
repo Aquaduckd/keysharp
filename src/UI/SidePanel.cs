@@ -1,6 +1,6 @@
 using Raylib_cs;
 
-namespace Keysharp.Panels
+namespace Keysharp.UI
 {
     public class SidePanel : Panel
     {

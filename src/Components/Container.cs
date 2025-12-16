@@ -1,6 +1,6 @@
 using Raylib_cs;
 
-namespace Keysharp.UI
+namespace Keysharp.Components
 {
     /// <summary>
     /// A generic container element that acts like a "div" - used for grouping and laying out child elements.

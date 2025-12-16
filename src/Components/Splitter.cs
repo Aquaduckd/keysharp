@@ -1,7 +1,7 @@
 using Raylib_cs;
 using System;
 
-namespace Keysharp.UI
+namespace Keysharp.Components
 {
     public class Splitter : UIElement
     {
@@ -73,15 +73,13 @@ namespace Keysharp.UI
             // Cursor is set centrally in Program.cs based on priority
         }
 
-        public override void Draw()
+        protected override void DrawSelf()
         {
             // Draw splitter background
             Color splitterColor = (IsHovered || IsDragging) 
                 ? UITheme.SplitterHoverColor 
                 : UITheme.SplitterColor;
             Raylib.DrawRectangleRec(Bounds, splitterColor);
-
-            base.Draw();
         }
     }
 }

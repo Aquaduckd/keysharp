@@ -2,11 +2,12 @@ using Raylib_cs;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Keysharp.Components;
 using Keysharp.UI;
 using System.IO;
 using System.Diagnostics;
 
-namespace Keysharp.Panels
+namespace Keysharp.UI
 {
     public class MainPanel : Panel
     {
@@ -19,25 +20,25 @@ namespace Keysharp.Panels
         private int activeTabIndex = 0;
 
         // Corpus tab state
-        private Button? loadCorpusButton;
-        private Dropdown? corpusDropdown;
-        private InfoText? infoText;
+        private Components.Button? loadCorpusButton;
+        private Components.Dropdown? corpusDropdown;
+        private Components.InfoText? infoText;
         private string? loadedCorpusPath = null;
-        private Container? corpusControlsContainer;
-        private Container? corpusRowContainer;
-        private Container? infoTextContainer;
+        private Components.Container? corpusControlsContainer;
+        private Components.Container? corpusRowContainer;
+        private Components.Container? infoTextContainer;
 
         // Tab elements
-        private List<Tab> tabElements = new List<Tab>();
+        private List<Components.Tab> tabElements = new List<Components.Tab>();
         
         // Containers for layout
-        private Container? tabsContainer;
-        private Container? tabContentContainer;
+        private Components.Container? tabsContainer;
+        private Components.Container? tabContentContainer;
         
         // Tab content containers
-        private TabContent? layoutTabContent;
-        private TabContent? corpusTabContent;
-        private TabContent? settingsTabContent;
+        private Components.TabContent? layoutTabContent;
+        private Components.TabContent? corpusTabContent;
+        private Components.TabContent? settingsTabContent;
 
         public MainPanel(Font font) : base(font, "MainPanel")
         {
@@ -50,8 +51,8 @@ namespace Keysharp.Panels
             // Create container for tabs
             tabsContainer = new Container("TabsContainer");
             tabsContainer.AutoLayoutChildren = true;
-            tabsContainer.LayoutDirection = LayoutDirection.Horizontal;
-            tabsContainer.ChildJustification = ChildJustification.Left;
+            tabsContainer.LayoutDirection = Components.LayoutDirection.Horizontal;
+            tabsContainer.ChildJustification = Components.ChildJustification.Left;
             tabsContainer.ChildGap = TabSpacing;
             tabsContainer.ChildPadding = 0;
             tabsContainer.AutoSize = false; // Width/height set manually
@@ -60,7 +61,7 @@ namespace Keysharp.Panels
             // Create tab elements
             for (int i = 0; i < tabs.Count; i++)
             {
-                var tabElement = new Tab(font, tabs[i]);
+                var tabElement = new Components.Tab(font, tabs[i]);
                 int tabIndex = i; // Capture for closure
                 tabElement.OnClick = () => { activeTabIndex = tabIndex; UpdateTabVisibility(); };
                 tabElements.Add(tabElement);
@@ -68,73 +69,73 @@ namespace Keysharp.Panels
             }
             
             // Create container for tab content
-            tabContentContainer = new Container("TabContentContainer");
+            tabContentContainer = new Components.Container("TabContentContainer");
             tabContentContainer.AutoLayoutChildren = false; // Content positioned manually
             tabContentContainer.AutoSize = false; // Size set manually
             AddChild(tabContentContainer);
 
             // Create tab content containers
-            layoutTabContent = new TabContent(font, "Layout", "Layout configuration will appear here.");
+            layoutTabContent = new Components.TabContent(font, "Layout", "Layout configuration will appear here.");
             layoutTabContent.IsVisible = (activeTabIndex == 0);
-            layoutTabContent.PositionMode = PositionMode.Relative;
+            layoutTabContent.PositionMode = Components.PositionMode.Relative;
             tabContentContainer.AddChild(layoutTabContent);
 
-            corpusTabContent = new TabContent(font, "Corpus", null);
+            corpusTabContent = new Components.TabContent(font, "Corpus", null);
             corpusTabContent.IsVisible = (activeTabIndex == 1);
-            corpusTabContent.PositionMode = PositionMode.Relative;
+            corpusTabContent.PositionMode = Components.PositionMode.Relative;
             tabContentContainer.AddChild(corpusTabContent);
 
-            settingsTabContent = new TabContent(font, "Settings", "Application settings and preferences");
+            settingsTabContent = new Components.TabContent(font, "Settings", "Application settings and preferences");
             settingsTabContent.IsVisible = (activeTabIndex == 2);
-            settingsTabContent.PositionMode = PositionMode.Relative;
+            settingsTabContent.PositionMode = Components.PositionMode.Relative;
             tabContentContainer.AddChild(settingsTabContent);
 
             // Create a container for the entire corpus controls row (button, dropdown, and info text)
-            corpusRowContainer = new Container("CorpusRow");
+            corpusRowContainer = new Components.Container("CorpusRow");
             corpusRowContainer.AutoLayoutChildren = true;
-            corpusRowContainer.LayoutDirection = LayoutDirection.Horizontal;
-            corpusRowContainer.ChildJustification = ChildJustification.SpaceBetween;
+            corpusRowContainer.LayoutDirection = Components.LayoutDirection.Horizontal;
+            corpusRowContainer.ChildJustification = Components.ChildJustification.SpaceBetween;
             corpusRowContainer.ChildGap = 0; // Gap will be calculated by SpaceBetween
             corpusRowContainer.ChildPadding = 0;
             corpusTabContent.AddChild(corpusRowContainer);
 
             // Create container for left-aligned controls (button and dropdown)
-            corpusControlsContainer = new Container("CorpusControls");
+            corpusControlsContainer = new Components.Container("CorpusControls");
             corpusControlsContainer.AutoLayoutChildren = true;
-            corpusControlsContainer.LayoutDirection = LayoutDirection.Horizontal;
-            corpusControlsContainer.ChildJustification = ChildJustification.Left;
+            corpusControlsContainer.LayoutDirection = Components.LayoutDirection.Horizontal;
+            corpusControlsContainer.ChildJustification = Components.ChildJustification.Left;
             corpusControlsContainer.ChildGap = 10;
             corpusControlsContainer.ChildPadding = 20;
             corpusControlsContainer.Bounds = new Rectangle(0, 0, 0, 35); // Width will be calculated by layout
             corpusRowContainer.AddChild(corpusControlsContainer);
 
             // Initialize corpus button
-            loadCorpusButton = new Button(font, "Load Corpus", 14);
+            loadCorpusButton = new Components.Button(font, "Load Corpus", 14);
             loadCorpusButton.Bounds = new Rectangle(0, 0, 150, 35); // Set initial size
-            loadCorpusButton.PositionMode = PositionMode.Absolute; // Will be positioned by container's auto-layout
+            loadCorpusButton.PositionMode = Components.PositionMode.Absolute; // Will be positioned by container's auto-layout
             loadCorpusButton.OnClick = LoadCorpusFromFile;
             corpusControlsContainer.AddChild(loadCorpusButton);
 
             // Initialize corpus dropdown
             List<string> corpusFiles = GetCorpusFiles();
-            corpusDropdown = new Dropdown(font, corpusFiles, 14);
+            corpusDropdown = new Components.Dropdown(font, corpusFiles, 14);
             corpusDropdown.SetBounds(new Rectangle(0, 0, 250, 35)); // Set initial size
-            corpusDropdown.PositionMode = PositionMode.Absolute; // Will be positioned by container's auto-layout
+            corpusDropdown.PositionMode = Components.PositionMode.Absolute; // Will be positioned by container's auto-layout
             corpusDropdown.OnSelectionChanged = OnCorpusSelected;
             corpusControlsContainer.AddChild(corpusDropdown);
 
             // Create container for right-aligned info text
-            infoTextContainer = new Container("InfoTextContainer");
+            infoTextContainer = new Components.Container("InfoTextContainer");
             infoTextContainer.AutoLayoutChildren = true;
-            infoTextContainer.LayoutDirection = LayoutDirection.Horizontal;
-            infoTextContainer.ChildJustification = ChildJustification.Right;
+            infoTextContainer.LayoutDirection = Components.LayoutDirection.Horizontal;
+            infoTextContainer.ChildJustification = Components.ChildJustification.Right;
             infoTextContainer.ChildGap = 0;
             infoTextContainer.ChildPadding = 20; // Right padding
             infoTextContainer.Bounds = new Rectangle(0, 0, 0, 35); // Width will be calculated by layout
             corpusRowContainer.AddChild(infoTextContainer);
 
             // Initialize info text
-            infoText = new InfoText(font, "", 14);
+            infoText = new Components.InfoText(font, "", 14);
             infoText.Bounds = new Rectangle(0, 0, 0, 35); // Width will be set based on content
             infoTextContainer.AddChild(infoText);
         }

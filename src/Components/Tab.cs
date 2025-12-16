@@ -1,6 +1,6 @@
 using Raylib_cs;
 
-namespace Keysharp.UI
+namespace Keysharp.Components
 {
     public class Tab : UIElement
     {
@@ -43,12 +43,8 @@ namespace Keysharp.UI
             }
         }
 
-        public override void Draw()
+        protected override void DrawSelf()
         {
-            // Only draw if visible
-            if (!IsVisible)
-                return;
-            
             // Tab background
             Color tabColor = IsActive ? UITheme.MainPanelColor : UITheme.SidePanelColor;
             Raylib.DrawRectangleRec(Bounds, tabColor);
@@ -78,8 +74,6 @@ namespace Keysharp.UI
             // Tab text
             Color textColor = IsActive ? UITheme.TextColor : UITheme.TextSecondaryColor;
             FontManager.DrawText(font, TabName, (int)Bounds.X + TabPadding, (int)Bounds.Y + 10, 14, textColor);
-
-            base.Draw();
         }
     }
 }

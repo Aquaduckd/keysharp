@@ -1,7 +1,8 @@
 using Raylib_cs;
 using System;
+using Keysharp.UI;
 
-namespace Keysharp.UI
+namespace Keysharp.Components
 {
     public class Button : UIElement
     {
@@ -61,26 +62,23 @@ namespace Keysharp.UI
             }
         }
 
-        public override void Draw()
+        protected override void DrawSelf()
         {
-            // Only draw if visible and bounds are valid
-            if (!IsVisible || Bounds.Width <= 0 || Bounds.Height <= 0)
+            // Only draw if bounds are valid
+            if (Bounds.Width <= 0 || Bounds.Height <= 0)
                 return;
-            {
-                // Button background
-                Color bgColor = IsPressed ? UITheme.MainPanelColor : 
-                               IsHovered ? UITheme.SplitterHoverColor : 
-                               UITheme.SidePanelColor;
-                
-                Raylib.DrawRectangleRec(Bounds, bgColor);
-                Raylib.DrawRectangleLinesEx(Bounds, 1, UITheme.BorderColor);
 
-                // Button text (centered)
-                Color textColor = IsHovered ? UITheme.TextColor : UITheme.TextSecondaryColor;
-                TextContainer.DrawCenteredText(font, Text, Bounds, fontSize, textColor);
-            }
+            // Button background
+            Color bgColor = IsPressed ? UITheme.MainPanelColor : 
+                           IsHovered ? UITheme.SplitterHoverColor : 
+                           UITheme.SidePanelColor;
+            
+            Raylib.DrawRectangleRec(Bounds, bgColor);
+            Raylib.DrawRectangleLinesEx(Bounds, 1, UITheme.BorderColor);
 
-            base.Draw(); // Draw children if any
+            // Button text (centered)
+            Color textColor = IsHovered ? UITheme.TextColor : UITheme.TextSecondaryColor;
+            TextContainer.DrawCenteredText(font, Text, Bounds, fontSize, textColor);
         }
     }
 }

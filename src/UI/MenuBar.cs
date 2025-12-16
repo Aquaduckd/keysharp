@@ -1,11 +1,11 @@
 using Raylib_cs;
 using System.Collections.Generic;
-using Keysharp.Panels;
+using Keysharp.Components;
 using Keysharp.UI;
 
-namespace Keysharp
+namespace Keysharp.UI
 {
-    public class MenuBar : UIElement
+    public class MenuBar : Components.UIElement
     {
         private const int MenuBarHeight = 30;
 
@@ -180,11 +180,8 @@ namespace Keysharp
             }
         }
 
-        public override void Draw()
+        protected override void DrawSelf()
         {
-            if (!IsVisible)
-                return;
-
             // Draw menu bar background
             Raylib.DrawRectangleRec(Bounds, UITheme.SidePanelColor);
             Raylib.DrawLineEx(
@@ -193,9 +190,6 @@ namespace Keysharp
                 1,
                 UITheme.BorderColor
             );
-
-            // Menus are drawn as children via base.Draw()
-            base.Draw();
         }
 
         public void DrawDropdowns()

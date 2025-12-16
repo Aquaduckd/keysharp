@@ -1,8 +1,9 @@
 using Raylib_cs;
+using Keysharp.Components;
 
 namespace Keysharp.UI
 {
-    public class MenuItem : UIElement
+    public class MenuItem : Components.UIElement
     {
         public string Text { get; set; }
         public System.Action? OnClick { get; set; }
@@ -35,7 +36,7 @@ namespace Keysharp.UI
             }
         }
 
-        public override void Draw()
+        protected override void DrawSelf()
         {
             // Draw menu item background if open or hovered
             if (IsOpen)
@@ -46,8 +47,6 @@ namespace Keysharp.UI
             // Draw menu text
             Color textColor = IsOpen ? UITheme.TextColor : UITheme.TextSecondaryColor;
             FontManager.DrawText(font, Text, (int)Bounds.X + 12, 8, fontSize, textColor);
-
-            base.Draw();
         }
     }
 }

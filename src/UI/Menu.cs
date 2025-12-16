@@ -1,13 +1,14 @@
 using Raylib_cs;
 using System;
 using System.Collections.Generic;
+using Keysharp.Components;
 
 namespace Keysharp.UI
 {
     /// <summary>
     /// A menu component that handles its own dropdown logic.
     /// </summary>
-    public class Menu : UIElement
+    public class Menu : Components.UIElement
     {
         private const int MenuItemPadding = 12;
         private const int DropdownItemHeight = 25;
@@ -119,11 +120,8 @@ namespace Keysharp.UI
             }
         }
 
-        public override void Draw()
+        protected override void DrawSelf()
         {
-            if (!IsVisible)
-                return;
-
             // Draw menu button background if open
             if (isOpen)
             {
@@ -133,8 +131,6 @@ namespace Keysharp.UI
             // Draw menu text
             Color textColor = isOpen ? UITheme.TextColor : UITheme.TextSecondaryColor;
             FontManager.DrawText(font, menuName, (int)Bounds.X + MenuItemPadding, (int)Bounds.Y + 8, 14, textColor);
-
-            base.Draw();
         }
 
         public void DrawDropdown()

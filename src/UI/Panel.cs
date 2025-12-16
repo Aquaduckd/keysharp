@@ -1,9 +1,9 @@
 using Raylib_cs;
-using Keysharp.UI;
+using Keysharp.Components;
 
-namespace Keysharp.Panels
+namespace Keysharp.UI
 {
-    public abstract class Panel : UIElement
+    public abstract class Panel : Components.UIElement
     {
         protected Font Font { get; }
 
@@ -17,13 +17,10 @@ namespace Keysharp.Panels
             IsHoverable = false;
         }
 
-        public override void Draw()
+        protected override void DrawSelf()
         {
             // Draw panel background and borders
             DrawPanelContent(Bounds);
-
-            // Draw all children recursively
-            base.Draw();
         }
 
         protected abstract void DrawPanelContent(Rectangle bounds);

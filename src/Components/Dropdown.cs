@@ -2,8 +2,9 @@ using Raylib_cs;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Keysharp.UI;
 
-namespace Keysharp.UI
+namespace Keysharp.Components
 {
     public class Dropdown : UIElement
     {
@@ -114,15 +115,14 @@ namespace Keysharp.UI
             // Note: Cursor is set centrally in Program.cs based on hover state
         }
 
-        public override void Draw()
+        protected override void DrawSelf()
         {
-            // Only draw if visible and bounds are valid
-            if (IsVisible && Bounds.Width > 0 && Bounds.Height > 0)
-            {
-                // Draw dropdown button only (dropdown list drawn separately via DrawDropdown)
-                DrawButton();
-            }
-            base.Draw(); // Draw children if any
+            // Only draw if bounds are valid
+            if (Bounds.Width <= 0 || Bounds.Height <= 0)
+                return;
+
+            // Draw dropdown button only (dropdown list drawn separately via DrawDropdown)
+            DrawButton();
         }
 
         public void DrawButton()

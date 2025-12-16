@@ -1,6 +1,7 @@
 using Raylib_cs;
+using Keysharp.UI;
 
-namespace Keysharp.UI
+namespace Keysharp.Components
 {
     public class InfoText : UIElement
     {
@@ -32,18 +33,13 @@ namespace Keysharp.UI
             return text;
         }
 
-        public override void Draw()
+        protected override void DrawSelf()
         {
-            if (!IsVisible)
-                return;
-
             if (!string.IsNullOrEmpty(text) && Bounds.Width > 0 && Bounds.Height > 0)
             {
                 // Draw right-aligned text within the bounds
                 TextContainer.DrawRightAlignedText(font, text, Bounds, fontSize, color, 20);
             }
-
-            base.Draw();
         }
     }
 }

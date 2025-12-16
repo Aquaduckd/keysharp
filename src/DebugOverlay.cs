@@ -1,5 +1,5 @@
 using Raylib_cs;
-using Keysharp.Panels;
+using Keysharp.Components;
 using Keysharp.UI;
 
 namespace Keysharp
@@ -27,7 +27,7 @@ namespace Keysharp
             DrawUIElement(rootUI);
         }
 
-        private void DrawUIElement(UI.UIElement element)
+        private void DrawUIElement(Components.UIElement element)
         {
             // Skip hidden elements
             if (!element.IsVisible)

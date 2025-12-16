@@ -2,7 +2,7 @@ using Raylib_cs;
 using System.Collections.Generic;
 using System.Numerics;
 
-namespace Keysharp.UI
+namespace Keysharp.Components
 {
     public enum PositionMode
     {
@@ -422,15 +422,29 @@ namespace Keysharp.UI
 
         public virtual void Draw()
         {
-            // Only draw if visible
+            // Only draw if visible - this check happens at the base level
+            // so derived classes don't need to check IsVisible themselves
             if (!IsVisible)
                 return;
 
+            // Derived classes should override this method and call base.Draw() at the end
+            // to draw children. The base implementation only draws children.
+            DrawSelf();
+            
             // Draw all children
             foreach (var child in Children)
             {
                 child.Draw();
             }
+        }
+        
+        /// <summary>
+        /// Override this method to draw the element itself (not children).
+        /// This method is only called when IsVisible is true.
+        /// </summary>
+        protected virtual void DrawSelf()
+        {
+            // Default implementation does nothing - derived classes override to draw themselves
         }
 
         public virtual bool IsHovering(int mouseX, int mouseY)

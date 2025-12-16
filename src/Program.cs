@@ -1,7 +1,7 @@
 using Raylib_cs;
 using System;
 using System.Linq;
-using Keysharp.Panels;
+using Keysharp.Components;
 using Keysharp.UI;
 
 namespace Keysharp
