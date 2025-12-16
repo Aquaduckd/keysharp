@@ -11,7 +11,7 @@ namespace Keysharp.Panels
         {
         }
 
-        public override void Draw(Rectangle bounds)
+        protected override void DrawPanelContent(Rectangle bounds)
         {
             // Draw background
             Raylib.DrawRectangleRec(bounds, UITheme.BottomPanelColor);

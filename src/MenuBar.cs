@@ -1,10 +1,11 @@
 using Raylib_cs;
 using System.Collections.Generic;
 using Keysharp.Panels;
+using Keysharp.UI;
 
 namespace Keysharp
 {
-    public class MenuBar
+    public class MenuBar : UIElement
     {
         private const int MenuBarHeight = 30;
         private const int MenuItemPadding = 12;
@@ -16,10 +17,13 @@ namespace Keysharp
         private List<Menu> menus = new List<Menu>();
         private int? openMenuIndex = null;
 
-        public MenuBar(Font font, MainPanel? mainPanel = null)
+        public MenuBar(Font font, MainPanel? mainPanel = null) : base("MenuBar")
         {
             this.font = font;
             this.mainPanel = mainPanel;
+            
+            // Set initial bounds
+            Bounds = new Rectangle(0, 0, Raylib.GetScreenWidth(), MenuBarHeight);
             
             // Initialize menus
             var fileMenu = new Menu("File");
@@ -106,7 +110,7 @@ namespace Keysharp
             return bounds;
         }
 
-        public bool IsHovering(int mouseX, int mouseY)
+        public override bool IsHovering(int mouseX, int mouseY)
         {
             // Check if hovering over menu bar items
             if (mouseY >= 0 && mouseY <= MenuBarHeight)
@@ -145,8 +149,13 @@ namespace Keysharp
             return false;
         }
 
-        public void Update()
+        public override void Update()
         {
+            base.Update();
+            
+            // Update bounds
+            Bounds = new Rectangle(0, 0, Raylib.GetScreenWidth(), MenuBarHeight);
+            
             int mouseX = Raylib.GetMouseX();
             int mouseY = Raylib.GetMouseY();
             bool hoveringOverInteractive = false;
@@ -241,15 +250,13 @@ namespace Keysharp
             }
         }
 
-        public void Draw()
+        public override void Draw()
         {
-            int windowWidth = Raylib.GetScreenWidth();
-            
             // Draw menu bar background
-            Raylib.DrawRectangle(0, 0, windowWidth, MenuBarHeight, UITheme.SidePanelColor);
+            Raylib.DrawRectangleRec(Bounds, UITheme.SidePanelColor);
             Raylib.DrawLineEx(
-                new System.Numerics.Vector2(0, MenuBarHeight),
-                new System.Numerics.Vector2(windowWidth, MenuBarHeight),
+                new System.Numerics.Vector2(Bounds.X, Bounds.Y + Bounds.Height),
+                new System.Numerics.Vector2(Bounds.X + Bounds.Width, Bounds.Y + Bounds.Height),
                 1,
                 UITheme.BorderColor
             );

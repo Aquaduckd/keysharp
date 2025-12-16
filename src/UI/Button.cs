@@ -30,6 +30,14 @@ namespace Keysharp.UI
         {
             base.Update(); // Update children if any
 
+            // Only process input if bounds are valid
+            if (Bounds.Width <= 0 || Bounds.Height <= 0)
+            {
+                IsHovered = false;
+                IsPressed = false;
+                return;
+            }
+
             int mouseX = Raylib.GetMouseX();
             int mouseY = Raylib.GetMouseY();
 
@@ -50,17 +58,21 @@ namespace Keysharp.UI
 
         public override void Draw()
         {
-            // Button background
-            Color bgColor = IsPressed ? UITheme.MainPanelColor : 
-                           IsHovered ? UITheme.SplitterHoverColor : 
-                           UITheme.SidePanelColor;
-            
-            Raylib.DrawRectangleRec(Bounds, bgColor);
-            Raylib.DrawRectangleLinesEx(Bounds, 1, UITheme.BorderColor);
+            // Only draw if bounds are valid (not hidden)
+            if (Bounds.Width > 0 && Bounds.Height > 0)
+            {
+                // Button background
+                Color bgColor = IsPressed ? UITheme.MainPanelColor : 
+                               IsHovered ? UITheme.SplitterHoverColor : 
+                               UITheme.SidePanelColor;
+                
+                Raylib.DrawRectangleRec(Bounds, bgColor);
+                Raylib.DrawRectangleLinesEx(Bounds, 1, UITheme.BorderColor);
 
-            // Button text (centered)
-            Color textColor = IsHovered ? UITheme.TextColor : UITheme.TextSecondaryColor;
-            TextContainer.DrawCenteredText(font, Text, Bounds, fontSize, textColor);
+                // Button text (centered)
+                Color textColor = IsHovered ? UITheme.TextColor : UITheme.TextSecondaryColor;
+                TextContainer.DrawCenteredText(font, Text, Bounds, fontSize, textColor);
+            }
 
             base.Draw(); // Draw children if any
         }

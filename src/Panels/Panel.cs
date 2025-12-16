@@ -12,7 +12,16 @@ namespace Keysharp.Panels
             Font = font;
         }
 
-        public abstract void Draw(Rectangle bounds);
+        public override void Draw()
+        {
+            // Draw panel background and borders
+            DrawPanelContent(Bounds);
+
+            // Draw all children recursively
+            base.Draw();
+        }
+
+        protected abstract void DrawPanelContent(Rectangle bounds);
 
         // Override to update bounds when panel is drawn
         public virtual void UpdateBounds(Rectangle bounds)

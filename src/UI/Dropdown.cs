@@ -65,6 +65,10 @@ namespace Keysharp.UI
         {
             base.Update(); // Update children if any
 
+            // Only process input if bounds are valid
+            if (Bounds.Width <= 0 || Bounds.Height <= 0)
+                return;
+
             int mouseX = Raylib.GetMouseX();
             int mouseY = Raylib.GetMouseY();
 
@@ -107,8 +111,12 @@ namespace Keysharp.UI
 
         public override void Draw()
         {
-            // Draw dropdown button only
-            DrawButton();
+            // Only draw if bounds are valid (not hidden)
+            if (Bounds.Width > 0 && Bounds.Height > 0)
+            {
+                // Draw dropdown button only (dropdown list drawn separately via DrawDropdown)
+                DrawButton();
+            }
             base.Draw(); // Draw children if any
         }
 

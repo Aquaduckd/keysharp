@@ -1,6 +1,8 @@
 using Raylib_cs;
 using System;
+using System.Linq;
 using Keysharp.Panels;
+using Keysharp.UI;
 
 namespace Keysharp
 {
@@ -30,52 +32,32 @@ namespace Keysharp
             LayoutManager layout = new LayoutManager();
             layout.MenuBarHeight = menuBar.Height;
 
+            // Create root UI element (contains all panels)
+            RootUI rootUI = new RootUI(sidePanel, mainPanel, bottomPanel, menuBar, layout);
+
             // Create debug overlay
             DebugOverlay debugOverlay = new DebugOverlay();
 
             while (!Raylib.WindowShouldClose())
             {
-                int windowWidth = Raylib.GetScreenWidth();
-                int windowHeight = Raylib.GetScreenHeight();
-
-                // Update layout (handles resizing)
-                layout.Update(windowWidth, windowHeight);
-
-                // Calculate current layout
-                var layoutRect = layout.CalculateLayout(windowWidth, windowHeight);
-
-                // Update menu bar and panels (handle input)
-                menuBar.Update();
-                mainPanel.Update(layoutRect.MainPanel);
+                // Update root UI (recursively updates all children)
+                rootUI.Update();
                 
                 // Update debug overlay
                 debugOverlay.Update();
                 
-                // Resolve cursor with proper priority (only set once per frame)
-                ResolveCursor(layout, menuBar, mainPanel, layoutRect.MainPanel);
+                // Cursor is handled by individual UI elements
+                var layoutRect = rootUI.Layout.CalculateLayout(Raylib.GetScreenWidth(), Raylib.GetScreenHeight());
+                ResolveCursor(rootUI, layoutRect.MainPanel);
 
                 Raylib.BeginDrawing();
                 Raylib.ClearBackground(UITheme.BackgroundColor);
 
-                // Draw menu bar (bar only, not dropdowns)
-                menuBar.Draw();
-
-                // Draw panels (each panel draws itself)
-                sidePanel.Draw(layoutRect.SidePanel);
-                mainPanel.Draw(layoutRect.MainPanel);
-                bottomPanel.Draw(layoutRect.BottomPanel);
-
-                // Draw splitters
-                layout.DrawSplitters();
-
-                // Draw menu dropdowns on top of everything
-                menuBar.DrawDropdowns();
-
-                // Draw panel dropdowns on top of everything
-                mainPanel.DrawDropdowns();
+                // Draw root UI (recursively draws all children)
+                rootUI.Draw();
 
                 // Draw debug overlay on top of everything
-                debugOverlay.Draw(layout, menuBar, sidePanel, mainPanel, bottomPanel, layoutRect);
+                debugOverlay.Draw(rootUI, layoutRect);
 
                 Raylib.EndDrawing();
             }
@@ -89,47 +71,57 @@ namespace Keysharp
             Raylib.CloseWindow();
         }
 
-        private static void ResolveCursor(LayoutManager layout, MenuBar menuBar, MainPanel mainPanel, Rectangle mainPanelBounds)
+        private static void ResolveCursor(RootUI rootUI, Rectangle mainPanelBounds)
         {
-            // Priority order:
-            // 1. Splitters (highest priority) - already handled in LayoutManager.Update()
-            // 2. Interactive elements (buttons, dropdowns, tabs, menus)
-            // 3. Default (lowest priority)
-
-            // Check splitters first (highest priority)
-            if (layout.IsHoveringSplitter())
-            {
-                // Cursor already set by LayoutManager.Update()
-                return;
-            }
-
-            // Check interactive elements
+            // Check all UI elements in priority order to determine cursor
             int mouseX = Raylib.GetMouseX();
             int mouseY = Raylib.GetMouseY();
-
-            // Check menu bar (includes dropdowns)
-            if (menuBar.IsHovering(mouseX, mouseY))
+            
+            // Priority 1: Splitters (highest priority)
+            if (rootUI.Children.OfType<Splitter>().Any(s => s.IsHovering(mouseX, mouseY) || s.IsDragging))
+            {
+                var splitter = rootUI.Children.OfType<Splitter>().FirstOrDefault(s => s.IsHovering(mouseX, mouseY) || s.IsDragging);
+                if (splitter != null)
+                {
+                    Raylib.SetMouseCursor(splitter.IsVertical 
+                        ? MouseCursor.MOUSE_CURSOR_RESIZE_EW 
+                        : MouseCursor.MOUSE_CURSOR_RESIZE_NS);
+                    return;
+                }
+            }
+            
+            // Priority 2: Interactive elements (buttons, dropdowns, tabs, menu items)
+            if (IsHoveringInteractiveElement(rootUI, mouseX, mouseY))
             {
                 Raylib.SetMouseCursor(MouseCursor.MOUSE_CURSOR_POINTING_HAND);
                 return;
             }
-
-            // Check tabs
-            if (mainPanel.IsHoveringTab(mainPanelBounds, mouseX, mouseY))
-            {
-                Raylib.SetMouseCursor(MouseCursor.MOUSE_CURSOR_POINTING_HAND);
-                return;
-            }
-
-            // Check buttons and dropdowns in main panel
-            if (mainPanel.IsHoveringInteractiveElement(mainPanelBounds, mouseX, mouseY))
-            {
-                Raylib.SetMouseCursor(MouseCursor.MOUSE_CURSOR_POINTING_HAND);
-                return;
-            }
-
+            
             // Default cursor
             Raylib.SetMouseCursor(MouseCursor.MOUSE_CURSOR_DEFAULT);
+        }
+        
+        private static bool IsHoveringInteractiveElement(UIElement element, int mouseX, int mouseY)
+        {
+            // Check this element
+            if (element is Button || element is Dropdown || element is Tab)
+            {
+                if (element.IsHovering(mouseX, mouseY))
+                {
+                    return true;
+                }
+            }
+            
+            // Check children recursively
+            foreach (var child in element.Children)
+            {
+                if (IsHoveringInteractiveElement(child, mouseX, mouseY))
+                {
+                    return true;
+                }
+            }
+            
+            return false;
         }
     }
 }

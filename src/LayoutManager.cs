@@ -8,89 +8,15 @@ namespace Keysharp
         // Panel dimensions (stored as state so they can be modified)
         public float SidePanelWidth { get; set; } = 200;
         public float BottomPanelHeight { get; set; } = 100;
-        public const int SplitterWidth = 4;
+        public static int SplitterWidth => 4;
         public const int MinPanelSize = 50; // Minimum size for panels
         public int MenuBarHeight { get; set; } = 0; // Set by MenuBar
-
-        // Splitter state
-        private bool isDraggingVertical = false;
-        private bool isDraggingHorizontal = false;
-        private bool isHoveringVertical = false;
-        private bool isHoveringHorizontal = false;
-
-        public bool IsHoveringSplitter()
-        {
-            return isHoveringVertical || isDraggingVertical || isHoveringHorizontal || isDraggingHorizontal;
-        }
 
         public void Update(int windowWidth, int windowHeight)
         {
             // Clamp panel sizes to window bounds
             SidePanelWidth = Math.Clamp(SidePanelWidth, MinPanelSize, windowWidth - MinPanelSize - SplitterWidth);
             BottomPanelHeight = Math.Clamp(BottomPanelHeight, MinPanelSize, windowHeight - MinPanelSize - SplitterWidth);
-
-            // Calculate splitter positions
-            int verticalSplitterX = (int)SidePanelWidth;
-            int horizontalSplitterY = windowHeight - (int)BottomPanelHeight - SplitterWidth;
-
-            // Get mouse position
-            int mouseX = Raylib.GetMouseX();
-            int mouseY = Raylib.GetMouseY();
-
-            // Check if mouse is over vertical splitter
-            isHoveringVertical = mouseX >= verticalSplitterX && 
-                                mouseX <= verticalSplitterX + SplitterWidth &&
-                                mouseY >= MenuBarHeight && 
-                                mouseY <= windowHeight;
-
-            // Check if mouse is over horizontal splitter
-            isHoveringHorizontal = mouseY >= horizontalSplitterY && 
-                                  mouseY <= horizontalSplitterY + SplitterWidth &&
-                                  mouseX >= verticalSplitterX + SplitterWidth && 
-                                  mouseX <= windowWidth;
-
-            // Handle mouse input
-            if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT))
-            {
-                if (isHoveringVertical)
-                {
-                    isDraggingVertical = true;
-                }
-                else if (isHoveringHorizontal)
-                {
-                    isDraggingHorizontal = true;
-                }
-            }
-
-            if (Raylib.IsMouseButtonReleased(MouseButton.MOUSE_BUTTON_LEFT))
-            {
-                isDraggingVertical = false;
-                isDraggingHorizontal = false;
-            }
-
-            // Update panel sizes while dragging
-            if (isDraggingVertical)
-            {
-                SidePanelWidth = mouseX;
-                SidePanelWidth = Math.Clamp(SidePanelWidth, MinPanelSize, windowWidth - MinPanelSize - SplitterWidth);
-            }
-
-            if (isDraggingHorizontal)
-            {
-                BottomPanelHeight = windowHeight - mouseY;
-                BottomPanelHeight = Math.Clamp(BottomPanelHeight, MinPanelSize, windowHeight - MinPanelSize - SplitterWidth);
-            }
-
-            // Change cursor when hovering over splitters
-            // This has priority over other cursor changes
-            if (isHoveringVertical || isDraggingVertical)
-            {
-                Raylib.SetMouseCursor(MouseCursor.MOUSE_CURSOR_RESIZE_EW);
-            }
-            else if (isHoveringHorizontal || isDraggingHorizontal)
-            {
-                Raylib.SetMouseCursor(MouseCursor.MOUSE_CURSOR_RESIZE_NS);
-            }
         }
 
         public PanelLayout CalculateLayout(int windowWidth, int windowHeight)
@@ -130,22 +56,6 @@ namespace Keysharp
             };
         }
 
-        public void DrawSplitters()
-        {
-            var layoutRect = CalculateLayout(Raylib.GetScreenWidth(), Raylib.GetScreenHeight());
-            
-            // Draw vertical splitter (with hover effect)
-            Color splitterColor = (isHoveringVertical || isDraggingVertical) 
-                ? UITheme.SplitterHoverColor 
-                : UITheme.SplitterColor;
-            Raylib.DrawRectangleRec(layoutRect.VerticalSplitter, splitterColor);
-
-            // Draw horizontal splitter (with hover effect)
-            splitterColor = (isHoveringHorizontal || isDraggingHorizontal) 
-                ? UITheme.SplitterHoverColor 
-                : UITheme.SplitterColor;
-            Raylib.DrawRectangleRec(layoutRect.HorizontalSplitter, splitterColor);
-        }
     }
 
     public struct PanelLayout

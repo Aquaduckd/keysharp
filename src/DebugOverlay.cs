@@ -17,43 +17,14 @@ namespace Keysharp
             }
         }
 
-        public void Draw(LayoutManager layout, MenuBar menuBar, SidePanel sidePanel, MainPanel mainPanel, BottomPanel bottomPanel, PanelLayout panelLayout)
+        public void Draw(RootUI rootUI, PanelLayout panelLayout)
         {
             if (!isEnabled)
                 return;
 
-            // Draw debug rectangles for splitters (not UI elements)
-            DrawDebugRect(panelLayout.VerticalSplitter, "VerticalSplitter");
-            DrawDebugRect(panelLayout.HorizontalSplitter, "HorizontalSplitter");
-
-            // Update panel bounds before drawing
-            sidePanel.UpdateBounds(panelLayout.SidePanel);
-            mainPanel.UpdateBounds(panelLayout.MainPanel);
-            bottomPanel.UpdateBounds(panelLayout.BottomPanel);
-
-            // Recursively draw all UI elements
-            DrawUIElement(sidePanel);
-            DrawUIElement(mainPanel);
-            DrawUIElement(bottomPanel);
-
-            // Draw menu bar (not a UIElement yet, so handle separately)
-            Rectangle menuBarRect = new Rectangle(0, 0, Raylib.GetScreenWidth(), menuBar.Height);
-            DrawDebugRect(menuBarRect, "MenuBar");
-            DrawMenuBarItems(menuBar);
-
-            // Draw tab bounds (special case for MainPanel)
-            var tabBounds = mainPanel.GetTabBounds(panelLayout.MainPanel);
-            for (int i = 0; i < tabBounds.Count; i++)
-            {
-                DrawDebugRect(tabBounds[i], $"Tab{i}");
-            }
-
-            // Draw info text bounds (special case)
-            var infoTextBounds = mainPanel.GetInfoTextBounds(panelLayout.MainPanel);
-            if (infoTextBounds.HasValue)
-            {
-                DrawDebugRect(infoTextBounds.Value, "InfoText");
-            }
+            // Recursively draw all UI elements starting from root
+            // This includes panels, tabs, buttons, dropdowns, info text, splitters, and menu bar
+            DrawUIElement(rootUI);
         }
 
         private void DrawUIElement(UI.UIElement element)
@@ -88,14 +59,6 @@ namespace Keysharp
             }
         }
 
-        private void DrawMenuBarItems(MenuBar menuBar)
-        {
-            var menuItemBounds = menuBar.GetMenuItemBounds();
-            for (int i = 0; i < menuItemBounds.Count; i++)
-            {
-                DrawDebugRect(menuItemBounds[i], $"Menu{i}");
-            }
-        }
     }
 }
 

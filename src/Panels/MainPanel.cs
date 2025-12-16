@@ -21,47 +21,11 @@ namespace Keysharp.Panels
         // Corpus tab state
         private Button? loadCorpusButton;
         private Dropdown? corpusDropdown;
+        private InfoText? infoText;
         private string? loadedCorpusPath = null;
 
-        // Debug: expose component bounds
-        public Button? LoadCorpusButton => loadCorpusButton;
-        public Dropdown? CorpusDropdown => corpusDropdown;
-        
-        public Rectangle? GetInfoTextBounds(Rectangle panelBounds)
-        {
-            if (string.IsNullOrEmpty(loadedCorpusPath))
-                return null;
-                
-            const int lineY = 60;
-            const int elementHeight = 35;
-            
-            return new Rectangle(
-                panelBounds.X,
-                panelBounds.Y + TabHeight + lineY,
-                panelBounds.Width - 20, // Leave 20px margin on right
-                elementHeight
-            );
-        }
-        
-        public List<Rectangle> GetTabBounds(Rectangle panelBounds)
-        {
-            List<Rectangle> tabBounds = new List<Rectangle>();
-            int currentX = (int)panelBounds.X;
-            int tabY = (int)panelBounds.Y;
-
-            for (int i = 0; i < tabs.Count; i++)
-            {
-                if (!visibleTabs.Contains(tabs[i]))
-                    continue;
-
-                int textWidth = (int)FontManager.MeasureText(Font, tabs[i], 14);
-                int tabWidth = TabPadding * 2 + textWidth;
-                tabBounds.Add(new Rectangle(currentX, tabY, tabWidth, TabHeight));
-                currentX += tabWidth + TabSpacing;
-            }
-
-            return tabBounds;
-        }
+        // Tab elements
+        private List<Tab> tabElements = new List<Tab>();
 
         public MainPanel(Font font) : base(font, "MainPanel")
         {
@@ -69,6 +33,16 @@ namespace Keysharp.Panels
             foreach (var tab in tabs)
             {
                 visibleTabs.Add(tab);
+            }
+
+            // Create tab elements
+            for (int i = 0; i < tabs.Count; i++)
+            {
+                var tabElement = new Tab(font, tabs[i]);
+                int tabIndex = i; // Capture for closure
+                tabElement.OnClick = () => { activeTabIndex = tabIndex; };
+                tabElements.Add(tabElement);
+                AddChild(tabElement);
             }
 
             // Initialize corpus button
@@ -81,6 +55,10 @@ namespace Keysharp.Panels
             corpusDropdown = new Dropdown(font, corpusFiles, 14);
             corpusDropdown.OnSelectionChanged = OnCorpusSelected;
             AddChild(corpusDropdown);
+
+            // Initialize info text
+            infoText = new InfoText(font, "", 14);
+            AddChild(infoText);
         }
 
         public List<string> GetTabs()
@@ -125,6 +103,31 @@ namespace Keysharp.Panels
             int mouseX = Raylib.GetMouseX();
             int mouseY = Raylib.GetMouseY();
 
+            // Update tab elements
+            int currentX = (int)bounds.X;
+            int tabY = (int)bounds.Y;
+            for (int i = 0; i < tabElements.Count; i++)
+            {
+                var tabElement = tabElements[i];
+                bool isVisible = visibleTabs.Contains(tabs[i]);
+                
+                if (isVisible)
+                {
+                    int textWidth = (int)FontManager.MeasureText(Font, tabs[i], 14);
+                    int tabWidth = TabPadding * 2 + textWidth;
+                    
+                    tabElement.Bounds = new Rectangle(currentX, tabY, tabWidth, TabHeight);
+                    tabElement.IsActive = (i == activeTabIndex);
+                    
+                    currentX += tabWidth + TabSpacing;
+                }
+                else
+                {
+                    // Hide invisible tabs
+                    tabElement.Bounds = new Rectangle(-1000, -1000, 0, 0);
+                }
+            }
+
             // Update corpus button and dropdown if corpus tab is active
             if (tabs[activeTabIndex] == "corpus")
             {
@@ -162,42 +165,50 @@ namespace Keysharp.Panels
                         elementHeight
                     ));
                 }
+
+                // Update info text
+                if (infoText != null)
+                {
+                    if (!string.IsNullOrEmpty(loadedCorpusPath))
+                    {
+                        string fileName = Path.GetFileName(loadedCorpusPath);
+                        infoText.SetText($"Loaded: {fileName}");
+                        infoText.Bounds = new Rectangle(
+                            contentArea.X,
+                            contentArea.Y + lineY,
+                            contentArea.Width - 20,
+                            elementHeight
+                        );
+                    }
+                    else
+                    {
+                        infoText.SetText("");
+                        infoText.Bounds = new Rectangle(0, 0, 0, 0);
+                    }
+                }
+            }
+            else
+            {
+                // Hide button, dropdown, and info text when not in corpus tab
+                if (loadCorpusButton != null)
+                {
+                    loadCorpusButton.Bounds = new Rectangle(-1000, -1000, 0, 0);
+                }
+                if (corpusDropdown != null)
+                {
+                    corpusDropdown.SetBounds(new Rectangle(-1000, -1000, 0, 0));
+                }
+                if (infoText != null)
+                {
+                    infoText.Bounds = new Rectangle(0, 0, 0, 0);
+                }
             }
 
             // Recursively update all children
             base.Update();
-
-            // Note: Cursor is set centrally in Program.cs based on hover state
-
-            // Handle tab clicks
-            if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT))
-            {
-                // Check if click is in tab area
-                if (mouseY >= bounds.Y && mouseY <= bounds.Y + TabHeight)
-                {
-                    int currentX = (int)bounds.X;
-                    for (int i = 0; i < tabs.Count; i++)
-                    {
-                        // Skip invisible tabs
-                        if (!visibleTabs.Contains(tabs[i]))
-                            continue;
-
-                        // Estimate tab width (text width + padding)
-                        int tabWidth = TabPadding * 2 + (int)FontManager.MeasureText(Font, tabs[i], 14);
-                        
-                        if (mouseX >= currentX && mouseX <= currentX + tabWidth)
-                        {
-                            activeTabIndex = i;
-                            break;
-                        }
-                        
-                        currentX += tabWidth + TabSpacing;
-                    }
-                }
-            }
         }
 
-        public override void Draw(Rectangle bounds)
+        protected override void DrawPanelContent(Rectangle bounds)
         {
             // Draw background
             Raylib.DrawRectangleRec(bounds, UITheme.MainPanelColor);
@@ -209,10 +220,7 @@ namespace Keysharp.Panels
                 new System.Numerics.Vector2(bounds.X + bounds.Width, bounds.Y + bounds.Height),
                 1, UITheme.BorderColor);
 
-            // Draw tabs
-            DrawTabs(bounds);
-
-            // Draw tab content area
+            // Draw tab content area (tabs are drawn by their UI elements)
             Rectangle contentArea = new Rectangle(
                 bounds.X,
                 bounds.Y + TabHeight,
@@ -223,57 +231,6 @@ namespace Keysharp.Panels
             DrawTabContent(contentArea, activeTabIndex);
         }
 
-        private void DrawTabs(Rectangle bounds)
-        {
-            int currentX = (int)bounds.X;
-            int tabY = (int)bounds.Y;
-
-            for (int i = 0; i < tabs.Count; i++)
-            {
-                // Skip invisible tabs
-                if (!visibleTabs.Contains(tabs[i]))
-                    continue;
-
-                bool isActive = i == activeTabIndex;
-                
-                // Calculate tab width
-                int textWidth = (int)FontManager.MeasureText(Font, tabs[i], 14);
-                int tabWidth = TabPadding * 2 + textWidth;
-
-                // Tab background
-                Color tabColor = isActive ? UITheme.MainPanelColor : UITheme.SidePanelColor;
-                Rectangle tabRect = new Rectangle(currentX, tabY, tabWidth, TabHeight);
-                Raylib.DrawRectangleRec(tabRect, tabColor);
-
-                // Tab border (only bottom border for active, all borders for inactive)
-                if (isActive)
-                {
-                    // Draw bottom border to separate from content
-                    Raylib.DrawLineEx(
-                        new System.Numerics.Vector2(currentX, tabY + TabHeight),
-                        new System.Numerics.Vector2(currentX + tabWidth, tabY + TabHeight),
-                        1,
-                        UITheme.BorderColor
-                    );
-                }
-                else
-                {
-                    // Draw right border
-                    Raylib.DrawLineEx(
-                        new System.Numerics.Vector2(currentX + tabWidth, tabY),
-                        new System.Numerics.Vector2(currentX + tabWidth, tabY + TabHeight),
-                        1,
-                        UITheme.BorderColor
-                    );
-                }
-
-                // Tab text
-                Color textColor = isActive ? UITheme.TextColor : UITheme.TextSecondaryColor;
-                FontManager.DrawText(Font, tabs[i], currentX + TabPadding, tabY + 10, 14, textColor);
-
-                currentX += tabWidth + TabSpacing;
-            }
-        }
 
         private void DrawTabContent(Rectangle contentArea, int tabIndex)
         {
@@ -320,37 +277,8 @@ namespace Keysharp.Panels
         {
             FontManager.DrawText(Font, "Corpus", contentX, contentY, 24, UITheme.TextColor);
             
-            const int lineY = 60;
-            const int elementHeight = 35;
-            
-            // Draw load button
-            if (loadCorpusButton != null)
-            {
-                loadCorpusButton.Draw();
-            }
-
-            // Draw corpus dropdown button (dropdown list drawn separately)
-            if (corpusDropdown != null)
-            {
-                corpusDropdown.DrawButton();
-            }
-
-            // Show loaded corpus info (right-aligned on the same line)
-            if (!string.IsNullOrEmpty(loadedCorpusPath))
-            {
-                string fileName = Path.GetFileName(loadedCorpusPath);
-                string infoText = $"Loaded: {fileName}";
-                
-                // Create a rectangle for the info text area (right side of the line)
-                Rectangle infoBounds = new Rectangle(
-                    contentArea.X,
-                    contentArea.Y + lineY,
-                    contentArea.Width - 20, // Leave 20px margin on right
-                    elementHeight
-                );
-                
-                TextContainer.DrawRightAlignedText(Font, infoText, infoBounds, 14, UITheme.TextSecondaryColor, 20);
-            }
+            // Button, dropdown, and info text are drawn as children via base.Draw()
+            // No need to draw them manually here
         }
 
         public void DrawDropdowns()
