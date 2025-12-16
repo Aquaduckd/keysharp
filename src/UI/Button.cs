@@ -3,15 +3,14 @@ using System;
 
 namespace Keysharp.UI
 {
-    public class Button
+    public class Button : UIElement
     {
         public string Text { get; set; }
-        public Rectangle Bounds { get; set; }
         public Action? OnClick { get; set; }
         public bool IsHovered { get; private set; }
         public bool IsPressed { get; private set; }
 
-        public bool IsHovering(int mouseX, int mouseY)
+        public override bool IsHovering(int mouseX, int mouseY)
         {
             return mouseX >= Bounds.X && mouseX <= Bounds.X + Bounds.Width &&
                    mouseY >= Bounds.Y && mouseY <= Bounds.Y + Bounds.Height;
@@ -20,21 +19,22 @@ namespace Keysharp.UI
         private Font font;
         private int fontSize;
 
-        public Button(Font font, string text, int fontSize = 14)
+        public Button(Font font, string text, int fontSize = 14) : base($"Button_{text}")
         {
             this.font = font;
             this.Text = text;
             this.fontSize = fontSize;
         }
 
-        public void Update()
+        public override void Update()
         {
+            base.Update(); // Update children if any
+
             int mouseX = Raylib.GetMouseX();
             int mouseY = Raylib.GetMouseY();
 
             // Check if hovering
-            IsHovered = mouseX >= Bounds.X && mouseX <= Bounds.X + Bounds.Width &&
-                       mouseY >= Bounds.Y && mouseY <= Bounds.Y + Bounds.Height;
+            IsHovered = IsHovering(mouseX, mouseY);
 
             // Check if clicking
             if (IsHovered && Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT))
@@ -48,7 +48,7 @@ namespace Keysharp.UI
             }
         }
 
-        public void Draw()
+        public override void Draw()
         {
             // Button background
             Color bgColor = IsPressed ? UITheme.MainPanelColor : 
@@ -61,6 +61,8 @@ namespace Keysharp.UI
             // Button text (centered)
             Color textColor = IsHovered ? UITheme.TextColor : UITheme.TextSecondaryColor;
             TextContainer.DrawCenteredText(font, Text, Bounds, fontSize, textColor);
+
+            base.Draw(); // Draw children if any
         }
     }
 }

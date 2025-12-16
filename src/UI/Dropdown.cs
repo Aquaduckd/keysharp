@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace Keysharp.UI
 {
-    public class Dropdown
+    public class Dropdown : UIElement
     {
         private const int ItemHeight = 25;
         private const int Padding = 5;
@@ -15,22 +15,19 @@ namespace Keysharp.UI
         private List<string> items;
         private int selectedIndex = -1;
         private bool isOpen = false;
-        private Rectangle bounds;
         private int fontSize;
         private string? customDisplayText = null;
-
-        public Rectangle Bounds => bounds;
 
         public string? SelectedItem => selectedIndex >= 0 && selectedIndex < items.Count ? items[selectedIndex] : null;
         public Action<string>? OnSelectionChanged { get; set; }
 
-        public bool IsHovering(int mouseX, int mouseY)
+        public override bool IsHovering(int mouseX, int mouseY)
         {
-            bool hoveringButton = mouseX >= bounds.X && mouseX <= bounds.X + bounds.Width &&
-                                 mouseY >= bounds.Y && mouseY <= bounds.Y + bounds.Height;
-            bool hoveringDropdown = isOpen && mouseX >= bounds.X && mouseX <= bounds.X + bounds.Width &&
-                                   mouseY >= bounds.Y + bounds.Height && 
-                                   mouseY <= bounds.Y + bounds.Height + items.Count * ItemHeight + Padding * 2;
+            bool hoveringButton = mouseX >= Bounds.X && mouseX <= Bounds.X + Bounds.Width &&
+                                 mouseY >= Bounds.Y && mouseY <= Bounds.Y + Bounds.Height;
+            bool hoveringDropdown = isOpen && mouseX >= Bounds.X && mouseX <= Bounds.X + Bounds.Width &&
+                                   mouseY >= Bounds.Y + Bounds.Height && 
+                                   mouseY <= Bounds.Y + Bounds.Height + items.Count * ItemHeight + Padding * 2;
             return hoveringButton || hoveringDropdown;
         }
 
@@ -43,7 +40,7 @@ namespace Keysharp.UI
             }
         }
 
-        public Dropdown(Font font, List<string> items, int fontSize = 14)
+        public Dropdown(Font font, List<string> items, int fontSize = 14) : base("Dropdown")
         {
             this.font = font;
             this.items = items;
@@ -61,11 +58,13 @@ namespace Keysharp.UI
 
         public void SetBounds(Rectangle bounds)
         {
-            this.bounds = bounds;
+            this.Bounds = bounds;
         }
 
-        public void Update()
+        public override void Update()
         {
+            base.Update(); // Update children if any
+
             int mouseX = Raylib.GetMouseX();
             int mouseY = Raylib.GetMouseY();
 
@@ -73,18 +72,18 @@ namespace Keysharp.UI
             if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT))
             {
                 // Check if clicking on the dropdown button
-                if (mouseX >= bounds.X && mouseX <= bounds.X + bounds.Width &&
-                    mouseY >= bounds.Y && mouseY <= bounds.Y + bounds.Height)
+                if (mouseX >= Bounds.X && mouseX <= Bounds.X + Bounds.Width &&
+                    mouseY >= Bounds.Y && mouseY <= Bounds.Y + Bounds.Height)
                 {
                     isOpen = !isOpen;
                 }
                 // Check if clicking on dropdown items
                 else if (isOpen)
                 {
-                    int dropdownY = (int)(bounds.Y + bounds.Height);
+                    int dropdownY = (int)(Bounds.Y + Bounds.Height);
                     int dropdownHeight = items.Count * ItemHeight + Padding * 2;
 
-                    if (mouseX >= bounds.X && mouseX <= bounds.X + bounds.Width &&
+                    if (mouseX >= Bounds.X && mouseX <= Bounds.X + Bounds.Width &&
                         mouseY >= dropdownY && mouseY <= dropdownY + dropdownHeight)
                     {
                         int itemIndex = (mouseY - dropdownY - Padding) / ItemHeight;
@@ -106,18 +105,19 @@ namespace Keysharp.UI
             // Note: Cursor is set centrally in Program.cs based on hover state
         }
 
-        public void Draw()
+        public override void Draw()
         {
             // Draw dropdown button only
             DrawButton();
+            base.Draw(); // Draw children if any
         }
 
         public void DrawButton()
         {
             // Draw dropdown button
             Color bgColor = isOpen ? UITheme.MainPanelColor : UITheme.SidePanelColor;
-            Raylib.DrawRectangleRec(bounds, bgColor);
-            Raylib.DrawRectangleLinesEx(bounds, 1, UITheme.BorderColor);
+            Raylib.DrawRectangleRec(Bounds, bgColor);
+            Raylib.DrawRectangleLinesEx(Bounds, 1, UITheme.BorderColor);
 
             // Draw selected item, custom text, or placeholder
             string displayText;
@@ -132,12 +132,12 @@ namespace Keysharp.UI
             Color textColor = (SelectedItem != null || customDisplayText != null) ? UITheme.TextColor : UITheme.TextSecondaryColor;
             
             // Create text bounds (left-aligned with padding, reserve space for arrow)
-            Rectangle textBounds = new Rectangle(bounds.X, bounds.Y, bounds.Width - 20, bounds.Height);
+            Rectangle textBounds = new Rectangle(Bounds.X, Bounds.Y, Bounds.Width - 20, Bounds.Height);
             TextContainer.DrawLeftAlignedText(font, displayText, textBounds, fontSize, textColor, Padding);
 
             // Draw dropdown arrow
-            int arrowX = (int)(bounds.X + bounds.Width - 20);
-            int arrowY = (int)(bounds.Y + bounds.Height / 2);
+            int arrowX = (int)(Bounds.X + Bounds.Width - 20);
+            int arrowY = (int)(Bounds.Y + Bounds.Height / 2);
             string arrow = isOpen ? "▲" : "▼";
             FontManager.DrawText(font, arrow, arrowX, arrowY - fontSize / 2, fontSize - 2, UITheme.TextSecondaryColor);
         }
@@ -157,16 +157,16 @@ namespace Keysharp.UI
                         dropdownWidth = textWidth + Padding * 2;
                     }
                 }
-                if (dropdownWidth < (int)bounds.Width)
+                if (dropdownWidth < (int)Bounds.Width)
                 {
-                    dropdownWidth = (int)bounds.Width;
+                    dropdownWidth = (int)Bounds.Width;
                 }
 
-                int dropdownY = (int)(bounds.Y + bounds.Height);
+                int dropdownY = (int)(Bounds.Y + Bounds.Height);
                 int dropdownHeight = items.Count * ItemHeight + Padding * 2;
 
                 // Draw dropdown background
-                Rectangle dropdownRect = new Rectangle(bounds.X, dropdownY, dropdownWidth, dropdownHeight);
+                Rectangle dropdownRect = new Rectangle(Bounds.X, dropdownY, dropdownWidth, dropdownHeight);
                 Raylib.DrawRectangleRec(dropdownRect, UITheme.SidePanelColor);
                 Raylib.DrawRectangleLinesEx(dropdownRect, 1, UITheme.BorderColor);
 
@@ -177,18 +177,18 @@ namespace Keysharp.UI
                     // Check if hovering
                     int mouseX = Raylib.GetMouseX();
                     int mouseY = Raylib.GetMouseY();
-                    bool isHovered = mouseX >= bounds.X && mouseX <= bounds.X + dropdownWidth &&
+                    bool isHovered = mouseX >= Bounds.X && mouseX <= Bounds.X + dropdownWidth &&
                                    mouseY >= itemY && mouseY <= itemY + ItemHeight;
                     bool isSelected = i == selectedIndex;
 
                     if (isHovered || isSelected)
                     {
-                        Raylib.DrawRectangle((int)bounds.X + 1, itemY, dropdownWidth - 2, ItemHeight, UITheme.MainPanelColor);
+                        Raylib.DrawRectangle((int)Bounds.X + 1, itemY, dropdownWidth - 2, ItemHeight, UITheme.MainPanelColor);
                     }
 
                     // Draw item text
                     Color itemTextColor = isSelected ? UITheme.TextColor : UITheme.TextSecondaryColor;
-                    FontManager.DrawText(font, items[i], (int)bounds.X + Padding, itemY + 2, fontSize - 1, itemTextColor);
+                    FontManager.DrawText(font, items[i], (int)Bounds.X + Padding, itemY + 2, fontSize - 1, itemTextColor);
 
                     itemY += ItemHeight;
                 }

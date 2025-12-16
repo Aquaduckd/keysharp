@@ -1,5 +1,6 @@
 using Raylib_cs;
 using Keysharp.Panels;
+using Keysharp.UI;
 
 namespace Keysharp
 {
@@ -21,22 +22,50 @@ namespace Keysharp
             if (!isEnabled)
                 return;
 
-            // Draw debug rectangles for all panels and splitters
-            DrawDebugRect(panelLayout.SidePanel, "SidePanel");
-            DrawDebugRect(panelLayout.MainPanel, "MainPanel");
-            DrawDebugRect(panelLayout.BottomPanel, "BottomPanel");
+            // Draw debug rectangles for splitters (not UI elements)
             DrawDebugRect(panelLayout.VerticalSplitter, "VerticalSplitter");
             DrawDebugRect(panelLayout.HorizontalSplitter, "HorizontalSplitter");
 
-            // Draw menu bar
+            // Update panel bounds before drawing
+            sidePanel.UpdateBounds(panelLayout.SidePanel);
+            mainPanel.UpdateBounds(panelLayout.MainPanel);
+            bottomPanel.UpdateBounds(panelLayout.BottomPanel);
+
+            // Recursively draw all UI elements
+            DrawUIElement(sidePanel);
+            DrawUIElement(mainPanel);
+            DrawUIElement(bottomPanel);
+
+            // Draw menu bar (not a UIElement yet, so handle separately)
             Rectangle menuBarRect = new Rectangle(0, 0, Raylib.GetScreenWidth(), menuBar.Height);
             DrawDebugRect(menuBarRect, "MenuBar");
-
-            // Draw menu items
             DrawMenuBarItems(menuBar);
 
-            // Draw component bounds within panels
-            DrawPanelComponentBounds(mainPanel, panelLayout.MainPanel);
+            // Draw tab bounds (special case for MainPanel)
+            var tabBounds = mainPanel.GetTabBounds(panelLayout.MainPanel);
+            for (int i = 0; i < tabBounds.Count; i++)
+            {
+                DrawDebugRect(tabBounds[i], $"Tab{i}");
+            }
+
+            // Draw info text bounds (special case)
+            var infoTextBounds = mainPanel.GetInfoTextBounds(panelLayout.MainPanel);
+            if (infoTextBounds.HasValue)
+            {
+                DrawDebugRect(infoTextBounds.Value, "InfoText");
+            }
+        }
+
+        private void DrawUIElement(UI.UIElement element)
+        {
+            // Draw this element's bounds
+            DrawDebugRect(element.Bounds, element.Name);
+
+            // Recursively draw all children
+            foreach (var child in element.Children)
+            {
+                DrawUIElement(child);
+            }
         }
 
         private void DrawDebugRect(Rectangle bounds, string label)
@@ -65,34 +94,6 @@ namespace Keysharp
             for (int i = 0; i < menuItemBounds.Count; i++)
             {
                 DrawDebugRect(menuItemBounds[i], $"Menu{i}");
-            }
-        }
-
-        private void DrawPanelComponentBounds(MainPanel mainPanel, Rectangle panelBounds)
-        {
-            // Draw tab bounds
-            var tabBounds = mainPanel.GetTabBounds(panelBounds);
-            for (int i = 0; i < tabBounds.Count; i++)
-            {
-                DrawDebugRect(tabBounds[i], $"Tab{i}");
-            }
-
-            // Draw bounds for buttons and dropdowns in the active tab
-            if (mainPanel.LoadCorpusButton != null)
-            {
-                DrawDebugRect(mainPanel.LoadCorpusButton.Bounds, "LoadButton");
-            }
-
-            if (mainPanel.CorpusDropdown != null)
-            {
-                DrawDebugRect(mainPanel.CorpusDropdown.Bounds, "CorpusDropdown");
-            }
-
-            // Draw info text bounds
-            var infoTextBounds = mainPanel.GetInfoTextBounds(panelBounds);
-            if (infoTextBounds.HasValue)
-            {
-                DrawDebugRect(infoTextBounds.Value, "InfoText");
             }
         }
     }

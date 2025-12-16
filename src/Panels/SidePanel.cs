@@ -4,7 +4,7 @@ namespace Keysharp.Panels
 {
     public class SidePanel : Panel
     {
-        public SidePanel(Font font) : base(font)
+        public SidePanel(Font font) : base(font, "SidePanel")
         {
         }
 

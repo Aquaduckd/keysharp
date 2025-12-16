@@ -63,7 +63,7 @@ namespace Keysharp.Panels
             return tabBounds;
         }
 
-        public MainPanel(Font font) : base(font)
+        public MainPanel(Font font) : base(font, "MainPanel")
         {
             // All tabs visible by default
             foreach (var tab in tabs)
@@ -74,11 +74,13 @@ namespace Keysharp.Panels
             // Initialize corpus button
             loadCorpusButton = new Button(font, "Load Corpus", 14);
             loadCorpusButton.OnClick = LoadCorpusFromFile;
+            AddChild(loadCorpusButton);
 
             // Initialize corpus dropdown
             List<string> corpusFiles = GetCorpusFiles();
             corpusDropdown = new Dropdown(font, corpusFiles, 14);
             corpusDropdown.OnSelectionChanged = OnCorpusSelected;
+            AddChild(corpusDropdown);
         }
 
         public List<string> GetTabs()
@@ -117,6 +119,9 @@ namespace Keysharp.Panels
 
         public void Update(Rectangle bounds)
         {
+            // Update panel bounds
+            UpdateBounds(bounds);
+
             int mouseX = Raylib.GetMouseX();
             int mouseY = Raylib.GetMouseY();
 
@@ -143,7 +148,6 @@ namespace Keysharp.Panels
                         150,
                         elementHeight
                     );
-                    loadCorpusButton.Update();
                 }
 
                 if (corpusDropdown != null)
@@ -157,9 +161,11 @@ namespace Keysharp.Panels
                         250,
                         elementHeight
                     ));
-                    corpusDropdown.Update();
                 }
             }
+
+            // Recursively update all children
+            base.Update();
 
             // Note: Cursor is set centrally in Program.cs based on hover state
 

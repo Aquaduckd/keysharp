@@ -7,7 +7,7 @@ namespace Keysharp.Panels
         public string Status { get; set; } = "Ready";
         public string Version { get; set; } = "1.0.0";
 
-        public BottomPanel(Font font) : base(font)
+        public BottomPanel(Font font) : base(font, "BottomPanel")
         {
         }
 
