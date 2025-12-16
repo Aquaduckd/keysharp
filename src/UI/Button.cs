@@ -59,13 +59,8 @@ namespace Keysharp.UI
             Raylib.DrawRectangleLinesEx(Bounds, 1, UITheme.BorderColor);
 
             // Button text (centered)
-            float textWidth = FontManager.MeasureText(font, Text, fontSize);
-            float textHeight = fontSize;
-            int textX = (int)(Bounds.X + (Bounds.Width - textWidth) / 2);
-            int textY = (int)(Bounds.Y + (Bounds.Height - textHeight) / 2);
-
             Color textColor = IsHovered ? UITheme.TextColor : UITheme.TextSecondaryColor;
-            FontManager.DrawText(font, Text, textX, textY, fontSize, textColor);
+            TextContainer.DrawCenteredText(font, Text, Bounds, fontSize, textColor);
         }
     }
 }

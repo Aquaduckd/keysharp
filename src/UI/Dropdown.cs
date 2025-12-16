@@ -19,6 +19,8 @@ namespace Keysharp.UI
         private int fontSize;
         private string? customDisplayText = null;
 
+        public Rectangle Bounds => bounds;
+
         public string? SelectedItem => selectedIndex >= 0 && selectedIndex < items.Count ? items[selectedIndex] : null;
         public Action<string>? OnSelectionChanged { get; set; }
 
@@ -127,10 +129,11 @@ namespace Keysharp.UI
             {
                 displayText = SelectedItem ?? "Select corpus...";
             }
-            int textX = (int)bounds.X + Padding;
-            int textY = (int)bounds.Y + (int)((bounds.Height - fontSize) / 2);
             Color textColor = (SelectedItem != null || customDisplayText != null) ? UITheme.TextColor : UITheme.TextSecondaryColor;
-            FontManager.DrawText(font, displayText, textX, textY, fontSize, textColor);
+            
+            // Create text bounds (left-aligned with padding, reserve space for arrow)
+            Rectangle textBounds = new Rectangle(bounds.X, bounds.Y, bounds.Width - 20, bounds.Height);
+            TextContainer.DrawLeftAlignedText(font, displayText, textBounds, fontSize, textColor, Padding);
 
             // Draw dropdown arrow
             int arrowX = (int)(bounds.X + bounds.Width - 20);

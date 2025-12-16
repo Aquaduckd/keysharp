@@ -23,6 +23,46 @@ namespace Keysharp.Panels
         private Dropdown? corpusDropdown;
         private string? loadedCorpusPath = null;
 
+        // Debug: expose component bounds
+        public Button? LoadCorpusButton => loadCorpusButton;
+        public Dropdown? CorpusDropdown => corpusDropdown;
+        
+        public Rectangle? GetInfoTextBounds(Rectangle panelBounds)
+        {
+            if (string.IsNullOrEmpty(loadedCorpusPath))
+                return null;
+                
+            const int lineY = 60;
+            const int elementHeight = 35;
+            
+            return new Rectangle(
+                panelBounds.X,
+                panelBounds.Y + TabHeight + lineY,
+                panelBounds.Width - 20, // Leave 20px margin on right
+                elementHeight
+            );
+        }
+        
+        public List<Rectangle> GetTabBounds(Rectangle panelBounds)
+        {
+            List<Rectangle> tabBounds = new List<Rectangle>();
+            int currentX = (int)panelBounds.X;
+            int tabY = (int)panelBounds.Y;
+
+            for (int i = 0; i < tabs.Count; i++)
+            {
+                if (!visibleTabs.Contains(tabs[i]))
+                    continue;
+
+                int textWidth = (int)FontManager.MeasureText(Font, tabs[i], 14);
+                int tabWidth = TabPadding * 2 + textWidth;
+                tabBounds.Add(new Rectangle(currentX, tabY, tabWidth, TabHeight));
+                currentX += tabWidth + TabSpacing;
+            }
+
+            return tabBounds;
+        }
+
         public MainPanel(Font font) : base(font)
         {
             // All tabs visible by default
@@ -90,24 +130,32 @@ namespace Keysharp.Panels
                     bounds.Height - TabHeight
                 );
                 
+                // Position button and dropdown on the same line
+                const int lineY = 60;
+                const int elementHeight = 35;
+                const int spacing = 10; // Space between button and dropdown
+                
                 if (loadCorpusButton != null)
                 {
                     loadCorpusButton.Bounds = new Rectangle(
                         (int)contentArea.X + 20,
-                        (int)contentArea.Y + 60,
+                        (int)contentArea.Y + lineY,
                         150,
-                        35
+                        elementHeight
                     );
                     loadCorpusButton.Update();
                 }
 
                 if (corpusDropdown != null)
                 {
+                    int dropdownX = loadCorpusButton != null 
+                        ? (int)(loadCorpusButton.Bounds.X + loadCorpusButton.Bounds.Width + spacing)
+                        : (int)contentArea.X + 20;
                     corpusDropdown.SetBounds(new Rectangle(
-                        (int)contentArea.X + 20,
-                        (int)contentArea.Y + 110,
+                        dropdownX,
+                        (int)contentArea.Y + lineY,
                         250,
-                        30
+                        elementHeight
                     ));
                     corpusDropdown.Update();
                 }
@@ -266,26 +314,36 @@ namespace Keysharp.Panels
         {
             FontManager.DrawText(Font, "Corpus", contentX, contentY, 24, UITheme.TextColor);
             
-            // Draw corpus dropdown button (dropdown list drawn separately)
-            if (corpusDropdown != null)
-            {
-                corpusDropdown.DrawButton();
-            }
-
+            const int lineY = 60;
+            const int elementHeight = 35;
+            
             // Draw load button
             if (loadCorpusButton != null)
             {
                 loadCorpusButton.Draw();
             }
 
-            // Show loaded corpus info
+            // Draw corpus dropdown button (dropdown list drawn separately)
+            if (corpusDropdown != null)
+            {
+                corpusDropdown.DrawButton();
+            }
+
+            // Show loaded corpus info (right-aligned on the same line)
             if (!string.IsNullOrEmpty(loadedCorpusPath))
             {
                 string fileName = Path.GetFileName(loadedCorpusPath);
-                FontManager.DrawText(Font, $"Loaded: {fileName}", 
-                    contentX, contentY + 160, 14, UITheme.TextSecondaryColor);
-                FontManager.DrawText(Font, loadedCorpusPath, 
-                    contentX, contentY + 185, 12, UITheme.TextSecondaryColor);
+                string infoText = $"Loaded: {fileName}";
+                
+                // Create a rectangle for the info text area (right side of the line)
+                Rectangle infoBounds = new Rectangle(
+                    contentArea.X,
+                    contentArea.Y + lineY,
+                    contentArea.Width - 20, // Leave 20px margin on right
+                    elementHeight
+                );
+                
+                TextContainer.DrawRightAlignedText(Font, infoText, infoBounds, 14, UITheme.TextSecondaryColor, 20);
             }
         }
 
@@ -392,10 +450,11 @@ namespace Keysharp.Panels
                             if (File.Exists(filePath))
                             {
                                 loadedCorpusPath = filePath;
-                                // Set dropdown to show "custom"
+                                // Set dropdown to show truncated file path
                                 if (corpusDropdown != null)
                                 {
-                                    corpusDropdown.SetCustomDisplayText("custom");
+                                    string truncatedPath = TruncatePath(filePath, 40); // Max 40 characters
+                                    corpusDropdown.SetCustomDisplayText(truncatedPath);
                                 }
                                 System.Console.WriteLine($"Corpus loaded from: {loadedCorpusPath}");
                             }
@@ -417,6 +476,34 @@ namespace Keysharp.Panels
                 System.Console.WriteLine($"Error opening file dialog: {ex.Message}");
                 // Fallback: try using a simple text input or other method
             }
+        }
+
+        private string TruncatePath(string path, int maxLength)
+        {
+            if (path.Length <= maxLength)
+            {
+                return path;
+            }
+
+            // Try to show the end of the path (filename) with ellipsis
+            string fileName = Path.GetFileName(path);
+            string directory = Path.GetDirectoryName(path) ?? "";
+            
+            // If filename alone is too long, truncate it
+            if (fileName.Length > maxLength - 3)
+            {
+                return "..." + fileName.Substring(fileName.Length - (maxLength - 3));
+            }
+
+            // Try to show directory + filename, truncating directory if needed
+            int availableForDir = maxLength - fileName.Length - 3; // 3 for "..."
+            if (availableForDir > 0 && directory.Length > availableForDir)
+            {
+                return "..." + directory.Substring(directory.Length - availableForDir) + Path.DirectorySeparatorChar + fileName;
+            }
+
+            // Fallback: just show end of path
+            return "..." + path.Substring(path.Length - (maxLength - 3));
         }
     }
 }

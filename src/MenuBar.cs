@@ -90,6 +90,22 @@ namespace Keysharp
 
         public int Height => MenuBarHeight;
 
+        public List<Rectangle> GetMenuItemBounds()
+        {
+            List<Rectangle> bounds = new List<Rectangle>();
+            int currentX = 0;
+            
+            for (int i = 0; i < menus.Count; i++)
+            {
+                var menu = menus[i];
+                int menuWidth = MenuItemPadding * 2 + (int)FontManager.MeasureText(font, menu.Name, 14);
+                bounds.Add(new Rectangle(currentX, 0, menuWidth, MenuBarHeight));
+                currentX += menuWidth;
+            }
+            
+            return bounds;
+        }
+
         public bool IsHovering(int mouseX, int mouseY)
         {
             // Check if hovering over menu bar items

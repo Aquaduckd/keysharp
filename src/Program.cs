@@ -30,6 +30,9 @@ namespace Keysharp
             LayoutManager layout = new LayoutManager();
             layout.MenuBarHeight = menuBar.Height;
 
+            // Create debug overlay
+            DebugOverlay debugOverlay = new DebugOverlay();
+
             while (!Raylib.WindowShouldClose())
             {
                 int windowWidth = Raylib.GetScreenWidth();
@@ -44,6 +47,9 @@ namespace Keysharp
                 // Update menu bar and panels (handle input)
                 menuBar.Update();
                 mainPanel.Update(layoutRect.MainPanel);
+                
+                // Update debug overlay
+                debugOverlay.Update();
                 
                 // Resolve cursor with proper priority (only set once per frame)
                 ResolveCursor(layout, menuBar, mainPanel, layoutRect.MainPanel);
@@ -67,6 +73,9 @@ namespace Keysharp
 
                 // Draw panel dropdowns on top of everything
                 mainPanel.DrawDropdowns();
+
+                // Draw debug overlay on top of everything
+                debugOverlay.Draw(layout, menuBar, sidePanel, mainPanel, bottomPanel, layoutRect);
 
                 Raylib.EndDrawing();
             }
