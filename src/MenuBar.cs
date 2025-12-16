@@ -8,14 +8,12 @@ namespace Keysharp
     public class MenuBar : UIElement
     {
         private const int MenuBarHeight = 30;
-        private const int MenuItemPadding = 12;
-        private const int DropdownItemHeight = 25;
-        private const int DropdownPadding = 5;
 
         private Font font;
         private MainPanel? mainPanel;
-        private List<Menu> menus = new List<Menu>();
-        private int? openMenuIndex = null;
+        private List<Menu> menuElements = new List<Menu>();
+        private Container menusContainer;
+        private bool needsViewMenuRebuild = false;
 
         public MenuBar(Font font, MainPanel? mainPanel = null) : base("MenuBar")
         {
@@ -29,31 +27,53 @@ namespace Keysharp
             IsClickable = false;
             IsHoverable = true; // For cursor changes on menu items
             
+            // Create container for menus
+            menusContainer = new Container("MenusContainer");
+            menusContainer.AutoLayoutChildren = true;
+            menusContainer.LayoutDirection = LayoutDirection.Horizontal;
+            menusContainer.ChildJustification = ChildJustification.Left;
+            menusContainer.ChildGap = 0;
+            menusContainer.ChildPadding = 0;
+            menusContainer.AutoSize = false; // Size set manually
+            AddChild(menusContainer);
+            
             // Initialize menus
-            var fileMenu = new Menu("File");
+            CreateFileMenu();
+            CreateEditMenu();
+            CreateViewMenu();
+        }
+        
+        private void CreateFileMenu()
+        {
+            var fileMenu = new Menu(font, "File");
             fileMenu.AddItem("New", () => System.Console.WriteLine("New"));
             fileMenu.AddItem("Open", () => System.Console.WriteLine("Open"));
             fileMenu.AddItem("Save", () => System.Console.WriteLine("Save"));
             fileMenu.AddItem("Save As...", () => System.Console.WriteLine("Save As"));
             fileMenu.AddSeparator();
             fileMenu.AddItem("Exit", () => System.Console.WriteLine("Exit"));
-            menus.Add(fileMenu);
-
-            var editMenu = new Menu("Edit");
+            fileMenu.SetOnMenuOpened(OnMenuOpened);
+            menuElements.Add(fileMenu);
+            menusContainer.AddChild(fileMenu);
+        }
+        
+        private void CreateEditMenu()
+        {
+            var editMenu = new Menu(font, "Edit");
             editMenu.AddItem("Undo", () => System.Console.WriteLine("Undo"));
             editMenu.AddItem("Redo", () => System.Console.WriteLine("Redo"));
             editMenu.AddSeparator();
             editMenu.AddItem("Cut", () => System.Console.WriteLine("Cut"));
             editMenu.AddItem("Copy", () => System.Console.WriteLine("Copy"));
             editMenu.AddItem("Paste", () => System.Console.WriteLine("Paste"));
-            menus.Add(editMenu);
-
-            BuildViewMenu();
+            editMenu.SetOnMenuOpened(OnMenuOpened);
+            menuElements.Add(editMenu);
+            menusContainer.AddChild(editMenu);
         }
-
-        private void BuildViewMenu()
+        
+        private void CreateViewMenu()
         {
-            var viewMenu = new Menu("View");
+            var viewMenu = new Menu(font, "View");
             
             // Add tab visibility toggles if MainPanel is available
             if (mainPanel != null)
@@ -66,8 +86,7 @@ namespace Keysharp
                     string tabNameCopy = tabName; // Capture for closure
                     viewMenu.AddItem(menuText, () => {
                         mainPanel.ToggleTab(tabNameCopy);
-                        // Rebuild menu to update checkmarks
-                        BuildViewMenu();
+                        // Menu will be rebuilt automatically when opened next time to show updated checkmarks
                     });
                 }
                 viewMenu.AddSeparator();
@@ -79,191 +98,93 @@ namespace Keysharp
             viewMenu.AddSeparator();
             viewMenu.AddItem("Full Screen", () => System.Console.WriteLine("Full Screen"));
             
-            // Replace View menu if it already exists
-            if (menus.Count > 2)
+            viewMenu.SetOnMenuOpened(OnMenuOpened);
+            menuElements.Add(viewMenu);
+            menusContainer.AddChild(viewMenu);
+        }
+        
+        private void RebuildViewMenu()
+        {
+            // Remove existing View menu
+            bool wasOpen = false;
+            if (menuElements.Count > 2 && menusContainer != null)
             {
-                menus[2] = viewMenu;
+                var oldViewMenu = menuElements[2];
+                wasOpen = oldViewMenu.IsOpen; // Preserve open state
+                menusContainer.RemoveChild(oldViewMenu);
+                menuElements.RemoveAt(2);
             }
-            else
+            
+            // Create new View menu
+            CreateViewMenu();
+            
+            // Restore open state if it was open
+            if (wasOpen && menuElements.Count > 2)
             {
-                menus.Add(viewMenu);
+                menuElements[2].IsOpen = true;
+            }
+        }
+        
+        private void OnMenuOpened(Menu openedMenu)
+        {
+            // Close all other menus when one opens
+            foreach (var menu in menuElements)
+            {
+                if (menu != openedMenu)
+                {
+                    menu.Close();
+                }
+            }
+            
+            // Flag that View menu needs to be rebuilt (defer to avoid collection modification during update)
+            if (openedMenu.MenuName == "View" && mainPanel != null)
+            {
+                needsViewMenuRebuild = true;
             }
         }
 
         public void SetMainPanel(MainPanel mainPanel)
         {
             this.mainPanel = mainPanel;
-            BuildViewMenu();
+            RebuildViewMenu();
         }
 
         public int Height => MenuBarHeight;
 
-        public List<Rectangle> GetMenuItemBounds()
-        {
-            List<Rectangle> bounds = new List<Rectangle>();
-            int currentX = 0;
-            
-            for (int i = 0; i < menus.Count; i++)
-            {
-                var menu = menus[i];
-                int menuWidth = MenuItemPadding * 2 + (int)FontManager.MeasureText(font, menu.Name, 14);
-                bounds.Add(new Rectangle(currentX, 0, menuWidth, MenuBarHeight));
-                currentX += menuWidth;
-            }
-            
-            return bounds;
-        }
-
-        public override bool IsHovering(int mouseX, int mouseY)
-        {
-            // Only check hovering if visible
-            if (!IsVisible)
-                return false;
-                
-            // Check if hovering over menu bar items
-            if (mouseY >= 0 && mouseY <= MenuBarHeight)
-            {
-                int currentX = 0;
-                for (int i = 0; i < menus.Count; i++)
-                {
-                    int menuWidth = MenuItemPadding * 2 + (int)FontManager.MeasureText(font, menus[i].Name, 14);
-                    if (mouseX >= currentX && mouseX <= currentX + menuWidth)
-                    {
-                        return true;
-                    }
-                    currentX += menuWidth;
-                }
-            }
-
-            // Check if hovering over dropdown items
-            if (openMenuIndex.HasValue)
-            {
-                var menu = menus[openMenuIndex.Value];
-                int dropdownX = GetMenuX(openMenuIndex.Value);
-                int dropdownY = MenuBarHeight;
-                int dropdownWidth = GetDropdownWidth(menu);
-
-                if (mouseX >= dropdownX && mouseX <= dropdownX + dropdownWidth &&
-                    mouseY >= dropdownY && mouseY <= dropdownY + GetDropdownHeight(menu))
-                {
-                    int itemIndex = (mouseY - dropdownY - DropdownPadding) / DropdownItemHeight;
-                    if (itemIndex >= 0 && itemIndex < menu.Items.Count && !menu.Items[itemIndex].IsSeparator)
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            return false;
-        }
-
         public override void Update()
         {
+            // Rebuild View menu if needed (before base.Update to avoid collection modification during iteration)
+            if (needsViewMenuRebuild)
+            {
+                needsViewMenuRebuild = false;
+                RebuildViewMenu();
+            }
+            
             base.Update();
             
             // Update bounds
             Bounds = new Rectangle(0, 0, Raylib.GetScreenWidth(), MenuBarHeight);
             
-            int mouseX = Raylib.GetMouseX();
-            int mouseY = Raylib.GetMouseY();
-            bool hoveringOverInteractive = false;
-
-            // Check if hovering over menu bar items
-            int menuBarX = 0;
-            for (int i = 0; i < menus.Count; i++)
+            // Update menus container bounds
+            menusContainer.Bounds = new Rectangle(0, 0, Bounds.Width, MenuBarHeight);
+            
+            // Update menu element bounds based on their text width
+            // Note: We set bounds manually instead of using auto-layout to control exact positioning
+            float currentX = 0;
+            foreach (var menu in menuElements)
             {
-                int menuWidth = MenuItemPadding * 2 + (int)FontManager.MeasureText(font, menus[i].Name, 14);
-                
-                if (mouseY >= 0 && mouseY <= MenuBarHeight &&
-                    mouseX >= menuBarX && mouseX <= menuBarX + menuWidth)
-                {
-                    hoveringOverInteractive = true;
-                    break;
-                }
-                menuBarX += menuWidth;
-            }
-
-            // Check if hovering over dropdown items
-            if (!hoveringOverInteractive && openMenuIndex.HasValue)
-            {
-                var menu = menus[openMenuIndex.Value];
-                int dropdownX = GetMenuX(openMenuIndex.Value);
-                int dropdownY = MenuBarHeight;
-                int dropdownWidth = GetDropdownWidth(menu);
-
-                if (mouseX >= dropdownX && mouseX <= dropdownX + dropdownWidth &&
-                    mouseY >= dropdownY && mouseY <= dropdownY + GetDropdownHeight(menu))
-                {
-                    int itemIndex = (mouseY - dropdownY - DropdownPadding) / DropdownItemHeight;
-                    if (itemIndex >= 0 && itemIndex < menu.Items.Count && !menu.Items[itemIndex].IsSeparator)
-                    {
-                        hoveringOverInteractive = true;
-                    }
-                }
-            }
-
-            // Note: Cursor is set centrally in Program.cs based on hover state
-
-            // Check if clicking outside menu area
-            // Only process input if visible
-            if (!IsVisible)
-                return;
-                
-            if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT))
-            {
-                bool clickedOnMenu = false;
-
-                // Check menu bar items
-                int currentX = 0;
-                for (int i = 0; i < menus.Count; i++)
-                {
-                    int menuWidth = MenuItemPadding * 2 + (int)FontManager.MeasureText(font, menus[i].Name, 14);
-                    
-                    if (mouseY >= 0 && mouseY <= MenuBarHeight &&
-                        mouseX >= currentX && mouseX <= currentX + menuWidth)
-                    {
-                        // Toggle menu
-                        openMenuIndex = (openMenuIndex == i) ? null : i;
-                        clickedOnMenu = true;
-                        System.Console.WriteLine($"Menu {menus[i].Name} clicked, openMenuIndex: {openMenuIndex}");
-                        break;
-                    }
-                    currentX += menuWidth;
-                }
-
-                // Check dropdown items
-                if (!clickedOnMenu && openMenuIndex.HasValue)
-                {
-                    var menu = menus[openMenuIndex.Value];
-                    int dropdownX = GetMenuX(openMenuIndex.Value);
-                    int dropdownY = MenuBarHeight;
-                    int dropdownWidth = GetDropdownWidth(menu);
-
-                    if (mouseX >= dropdownX && mouseX <= dropdownX + dropdownWidth &&
-                        mouseY >= dropdownY && mouseY <= dropdownY + GetDropdownHeight(menu))
-                    {
-                        int itemIndex = (mouseY - dropdownY - DropdownPadding) / DropdownItemHeight;
-                        if (itemIndex >= 0 && itemIndex < menu.Items.Count)
-                        {
-                            var item = menu.Items[itemIndex];
-                            if (!item.IsSeparator)
-                            {
-                                item.Action?.Invoke();
-                                openMenuIndex = null; // Close menu after selection
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // Clicked outside dropdown, close it
-                        openMenuIndex = null;
-                    }
-                }
+                int textWidth = (int)FontManager.MeasureText(font, menu.MenuName, 14);
+                int menuWidth = 12 * 2 + textWidth; // MenuItemPadding * 2
+                menu.Bounds = new Rectangle(currentX, 0, menuWidth, MenuBarHeight);
+                currentX += menuWidth;
             }
         }
 
         public override void Draw()
         {
+            if (!IsVisible)
+                return;
+
             // Draw menu bar background
             Raylib.DrawRectangleRec(Bounds, UITheme.SidePanelColor);
             Raylib.DrawLineEx(
@@ -273,166 +194,24 @@ namespace Keysharp
                 UITheme.BorderColor
             );
 
-            // Draw menu items
-            int currentX = 0;
-            for (int i = 0; i < menus.Count; i++)
-            {
-                var menu = menus[i];
-                bool isOpen = openMenuIndex == i;
-                
-                // Rebuild View menu when it's opened to ensure checkmarks are current
-                if (isOpen && menu.Name == "View" && mainPanel != null)
-                {
-                    BuildViewMenu();
-                    menu = menus[i]; // Get updated menu
-                }
-                
-                int menuWidth = MenuItemPadding * 2 + (int)FontManager.MeasureText(font, menu.Name, 14);
-                
-                // Highlight if open or hovered
-                if (isOpen)
-                {
-                    Raylib.DrawRectangle(currentX, 0, menuWidth, MenuBarHeight, UITheme.MainPanelColor);
-                }
-
-                // Draw menu text
-                Color textColor = isOpen ? UITheme.TextColor : UITheme.TextSecondaryColor;
-                FontManager.DrawText(font, menu.Name, currentX + MenuItemPadding, 8, 14, textColor);
-
-                currentX += menuWidth;
-            }
+            // Menus are drawn as children via base.Draw()
+            base.Draw();
         }
 
         public void DrawDropdowns()
         {
             // Draw dropdowns separately so they appear on top of panels
-            if (openMenuIndex.HasValue)
+            // Create a copy of the list to avoid modification during enumeration
+            var menusToDraw = new List<Menu>(menuElements);
+            foreach (var menu in menusToDraw)
             {
-                int currentX = 0;
-                for (int i = 0; i < menus.Count; i++)
+                // Only draw if menu is still in the current list (hasn't been replaced)
+                if (menu.IsOpen && menuElements.Contains(menu))
                 {
-                    if (i == openMenuIndex.Value)
-                    {
-                        DrawDropdown(menus[i], currentX);
-                        break;
-                    }
-                    int menuWidth = MenuItemPadding * 2 + (int)Raylib.MeasureTextEx(font, menus[i].Name, 14, 0).X;
-                    currentX += menuWidth;
+                    menu.DrawDropdown();
                 }
             }
         }
-
-        private void DrawDropdown(Menu menu, int x)
-        {
-            int dropdownWidth = GetDropdownWidth(menu);
-            int dropdownHeight = GetDropdownHeight(menu);
-            int dropdownY = MenuBarHeight;
-
-            // Draw dropdown background
-            Raylib.DrawRectangle(x, dropdownY, dropdownWidth, dropdownHeight, UITheme.SidePanelColor);
-            Raylib.DrawRectangleLinesEx(
-                new Rectangle(x, dropdownY, dropdownWidth, dropdownHeight),
-                1,
-                UITheme.BorderColor
-            );
-
-            // Draw menu items
-            int itemY = dropdownY + DropdownPadding;
-            for (int i = 0; i < menu.Items.Count; i++)
-            {
-                var item = menu.Items[i];
-                
-                if (item.IsSeparator)
-                {
-                    // Draw separator line
-                    Raylib.DrawLineEx(
-                        new System.Numerics.Vector2(x + DropdownPadding, itemY + DropdownItemHeight / 2),
-                        new System.Numerics.Vector2(x + dropdownWidth - DropdownPadding, itemY + DropdownItemHeight / 2),
-                        1,
-                        UITheme.BorderColor
-                    );
-                }
-                else
-                {
-                    // Check if hovering
-                    int mouseX = Raylib.GetMouseX();
-                    int mouseY = Raylib.GetMouseY();
-                    bool isHovered = mouseX >= x && mouseX <= x + dropdownWidth &&
-                                    mouseY >= itemY && mouseY <= itemY + DropdownItemHeight;
-
-                    if (isHovered)
-                    {
-                        Raylib.DrawRectangle(x + 1, itemY, dropdownWidth - 2, DropdownItemHeight, UITheme.MainPanelColor);
-                    }
-
-                    // Draw item text
-                    FontManager.DrawText(font, item.Text, x + DropdownPadding, itemY + 5, 13, UITheme.TextColor);
-                }
-
-                itemY += DropdownItemHeight;
-            }
-        }
-
-        private int GetMenuX(int menuIndex)
-        {
-            int x = 0;
-            for (int i = 0; i < menuIndex; i++)
-            {
-                int menuWidth = MenuItemPadding * 2 + (int)Raylib.MeasureTextEx(font, menus[i].Name, 14, 0).X;
-                x += menuWidth;
-            }
-            return x;
-        }
-
-        private int GetDropdownWidth(Menu menu)
-        {
-            int maxWidth = 150; // Minimum width
-            foreach (var item in menu.Items)
-            {
-                if (!item.IsSeparator)
-                {
-                    int textWidth = (int)FontManager.MeasureText(font, item.Text, 13);
-                    if (textWidth + DropdownPadding * 2 > maxWidth)
-                    {
-                        maxWidth = textWidth + DropdownPadding * 2;
-                    }
-                }
-            }
-            return maxWidth;
-        }
-
-        private int GetDropdownHeight(Menu menu)
-        {
-            return DropdownPadding * 2 + menu.Items.Count * DropdownItemHeight;
-        }
-    }
-
-    public class Menu
-    {
-        public string Name { get; }
-        public List<MenuItem> Items { get; } = new List<MenuItem>();
-
-        public Menu(string name)
-        {
-            Name = name;
-        }
-
-        public void AddItem(string text, System.Action action)
-        {
-            Items.Add(new MenuItem { Text = text, Action = action, IsSeparator = false });
-        }
-
-        public void AddSeparator()
-        {
-            Items.Add(new MenuItem { IsSeparator = true });
-        }
-    }
-
-    public class MenuItem
-    {
-        public string Text { get; set; } = string.Empty;
-        public System.Action? Action { get; set; }
-        public bool IsSeparator { get; set; }
     }
 }
 

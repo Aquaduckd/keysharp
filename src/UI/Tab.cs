@@ -45,6 +45,10 @@ namespace Keysharp.UI
 
         public override void Draw()
         {
+            // Only draw if visible
+            if (!IsVisible)
+                return;
+            
             // Tab background
             Color tabColor = IsActive ? UITheme.MainPanelColor : UITheme.SidePanelColor;
             Raylib.DrawRectangleRec(Bounds, tabColor);

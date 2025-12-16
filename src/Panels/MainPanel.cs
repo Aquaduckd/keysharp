@@ -177,6 +177,15 @@ namespace Keysharp.Panels
 
         private void UpdateTabVisibility()
         {
+            // Update tab elements visibility
+            for (int i = 0; i < tabElements.Count; i++)
+            {
+                var tabElement = tabElements[i];
+                bool isVisible = visibleTabs.Contains(tabs[i]);
+                tabElement.IsVisible = isVisible;
+                tabElement.IsActive = (i == activeTabIndex);
+            }
+            
             // Update tab content visibility based on active tab and visibility state
             if (layoutTabContent != null)
             {
@@ -214,13 +223,11 @@ namespace Keysharp.Panels
                 );
             }
 
-            // Update tab elements visibility
+            // Update tab elements bounds and visibility
             for (int i = 0; i < tabElements.Count; i++)
             {
                 var tabElement = tabElements[i];
                 bool isVisible = visibleTabs.Contains(tabs[i]);
-                tabElement.IsVisible = isVisible;
-                tabElement.IsActive = (i == activeTabIndex);
                 
                 // Calculate tab width
                 if (isVisible)
@@ -230,6 +237,9 @@ namespace Keysharp.Panels
                     tabElement.Bounds = new Rectangle(0, 0, tabWidth, TabHeight);
                 }
             }
+            
+            // Update tab visibility (this will update both tab elements and tab content)
+            UpdateTabVisibility();
 
             // Update tab content container bounds
             Rectangle contentArea = new Rectangle(
