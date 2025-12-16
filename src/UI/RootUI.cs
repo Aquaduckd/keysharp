@@ -57,7 +57,7 @@ namespace Keysharp.UI
             // Update menu bar bounds
             menuBar.Bounds = new Rectangle(0, 0, windowWidth, menuBar.Height);
 
-            // Update panel bounds
+            // Update panel bounds using calculated layout
             sidePanel.UpdateBounds(layoutRect.SidePanel);
             mainPanel.UpdateBounds(layoutRect.MainPanel);
             bottomPanel.UpdateBounds(layoutRect.BottomPanel);
@@ -66,18 +66,17 @@ namespace Keysharp.UI
             verticalSplitter.Bounds = layoutRect.VerticalSplitter;
             horizontalSplitter.Bounds = layoutRect.HorizontalSplitter;
 
-            // Update panels (they handle their own children)
-            // Note: MainPanel has a special Update(Rectangle) method for tab-specific logic
+            // MainPanel has a special Update(Rectangle) method for tab-specific logic
+            // This sets bounds and calls base.Update() internally, so we don't need to call base.Update() here
             mainPanel.Update(layoutRect.MainPanel);
             
-            // Update menu bar and splitters (they don't have their own Update(layoutRect) method)
+            // Update other children (menu bar, side panel, bottom panel, splitters)
+            // MainPanel is already updated above, so skip it
             menuBar.Update();
-            verticalSplitter.Update();
-            horizontalSplitter.Update();
-            
-            // Update side and bottom panels' children (if any)
             sidePanel.Update();
             bottomPanel.Update();
+            verticalSplitter.Update();
+            horizontalSplitter.Update();
         }
 
         public override void Draw()

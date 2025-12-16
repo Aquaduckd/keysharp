@@ -42,10 +42,10 @@ namespace Keysharp
             {
                 // Update root UI (recursively updates all children)
                 rootUI.Update();
-                
+
                 // Update debug overlay
                 debugOverlay.Update();
-                
+
                 // Cursor is handled by individual UI elements
                 var layoutRect = rootUI.Layout.CalculateLayout(Raylib.GetScreenWidth(), Raylib.GetScreenHeight());
                 ResolveCursor(rootUI, layoutRect.MainPanel);

@@ -23,9 +23,21 @@ namespace Keysharp.Panels
         private Dropdown? corpusDropdown;
         private InfoText? infoText;
         private string? loadedCorpusPath = null;
+        private Container? corpusControlsContainer;
+        private Container? corpusRowContainer;
+        private Container? infoTextContainer;
 
         // Tab elements
         private List<Tab> tabElements = new List<Tab>();
+        
+        // Containers for layout
+        private Container? tabsContainer;
+        private Container? tabContentContainer;
+        
+        // Tab content containers
+        private TabContent? layoutTabContent;
+        private TabContent? corpusTabContent;
+        private TabContent? settingsTabContent;
 
         public MainPanel(Font font) : base(font, "MainPanel")
         {
@@ -35,30 +47,96 @@ namespace Keysharp.Panels
                 visibleTabs.Add(tab);
             }
 
+            // Create container for tabs
+            tabsContainer = new Container("TabsContainer");
+            tabsContainer.AutoLayoutChildren = true;
+            tabsContainer.LayoutDirection = LayoutDirection.Horizontal;
+            tabsContainer.ChildJustification = ChildJustification.Left;
+            tabsContainer.ChildGap = TabSpacing;
+            tabsContainer.ChildPadding = 0;
+            tabsContainer.AutoSize = false; // Width/height set manually
+            AddChild(tabsContainer);
+
             // Create tab elements
             for (int i = 0; i < tabs.Count; i++)
             {
                 var tabElement = new Tab(font, tabs[i]);
                 int tabIndex = i; // Capture for closure
-                tabElement.OnClick = () => { activeTabIndex = tabIndex; };
+                tabElement.OnClick = () => { activeTabIndex = tabIndex; UpdateTabVisibility(); };
                 tabElements.Add(tabElement);
-                AddChild(tabElement);
+                tabsContainer.AddChild(tabElement);
             }
+            
+            // Create container for tab content
+            tabContentContainer = new Container("TabContentContainer");
+            tabContentContainer.AutoLayoutChildren = false; // Content positioned manually
+            tabContentContainer.AutoSize = false; // Size set manually
+            AddChild(tabContentContainer);
+
+            // Create tab content containers
+            layoutTabContent = new TabContent(font, "Layout", "Layout configuration will appear here.");
+            layoutTabContent.IsVisible = (activeTabIndex == 0);
+            layoutTabContent.PositionMode = PositionMode.Relative;
+            tabContentContainer.AddChild(layoutTabContent);
+
+            corpusTabContent = new TabContent(font, "Corpus", null);
+            corpusTabContent.IsVisible = (activeTabIndex == 1);
+            corpusTabContent.PositionMode = PositionMode.Relative;
+            tabContentContainer.AddChild(corpusTabContent);
+
+            settingsTabContent = new TabContent(font, "Settings", "Application settings and preferences");
+            settingsTabContent.IsVisible = (activeTabIndex == 2);
+            settingsTabContent.PositionMode = PositionMode.Relative;
+            tabContentContainer.AddChild(settingsTabContent);
+
+            // Create a container for the entire corpus controls row (button, dropdown, and info text)
+            corpusRowContainer = new Container("CorpusRow");
+            corpusRowContainer.AutoLayoutChildren = true;
+            corpusRowContainer.LayoutDirection = LayoutDirection.Horizontal;
+            corpusRowContainer.ChildJustification = ChildJustification.SpaceBetween;
+            corpusRowContainer.ChildGap = 0; // Gap will be calculated by SpaceBetween
+            corpusRowContainer.ChildPadding = 0;
+            corpusTabContent.AddChild(corpusRowContainer);
+
+            // Create container for left-aligned controls (button and dropdown)
+            corpusControlsContainer = new Container("CorpusControls");
+            corpusControlsContainer.AutoLayoutChildren = true;
+            corpusControlsContainer.LayoutDirection = LayoutDirection.Horizontal;
+            corpusControlsContainer.ChildJustification = ChildJustification.Left;
+            corpusControlsContainer.ChildGap = 10;
+            corpusControlsContainer.ChildPadding = 20;
+            corpusControlsContainer.Bounds = new Rectangle(0, 0, 0, 35); // Width will be calculated by layout
+            corpusRowContainer.AddChild(corpusControlsContainer);
 
             // Initialize corpus button
             loadCorpusButton = new Button(font, "Load Corpus", 14);
+            loadCorpusButton.Bounds = new Rectangle(0, 0, 150, 35); // Set initial size
+            loadCorpusButton.PositionMode = PositionMode.Absolute; // Will be positioned by container's auto-layout
             loadCorpusButton.OnClick = LoadCorpusFromFile;
-            AddChild(loadCorpusButton);
+            corpusControlsContainer.AddChild(loadCorpusButton);
 
             // Initialize corpus dropdown
             List<string> corpusFiles = GetCorpusFiles();
             corpusDropdown = new Dropdown(font, corpusFiles, 14);
+            corpusDropdown.SetBounds(new Rectangle(0, 0, 250, 35)); // Set initial size
+            corpusDropdown.PositionMode = PositionMode.Absolute; // Will be positioned by container's auto-layout
             corpusDropdown.OnSelectionChanged = OnCorpusSelected;
-            AddChild(corpusDropdown);
+            corpusControlsContainer.AddChild(corpusDropdown);
+
+            // Create container for right-aligned info text
+            infoTextContainer = new Container("InfoTextContainer");
+            infoTextContainer.AutoLayoutChildren = true;
+            infoTextContainer.LayoutDirection = LayoutDirection.Horizontal;
+            infoTextContainer.ChildJustification = ChildJustification.Right;
+            infoTextContainer.ChildGap = 0;
+            infoTextContainer.ChildPadding = 20; // Right padding
+            infoTextContainer.Bounds = new Rectangle(0, 0, 0, 35); // Width will be calculated by layout
+            corpusRowContainer.AddChild(infoTextContainer);
 
             // Initialize info text
             infoText = new InfoText(font, "", 14);
-            AddChild(infoText);
+            infoText.Bounds = new Rectangle(0, 0, 0, 35); // Width will be set based on content
+            infoTextContainer.AddChild(infoText);
         }
 
         public List<string> GetTabs()
@@ -93,6 +171,31 @@ namespace Keysharp.Panels
             {
                 visibleTabs.Add(tabName);
             }
+            
+            UpdateTabVisibility();
+        }
+
+        private void UpdateTabVisibility()
+        {
+            // Update tab content visibility based on active tab and visibility state
+            if (layoutTabContent != null)
+            {
+                layoutTabContent.IsVisible = (activeTabIndex == 0 && visibleTabs.Contains("layout"));
+            }
+            if (corpusTabContent != null)
+            {
+                bool isVisible = (activeTabIndex == 1 && visibleTabs.Contains("corpus"));
+                corpusTabContent.IsVisible = isVisible;
+                // Also update corpus controls visibility
+                if (corpusControlsContainer != null)
+                {
+                    corpusControlsContainer.IsVisible = isVisible;
+                }
+            }
+            if (settingsTabContent != null)
+            {
+                settingsTabContent.IsVisible = (activeTabIndex == 2 && visibleTabs.Contains("settings"));
+            }
         }
 
         public void Update(Rectangle bounds)
@@ -100,109 +203,142 @@ namespace Keysharp.Panels
             // Update panel bounds
             UpdateBounds(bounds);
 
-            int mouseX = Raylib.GetMouseX();
-            int mouseY = Raylib.GetMouseY();
+            // Update tabs container bounds
+            if (tabsContainer != null)
+            {
+                tabsContainer.Bounds = new Rectangle(
+                    bounds.X,
+                    bounds.Y,
+                    bounds.Width,
+                    TabHeight
+                );
+            }
 
-            // Update tab elements
-            int currentX = (int)bounds.X;
-            int tabY = (int)bounds.Y;
+            // Update tab elements visibility
             for (int i = 0; i < tabElements.Count; i++)
             {
                 var tabElement = tabElements[i];
                 bool isVisible = visibleTabs.Contains(tabs[i]);
+                tabElement.IsVisible = isVisible;
+                tabElement.IsActive = (i == activeTabIndex);
                 
+                // Calculate tab width
                 if (isVisible)
                 {
                     int textWidth = (int)FontManager.MeasureText(Font, tabs[i], 14);
                     int tabWidth = TabPadding * 2 + textWidth;
-                    
-                    tabElement.Bounds = new Rectangle(currentX, tabY, tabWidth, TabHeight);
-                    tabElement.IsActive = (i == activeTabIndex);
-                    
-                    currentX += tabWidth + TabSpacing;
-                }
-                else
-                {
-                    // Hide invisible tabs
-                    tabElement.Bounds = new Rectangle(-1000, -1000, 0, 0);
+                    tabElement.Bounds = new Rectangle(0, 0, tabWidth, TabHeight);
                 }
             }
 
-            // Update corpus button and dropdown if corpus tab is active
-            if (tabs[activeTabIndex] == "corpus")
+            // Update tab content container bounds
+            Rectangle contentArea = new Rectangle(
+                bounds.X,
+                bounds.Y + TabHeight,
+                bounds.Width,
+                bounds.Height - TabHeight
+            );
+
+            if (tabContentContainer != null)
             {
-                Rectangle contentArea = new Rectangle(
-                    bounds.X,
-                    bounds.Y + TabHeight,
-                    bounds.Width,
-                    bounds.Height - TabHeight
-                );
+                tabContentContainer.Bounds = contentArea;
+            }
+
+            if (layoutTabContent != null && tabContentContainer != null)
+            {
+                layoutTabContent.Bounds = new Rectangle(0, 0, contentArea.Width, contentArea.Height);
+                layoutTabContent.RelativePosition = new System.Numerics.Vector2(0, 0);
+            }
+            if (corpusTabContent != null && tabContentContainer != null)
+            {
+                corpusTabContent.Bounds = new Rectangle(0, 0, contentArea.Width, contentArea.Height);
+                corpusTabContent.RelativePosition = new System.Numerics.Vector2(0, 0);
                 
-                // Position button and dropdown on the same line
-                const int lineY = 60;
-                const int elementHeight = 35;
-                const int spacing = 10; // Space between button and dropdown
-                
-                if (loadCorpusButton != null)
+                // Update corpus row container if corpus tab is active
+                if (tabs[activeTabIndex] == "corpus" && corpusRowContainer != null)
                 {
-                    loadCorpusButton.Bounds = new Rectangle(
-                        (int)contentArea.X + 20,
-                        (int)contentArea.Y + lineY,
-                        150,
+                    // Position container on the same line as the title
+                    const int lineY = 60;
+                    const int elementHeight = 35;
+                    
+                    // Update row container bounds (relative to corpusTabContent)
+                    corpusRowContainer.Bounds = new Rectangle(
+                        0, // Relative to corpusTabContent
+                        lineY,
+                        contentArea.Width,
                         elementHeight
                     );
-                }
+                    corpusRowContainer.IsVisible = true;
 
-                if (corpusDropdown != null)
-                {
-                    int dropdownX = loadCorpusButton != null 
-                        ? (int)(loadCorpusButton.Bounds.X + loadCorpusButton.Bounds.Width + spacing)
-                        : (int)contentArea.X + 20;
-                    corpusDropdown.SetBounds(new Rectangle(
-                        dropdownX,
-                        (int)contentArea.Y + lineY,
-                        250,
-                        elementHeight
-                    ));
-                }
-
-                // Update info text
-                if (infoText != null)
-                {
-                    if (!string.IsNullOrEmpty(loadedCorpusPath))
+                    // Update controls container bounds (will be left-aligned by parent)
+                    if (corpusControlsContainer != null)
                     {
-                        string fileName = Path.GetFileName(loadedCorpusPath);
-                        infoText.SetText($"Loaded: {fileName}");
-                        infoText.Bounds = new Rectangle(
-                            contentArea.X,
-                            contentArea.Y + lineY,
-                            contentArea.Width - 20,
+                        // Width will be calculated by auto-layout based on children
+                        corpusControlsContainer.Bounds = new Rectangle(
+                            0,
+                            0,
+                            0, // Width calculated by layout
                             elementHeight
                         );
+                        corpusControlsContainer.IsVisible = true;
                     }
-                    else
+
+                    // Update info text container bounds (will be right-aligned by parent)
+                    if (infoTextContainer != null)
                     {
-                        infoText.SetText("");
-                        infoText.Bounds = new Rectangle(0, 0, 0, 0);
+                        // Calculate width needed for info text if there's content
+                        float infoTextWidth = 0;
+                        if (infoText != null && !string.IsNullOrEmpty(loadedCorpusPath))
+                        {
+                            string fileName = Path.GetFileName(loadedCorpusPath);
+                            string infoTextContent = $"Loaded: {fileName}";
+                            float textWidth = FontManager.MeasureText(Font, infoTextContent, 14);
+                            infoTextWidth = textWidth + 40; // Add some padding
+                            infoText.SetText(infoTextContent);
+                            infoText.Bounds = new Rectangle(0, 0, infoTextWidth, elementHeight);
+                            infoText.IsVisible = true;
+                        }
+                        else if (infoText != null)
+                        {
+                            infoText.SetText("");
+                            infoText.Bounds = new Rectangle(0, 0, 0, 0);
+                            infoText.IsVisible = false;
+                        }
+                        
+                        infoTextContainer.Bounds = new Rectangle(
+                            0,
+                            0,
+                            infoTextWidth, // Width based on content
+                            elementHeight
+                        );
+                        infoTextContainer.IsVisible = !string.IsNullOrEmpty(loadedCorpusPath);
+                    }
+                }
+                else
+                {
+                    // Hide row container when not in corpus tab
+                    if (corpusRowContainer != null)
+                    {
+                        corpusRowContainer.IsVisible = false;
                     }
                 }
             }
             else
             {
-                // Hide button, dropdown, and info text when not in corpus tab
-                if (loadCorpusButton != null)
+                // Hide row container when corpus tab content is not visible
+                if (corpusRowContainer != null)
                 {
-                    loadCorpusButton.Bounds = new Rectangle(-1000, -1000, 0, 0);
-                }
-                if (corpusDropdown != null)
-                {
-                    corpusDropdown.SetBounds(new Rectangle(-1000, -1000, 0, 0));
-                }
-                if (infoText != null)
-                {
-                    infoText.Bounds = new Rectangle(0, 0, 0, 0);
+                    corpusRowContainer.IsVisible = false;
                 }
             }
+            if (settingsTabContent != null)
+            {
+                settingsTabContent.Bounds = new Rectangle(0, 0, contentArea.Width, contentArea.Height);
+                settingsTabContent.RelativePosition = new System.Numerics.Vector2(0, 0);
+            }
+            
+            // Update tab visibility
+            UpdateTabVisibility();
 
             // Recursively update all children
             base.Update();
@@ -228,58 +364,10 @@ namespace Keysharp.Panels
                 bounds.Height - TabHeight
             );
 
-            DrawTabContent(contentArea, activeTabIndex);
+            // Tab content is drawn by their container children
         }
 
 
-        private void DrawTabContent(Rectangle contentArea, int tabIndex)
-        {
-            // Make sure we have a valid visible tab
-            if (tabIndex < 0 || tabIndex >= tabs.Count || !visibleTabs.Contains(tabs[tabIndex]))
-            {
-                // Find first visible tab
-                for (int i = 0; i < tabs.Count; i++)
-                {
-                    if (visibleTabs.Contains(tabs[i]))
-                    {
-                        activeTabIndex = i;
-                        tabIndex = i;
-                        break;
-                    }
-                }
-            }
-
-            string tabName = tabs[tabIndex];
-            int contentX = (int)contentArea.X + 20;
-            int contentY = (int)contentArea.Y + 20;
-
-            switch (tabName)
-            {
-                case "layout":
-                    FontManager.DrawText(Font, "Layout", contentX, contentY, 24, UITheme.TextColor);
-                    FontManager.DrawText(Font, "Layout configuration will appear here.", 
-                        contentX, contentY + 40, 16, UITheme.TextSecondaryColor);
-                    break;
-
-                case "corpus":
-                    DrawCorpusTab(contentArea, contentX, contentY);
-                    break;
-
-                case "settings":
-                    FontManager.DrawText(Font, "Settings", contentX, contentY, 24, UITheme.TextColor);
-                    FontManager.DrawText(Font, "Application settings and preferences", 
-                        contentX, contentY + 40, 16, UITheme.TextSecondaryColor);
-                    break;
-            }
-        }
-
-        private void DrawCorpusTab(Rectangle contentArea, int contentX, int contentY)
-        {
-            FontManager.DrawText(Font, "Corpus", contentX, contentY, 24, UITheme.TextColor);
-            
-            // Button, dropdown, and info text are drawn as children via base.Draw()
-            // No need to draw them manually here
-        }
 
         public void DrawDropdowns()
         {
@@ -441,4 +529,5 @@ namespace Keysharp.Panels
         }
     }
 }
+
 

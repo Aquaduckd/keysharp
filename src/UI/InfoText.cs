@@ -27,13 +27,19 @@ namespace Keysharp.UI
             text = newText;
         }
 
+        public string GetText()
+        {
+            return text;
+        }
+
         public override void Draw()
         {
             if (!IsVisible)
                 return;
 
-            if (!string.IsNullOrEmpty(text))
+            if (!string.IsNullOrEmpty(text) && Bounds.Width > 0 && Bounds.Height > 0)
             {
+                // Draw right-aligned text within the bounds
                 TextContainer.DrawRightAlignedText(font, text, Bounds, fontSize, color, 20);
             }
 

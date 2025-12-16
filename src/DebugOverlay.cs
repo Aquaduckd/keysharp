@@ -29,10 +29,14 @@ namespace Keysharp
 
         private void DrawUIElement(UI.UIElement element)
         {
+            // Skip hidden elements
+            if (!element.IsVisible)
+                return;
+
             // Draw this element's bounds
             DrawDebugRect(element.Bounds, element.Name);
 
-            // Recursively draw all children
+            // Recursively draw all children (they will check their own visibility)
             foreach (var child in element.Children)
             {
                 DrawUIElement(child);

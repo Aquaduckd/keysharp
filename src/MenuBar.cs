@@ -116,6 +116,10 @@ namespace Keysharp
 
         public override bool IsHovering(int mouseX, int mouseY)
         {
+            // Only check hovering if visible
+            if (!IsVisible)
+                return false;
+                
             // Check if hovering over menu bar items
             if (mouseY >= 0 && mouseY <= MenuBarHeight)
             {
@@ -201,6 +205,10 @@ namespace Keysharp
             // Note: Cursor is set centrally in Program.cs based on hover state
 
             // Check if clicking outside menu area
+            // Only process input if visible
+            if (!IsVisible)
+                return;
+                
             if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT))
             {
                 bool clickedOnMenu = false;

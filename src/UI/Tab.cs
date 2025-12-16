@@ -27,7 +27,7 @@ namespace Keysharp.UI
             base.Update();
 
             // Only process input if enabled and clickable
-            if (!IsEnabled || !IsClickable)
+            if (!IsVisible || !IsEnabled || !IsClickable || IsAnyParentHidden())
                 return;
 
             // Handle clicks

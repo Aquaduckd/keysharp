@@ -34,8 +34,9 @@ namespace Keysharp.UI
         {
             base.Update(); // Update children if any
 
-            // Only process input if enabled, clickable, and bounds are valid
-            if (!IsEnabled || !IsClickable || Bounds.Width <= 0 || Bounds.Height <= 0)
+            // Only process input if visible, enabled, clickable, and bounds are valid
+            // Also check if any parent is hidden
+            if (!IsVisible || !IsEnabled || !IsClickable || Bounds.Width <= 0 || Bounds.Height <= 0 || IsAnyParentHidden())
             {
                 IsHovered = false;
                 IsPressed = false;

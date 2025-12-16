@@ -23,8 +23,9 @@ namespace Keysharp.UI
         {
             base.Update();
 
-            // Only process input if enabled and clickable
-            if (!IsEnabled || !IsClickable)
+            // Only process input if visible, enabled, and clickable
+            // Also check if any parent is hidden
+            if (!IsVisible || !IsEnabled || !IsClickable || IsAnyParentHidden())
                 return;
 
             int mouseX = Raylib.GetMouseX();
