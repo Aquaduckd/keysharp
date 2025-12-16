@@ -27,6 +27,10 @@ namespace Keysharp.UI
         private Components.Container? corpusControlsContainer;
         private Components.Container? corpusRowContainer;
         private Components.Container? infoTextContainer;
+        private Components.Container? corpusHeaderContainer;
+        private Components.Container? corpusContentContainer;
+        private Components.Container? corpusMainContainer;
+        private Components.Label? corpusHeaderLabel;
 
         // Tab elements
         private List<Components.Tab> tabElements = new List<Components.Tab>();
@@ -80,24 +84,53 @@ namespace Keysharp.UI
             layoutTabContent.PositionMode = Components.PositionMode.Relative;
             tabContentContainer.AddChild(layoutTabContent);
 
-            corpusTabContent = new Components.TabContent(font, "Corpus", null);
+            corpusTabContent = new Components.TabContent(font, "", null); // Empty title - we'll use our own header
             corpusTabContent.IsVisible = (activeTabIndex == 1);
             corpusTabContent.PositionMode = Components.PositionMode.Relative;
             tabContentContainer.AddChild(corpusTabContent);
 
-            settingsTabContent = new Components.TabContent(font, "Settings", "Application settings and preferences");
-            settingsTabContent.IsVisible = (activeTabIndex == 2);
-            settingsTabContent.PositionMode = Components.PositionMode.Relative;
-            tabContentContainer.AddChild(settingsTabContent);
+            // Create main vertical container that wraps header, controls, and content
+            corpusMainContainer = new Components.Container("CorpusMain");
+            corpusMainContainer.AutoLayoutChildren = true;
+            corpusMainContainer.LayoutDirection = Components.LayoutDirection.Vertical;
+            corpusMainContainer.AutoSize = true; // Auto-size to fit children (accounts for padding)
+            corpusMainContainer.ChildPadding = 20;
+            corpusMainContainer.ChildGap = 0;
+            corpusTabContent.AddChild(corpusMainContainer);
+
+            // Create header container for corpus tab (will display centered text)
+            corpusHeaderContainer = new Components.Container("CorpusHeader");
+            corpusHeaderContainer.AutoSize = true; // Auto-size based on label + padding
+            corpusHeaderContainer.ChildPadding = 0; // No padding needed since label fills it
+            corpusMainContainer.AddChild(corpusHeaderContainer);
+
+            // Create header label with centered text
+            corpusHeaderLabel = new Components.Label(font, "Corpus", 24);
+            corpusHeaderLabel.Bounds = new Rectangle(0, 0, 0, 40); // Height for header text
+            corpusHeaderContainer.AddChild(corpusHeaderLabel);
 
             // Create a container for the entire corpus controls row (button, dropdown, and info text)
             corpusRowContainer = new Components.Container("CorpusRow");
             corpusRowContainer.AutoLayoutChildren = true;
             corpusRowContainer.LayoutDirection = Components.LayoutDirection.Horizontal;
+            corpusRowContainer.AutoSize = true; // Auto-size based on children + padding
             corpusRowContainer.ChildJustification = Components.ChildJustification.SpaceBetween;
             corpusRowContainer.ChildGap = 0; // Gap will be calculated by SpaceBetween
             corpusRowContainer.ChildPadding = 0;
-            corpusTabContent.AddChild(corpusRowContainer);
+            corpusMainContainer.AddChild(corpusRowContainer);
+
+            // Create content container for the rest of the corpus tab content
+            corpusContentContainer = new Components.Container("CorpusContent");
+            corpusContentContainer.AutoSize = false; // Size will be set by parent's fill-remaining logic
+            corpusContentContainer.AutoLayoutChildren = false; // No auto-layout needed (positioned by parent)
+            corpusContentContainer.ChildPadding = 0; // No padding needed
+            corpusContentContainer.FillRemaining = true; // Fill remaining space in parent container
+            corpusMainContainer.AddChild(corpusContentContainer);
+
+            settingsTabContent = new Components.TabContent(font, "Settings", "Application settings and preferences");
+            settingsTabContent.IsVisible = (activeTabIndex == 2);
+            settingsTabContent.PositionMode = Components.PositionMode.Relative;
+            tabContentContainer.AddChild(settingsTabContent);
 
             // Create container for left-aligned controls (button and dropdown)
             corpusControlsContainer = new Components.Container("CorpusControls");
@@ -196,10 +229,10 @@ namespace Keysharp.UI
             {
                 bool isVisible = (activeTabIndex == 1 && visibleTabs.Contains("corpus"));
                 corpusTabContent.IsVisible = isVisible;
-                // Also update corpus controls visibility
-                if (corpusControlsContainer != null)
+                // Also update corpus main container visibility (controls all children)
+                if (corpusMainContainer != null)
                 {
-                    corpusControlsContainer.IsVisible = isVisible;
+                    corpusMainContainer.IsVisible = isVisible;
                 }
             }
             if (settingsTabContent != null)
@@ -265,81 +298,135 @@ namespace Keysharp.UI
                 corpusTabContent.Bounds = new Rectangle(0, 0, contentArea.Width, contentArea.Height);
                 corpusTabContent.RelativePosition = new System.Numerics.Vector2(0, 0);
                 
-                // Update corpus row container if corpus tab is active
-                if (tabs[activeTabIndex] == "corpus" && corpusRowContainer != null)
+                // Update corpus containers if corpus tab is active
+                // With auto-layout, we only need to set sizes, not positions
+                if (tabs[activeTabIndex] == "corpus")
                 {
-                    // Position container on the same line as the title
-                    const int lineY = 60;
                     const int elementHeight = 35;
+                    const int headerHeight = 40; // Height for header text
                     
-                    // Update row container bounds (relative to corpusTabContent)
-                    corpusRowContainer.Bounds = new Rectangle(
-                        0, // Relative to corpusTabContent
-                        lineY,
-                        contentArea.Width,
-                        elementHeight
-                    );
-                    corpusRowContainer.IsVisible = true;
-
-                    // Update controls container bounds (will be left-aligned by parent)
-                    if (corpusControlsContainer != null)
+                    // Set main container bounds (fills parent, uses auto-layout)
+                    if (corpusMainContainer != null)
                     {
-                        // Width will be calculated by auto-layout based on children
-                        corpusControlsContainer.Bounds = new Rectangle(
-                            0,
-                            0,
-                            0, // Width calculated by layout
-                            elementHeight
+                        corpusMainContainer.Bounds = new Rectangle(
+                            0, 0,
+                            (int)contentArea.Width,
+                            (int)contentArea.Height
                         );
-                        corpusControlsContainer.IsVisible = true;
+                        // Set target height so fill-remaining children can calculate their size
+                        corpusMainContainer.TargetHeight = contentArea.Height;
+                        corpusMainContainer.IsVisible = true;
                     }
-
-                    // Update info text container bounds (will be right-aligned by parent)
-                    if (infoTextContainer != null)
+                    
+                    // Calculate available width accounting for parent padding
+                    int availableWidth = (int)contentArea.Width;
+                    if (corpusMainContainer != null)
                     {
-                        // Calculate width needed for info text if there's content
-                        float infoTextWidth = 0;
-                        if (infoText != null && !string.IsNullOrEmpty(loadedCorpusPath))
-                        {
-                            string fileName = Path.GetFileName(loadedCorpusPath);
-                            string infoTextContent = $"Loaded: {fileName}";
-                            float textWidth = FontManager.MeasureText(Font, infoTextContent, 14);
-                            infoTextWidth = textWidth + 40; // Add some padding
-                            infoText.SetText(infoTextContent);
-                            infoText.Bounds = new Rectangle(0, 0, infoTextWidth, elementHeight);
-                            infoText.IsVisible = true;
-                        }
-                        else if (infoText != null)
-                        {
-                            infoText.SetText("");
-                            infoText.Bounds = new Rectangle(0, 0, 0, 0);
-                            infoText.IsVisible = false;
-                        }
+                        availableWidth = (int)contentArea.Width - (int)(corpusMainContainer.ChildPadding * 2);
+                    }
+                    
+                    // Set header container bounds (width accounts for parent padding, fixed height for label)
+                    // Position will be handled by auto-layout
+                    if (corpusHeaderContainer != null)
+                    {
+                        corpusHeaderContainer.Bounds = new Rectangle(
+                            0, 0,
+                            availableWidth,
+                            headerHeight
+                        );
+                        corpusHeaderContainer.IsVisible = true;
                         
-                        infoTextContainer.Bounds = new Rectangle(
-                            0,
-                            0,
-                            infoTextWidth, // Width based on content
+                        // Update header label bounds (fills header container)
+                        if (corpusHeaderLabel != null)
+                        {
+                            corpusHeaderLabel.Bounds = new Rectangle(
+                                0, 0,
+                                availableWidth,
+                                headerHeight
+                            );
+                            corpusHeaderLabel.IsVisible = true;
+                        }
+                    }
+                    
+                    // Update corpus row container bounds (width accounts for parent padding)
+                    if (corpusRowContainer != null)
+                    {
+                        corpusRowContainer.Bounds = new Rectangle(
+                            0, 0,
+                            availableWidth,
                             elementHeight
                         );
-                        infoTextContainer.IsVisible = !string.IsNullOrEmpty(loadedCorpusPath);
+                        corpusRowContainer.IsVisible = true;
+
+                        // Update controls container bounds (will be left-aligned by parent auto-layout)
+                        if (corpusControlsContainer != null)
+                        {
+                            // Width will be calculated by auto-layout based on children
+                            corpusControlsContainer.Bounds = new Rectangle(
+                                0, 0,
+                                0, // Width calculated by layout
+                                elementHeight
+                            );
+                            corpusControlsContainer.IsVisible = true;
+                        }
+
+                        // Update info text container bounds (will be right-aligned by parent auto-layout)
+                        if (infoTextContainer != null)
+                        {
+                            // Calculate width needed for info text if there's content
+                            float infoTextWidth = 0;
+                            if (infoText != null && !string.IsNullOrEmpty(loadedCorpusPath))
+                            {
+                                string fileName = Path.GetFileName(loadedCorpusPath);
+                                string infoTextContent = $"Loaded: {fileName}";
+                                float textWidth = FontManager.MeasureText(Font, infoTextContent, 14);
+                                infoTextWidth = textWidth + 40; // Add some padding
+                                infoText.SetText(infoTextContent);
+                                infoText.Bounds = new Rectangle(0, 0, infoTextWidth, elementHeight);
+                                infoText.IsVisible = true;
+                            }
+                            else if (infoText != null)
+                            {
+                                infoText.SetText("");
+                                infoText.Bounds = new Rectangle(0, 0, 0, 0);
+                                infoText.IsVisible = false;
+                            }
+                            
+                            infoTextContainer.Bounds = new Rectangle(
+                                0, 0,
+                                infoTextWidth, // Width based on content
+                                elementHeight
+                            );
+                            infoTextContainer.IsVisible = !string.IsNullOrEmpty(loadedCorpusPath);
+                        }
+                    }
+                    
+                    // Set content container width (height will be set automatically by fill-remaining logic)
+                    if (corpusContentContainer != null)
+                    {
+                        corpusContentContainer.Bounds = new Rectangle(
+                            0, 0,
+                            availableWidth, // Width accounts for parent padding
+                            0 // Height will be set by parent's fill-remaining logic
+                        );
+                        corpusContentContainer.IsVisible = true;
                     }
                 }
                 else
                 {
-                    // Hide row container when not in corpus tab
-                    if (corpusRowContainer != null)
+                    // Hide containers when not in corpus tab
+                    if (corpusMainContainer != null)
                     {
-                        corpusRowContainer.IsVisible = false;
+                        corpusMainContainer.IsVisible = false;
                     }
                 }
             }
             else
             {
-                // Hide row container when corpus tab content is not visible
-                if (corpusRowContainer != null)
+                // Hide containers when corpus tab content is not visible
+                if (corpusMainContainer != null)
                 {
-                    corpusRowContainer.IsVisible = false;
+                    corpusMainContainer.IsVisible = false;
                 }
             }
             if (settingsTabContent != null)
@@ -351,8 +438,9 @@ namespace Keysharp.UI
             // Update tab visibility
             UpdateTabVisibility();
 
-            // Recursively update all children
+            // Recursively update all children (this triggers auto-layout)
             base.Update();
+            
         }
 
         protected override void DrawPanelContent(Rectangle bounds)

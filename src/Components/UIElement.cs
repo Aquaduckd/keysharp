@@ -85,6 +85,19 @@ namespace Keysharp.Components
         /// </summary>
         public bool AutoSize { get; set; } = false;
 
+        /// <summary>
+        /// Target height for this element. When set and AutoLayoutChildren is true with vertical layout,
+        /// children with FillRemaining will be sized to fill remaining space to reach this target.
+        /// </summary>
+        public float? TargetHeight { get; set; } = null;
+
+        /// <summary>
+        /// When true and this element is a child in a vertical auto-layout container,
+        /// it will automatically fill the remaining vertical space after other children and padding.
+        /// Only works when parent has TargetHeight set.
+        /// </summary>
+        public bool FillRemaining { get; set; } = false;
+
         protected UIElement(string name)
         {
             Name = name;
@@ -354,13 +367,150 @@ namespace Keysharp.Components
             }
         }
 
+        private float CalculateExpectedAutoSizedHeight(UIElement child)
+        {
+            if (!child.AutoSize || !child.AutoLayoutChildren || child.Children.Count == 0)
+            {
+                return child.Bounds.Height;
+            }
+
+            // Filter visible children
+            var visibleGrandchildren = new List<UIElement>();
+            foreach (var grandchild in child.Children)
+            {
+                if (grandchild.IsVisible)
+                {
+                    visibleGrandchildren.Add(grandchild);
+                }
+            }
+
+            if (visibleGrandchildren.Count == 0)
+            {
+                return child.Bounds.Height;
+            }
+
+            if (child.LayoutDirection == LayoutDirection.Vertical)
+            {
+                // For vertical layout: sum of child heights + gaps + padding
+                float totalHeight = 0;
+                foreach (var grandchild in visibleGrandchildren)
+                {
+                    float grandchildHeight = grandchild.Bounds.Height;
+                    // Recursively calculate if grandchild also has AutoSize
+                    if (grandchild.AutoSize && grandchild.AutoLayoutChildren && grandchild.Children.Count > 0)
+                    {
+                        grandchildHeight = CalculateExpectedAutoSizedHeight(grandchild);
+                    }
+                    totalHeight += grandchildHeight;
+                }
+                if (visibleGrandchildren.Count > 1)
+                {
+                    totalHeight += child.ChildGap * (visibleGrandchildren.Count - 1);
+                }
+                return totalHeight + (child.ChildPadding * 2);
+            }
+            else
+            {
+                // For horizontal layout: max child height + padding
+                float maxHeight = 0;
+                foreach (var grandchild in visibleGrandchildren)
+                {
+                    float grandchildHeight = grandchild.Bounds.Height;
+                    // Recursively calculate if grandchild also has AutoSize
+                    if (grandchild.AutoSize && grandchild.AutoLayoutChildren && grandchild.Children.Count > 0)
+                    {
+                        grandchildHeight = CalculateExpectedAutoSizedHeight(grandchild);
+                    }
+                    if (grandchildHeight > maxHeight)
+                    {
+                        maxHeight = grandchildHeight;
+                    }
+                }
+                return maxHeight + (child.ChildPadding * 2);
+            }
+        }
+
         private void LayoutChildrenVertical(List<UIElement> visibleChildren)
         {
             float currentX = ChildPadding;
             float currentY = ChildPadding;
             float maxWidth = 0;
 
-            // Calculate total height of all visible children
+            // Determine target height (use TargetHeight if set, otherwise current bounds height)
+            float targetHeight = TargetHeight ?? Bounds.Height;
+
+            // Separate children into those that fill remaining and those that don't
+            var fillRemainingChildren = new List<UIElement>();
+            var fixedChildren = new List<UIElement>();
+            foreach (var child in visibleChildren)
+            {
+                if (child.FillRemaining && TargetHeight.HasValue)
+                {
+                    fillRemainingChildren.Add(child);
+                }
+                else
+                {
+                    fixedChildren.Add(child);
+                }
+            }
+
+            // Calculate space used by fixed children
+            // For children with AutoSize, calculate their expected auto-sized height
+            float fixedChildrenHeight = 0;
+            var fixedChildrenExpectedHeights = new Dictionary<UIElement, float>();
+            foreach (var child in fixedChildren)
+            {
+                float childHeight = child.Bounds.Height;
+                
+                // If child has AutoSize enabled, calculate expected auto-sized height
+                if (child.AutoSize && child.AutoLayoutChildren && child.Children.Count > 0)
+                {
+                    childHeight = CalculateExpectedAutoSizedHeight(child);
+                    fixedChildrenExpectedHeights[child] = childHeight;
+                }
+                else
+                {
+                    fixedChildrenExpectedHeights[child] = childHeight;
+                }
+                
+                fixedChildrenHeight += childHeight;
+            }
+            // Add gaps between fixed children
+            if (fixedChildren.Count > 1)
+            {
+                fixedChildrenHeight += ChildGap * (fixedChildren.Count - 1);
+            }
+            // Add gaps between fixed children and fill-remaining children
+            if (fixedChildren.Count > 0 && fillRemainingChildren.Count > 0)
+            {
+                fixedChildrenHeight += ChildGap;
+            }
+            // Add gaps between multiple fill-remaining children
+            if (fillRemainingChildren.Count > 1)
+            {
+                fixedChildrenHeight += ChildGap * (fillRemainingChildren.Count - 1);
+            }
+
+            // Calculate remaining space for fill-remaining children
+            float availableSpace = targetHeight - ChildPadding * 2 - fixedChildrenHeight;
+            float fillRemainingHeight = 0;
+            if (fillRemainingChildren.Count > 0 && availableSpace > 0)
+            {
+                fillRemainingHeight = availableSpace / fillRemainingChildren.Count;
+            }
+
+            // Set heights for fill-remaining children
+            foreach (var child in fillRemainingChildren)
+            {
+                child.Bounds = new Rectangle(
+                    child.Bounds.X,
+                    child.Bounds.Y,
+                    child.Bounds.Width,
+                    fillRemainingHeight
+                );
+            }
+
+            // Calculate total height of all visible children (now that fill-remaining have been sized)
             float totalHeight = 0;
             foreach (var child in visibleChildren)
             {
