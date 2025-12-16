@@ -103,13 +103,10 @@ namespace Keysharp
         
         private static bool IsHoveringInteractiveElement(UIElement element, int mouseX, int mouseY)
         {
-            // Check this element
-            if (element is Button || element is Dropdown || element is Tab)
+            // Check this element - use flags instead of type checking
+            if (element.IsHoverable && element.IsEnabled && element.IsHovering(mouseX, mouseY))
             {
-                if (element.IsHovering(mouseX, mouseY))
-                {
-                    return true;
-                }
+                return true;
             }
             
             // Check children recursively

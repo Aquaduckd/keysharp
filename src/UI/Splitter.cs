@@ -13,11 +13,19 @@ namespace Keysharp.UI
         public Splitter(string name, bool isVertical) : base(name)
         {
             IsVertical = isVertical;
+            
+            // Set flags
+            IsClickable = true;
+            IsHoverable = true;
         }
 
         public override void Update()
         {
             base.Update();
+
+            // Only process input if enabled and clickable
+            if (!IsEnabled || !IsClickable)
+                return;
 
             int mouseX = Raylib.GetMouseX();
             int mouseY = Raylib.GetMouseY();

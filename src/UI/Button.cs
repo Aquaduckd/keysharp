@@ -24,14 +24,18 @@ namespace Keysharp.UI
             this.font = font;
             this.Text = text;
             this.fontSize = fontSize;
+            
+            // Set flags
+            IsClickable = true;
+            IsHoverable = true;
         }
 
         public override void Update()
         {
             base.Update(); // Update children if any
 
-            // Only process input if bounds are valid
-            if (Bounds.Width <= 0 || Bounds.Height <= 0)
+            // Only process input if enabled, clickable, and bounds are valid
+            if (!IsEnabled || !IsClickable || Bounds.Width <= 0 || Bounds.Height <= 0)
             {
                 IsHovered = false;
                 IsPressed = false;
@@ -58,8 +62,9 @@ namespace Keysharp.UI
 
         public override void Draw()
         {
-            // Only draw if bounds are valid (not hidden)
-            if (Bounds.Width > 0 && Bounds.Height > 0)
+            // Only draw if visible and bounds are valid
+            if (!IsVisible || Bounds.Width <= 0 || Bounds.Height <= 0)
+                return;
             {
                 // Button background
                 Color bgColor = IsPressed ? UITheme.MainPanelColor : 

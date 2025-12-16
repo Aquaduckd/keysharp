@@ -16,6 +16,10 @@ namespace Keysharp.UI
             this.text = text;
             this.fontSize = fontSize;
             this.color = color ?? UITheme.TextSecondaryColor;
+            
+            // Info text is not interactive
+            IsClickable = false;
+            IsHoverable = false;
         }
 
         public void SetText(string newText)
@@ -25,6 +29,9 @@ namespace Keysharp.UI
 
         public override void Draw()
         {
+            if (!IsVisible)
+                return;
+
             if (!string.IsNullOrEmpty(text))
             {
                 TextContainer.DrawRightAlignedText(font, text, Bounds, fontSize, color, 20);

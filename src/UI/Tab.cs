@@ -16,11 +16,19 @@ namespace Keysharp.UI
         {
             this.font = font;
             TabName = tabName;
+            
+            // Set flags
+            IsClickable = true;
+            IsHoverable = true;
         }
 
         public override void Update()
         {
             base.Update();
+
+            // Only process input if enabled and clickable
+            if (!IsEnabled || !IsClickable)
+                return;
 
             // Handle clicks
             if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT))

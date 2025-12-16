@@ -21,6 +21,10 @@ namespace Keysharp.UI
             this.bottomPanel = bottomPanel;
             this.menuBar = menuBar;
             this.layout = layout;
+            
+            // Root UI is not directly interactive
+            IsClickable = false;
+            IsHoverable = false;
 
             // Create splitters
             verticalSplitter = new Splitter("VerticalSplitter", true);

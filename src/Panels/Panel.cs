@@ -10,6 +10,11 @@ namespace Keysharp.Panels
         protected Panel(Font font, string name) : base(name)
         {
             Font = font;
+            
+            // Panels are not directly clickable or hoverable
+            // Their children handle interactions
+            IsClickable = false;
+            IsHoverable = false;
         }
 
         public override void Draw()

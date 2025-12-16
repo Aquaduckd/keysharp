@@ -25,6 +25,10 @@ namespace Keysharp
             // Set initial bounds
             Bounds = new Rectangle(0, 0, Raylib.GetScreenWidth(), MenuBarHeight);
             
+            // Menu bar itself is not directly clickable (menu items are)
+            IsClickable = false;
+            IsHoverable = true; // For cursor changes on menu items
+            
             // Initialize menus
             var fileMenu = new Menu("File");
             fileMenu.AddItem("New", () => System.Console.WriteLine("New"));
