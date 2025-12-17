@@ -2,6 +2,7 @@ using Raylib_cs;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Keysharp.Components;
 using Keysharp.UI;
 using System.IO;
@@ -22,15 +23,25 @@ namespace Keysharp.UI
         // Corpus tab state
         private Components.Button? loadCorpusButton;
         private Components.Dropdown? corpusDropdown;
-        private Components.InfoText? infoText;
+        private Components.Label? infoText;
         private string? loadedCorpusPath = null;
+        private Corpus? loadedCorpus = null;
         private Components.Container? corpusControlsContainer;
         private Components.Container? corpusRowContainer;
         private Components.Container? infoTextContainer;
         private Components.Container? corpusHeaderContainer;
         private Components.Container? corpusContentContainer;
         private Components.Container? corpusMainContainer;
+        private Components.Container? ngramSelectorContainer;
         private Components.Label? corpusHeaderLabel;
+        private Components.Dropdown? ngramSizeDropdown;
+        private Components.Table? ngramTable;
+        private Components.TextInput? searchInput;
+        private Components.Button? regexToggleButton;
+        private Components.Label? totalCountLabel;
+        private string selectedNgramSize = "monogram"; // "monogram", "bigram", "trigram", or "words"
+        private string searchText = "";
+        private bool useRegex = false;
 
         // Tab elements
         private List<Components.Tab> tabElements = new List<Components.Tab>();
@@ -95,7 +106,7 @@ namespace Keysharp.UI
             corpusMainContainer.LayoutDirection = Components.LayoutDirection.Vertical;
             corpusMainContainer.AutoSize = true; // Auto-size to fit children (accounts for padding)
             corpusMainContainer.ChildPadding = 20;
-            corpusMainContainer.ChildGap = 0;
+            corpusMainContainer.ChildGap = 10;
             corpusTabContent.AddChild(corpusMainContainer);
 
             // Create header container for corpus tab (will display centered text)
@@ -122,10 +133,84 @@ namespace Keysharp.UI
             // Create content container for the rest of the corpus tab content
             corpusContentContainer = new Components.Container("CorpusContent");
             corpusContentContainer.AutoSize = false; // Size will be set by parent's fill-remaining logic
-            corpusContentContainer.AutoLayoutChildren = false; // No auto-layout needed (positioned by parent)
-            corpusContentContainer.ChildPadding = 0; // No padding needed
+            corpusContentContainer.AutoLayoutChildren = true; // Enable auto-layout for n-gram selector and table
+            corpusContentContainer.LayoutDirection = Components.LayoutDirection.Vertical;
+            corpusContentContainer.ChildGap = 10;
+            corpusContentContainer.ChildPadding = 0;
             corpusContentContainer.FillRemaining = true; // Fill remaining space in parent container
             corpusMainContainer.AddChild(corpusContentContainer);
+
+            // Create outer container for controls and total label (with SpaceBetween)
+            ngramSelectorContainer = new Components.Container("NgramSelector");
+            ngramSelectorContainer.AutoSize = false; // Width must be set explicitly for SpaceBetween to work
+            ngramSelectorContainer.AutoLayoutChildren = true;
+            ngramSelectorContainer.LayoutDirection = Components.LayoutDirection.Horizontal;
+            ngramSelectorContainer.ChildJustification = Components.ChildJustification.SpaceBetween;
+            ngramSelectorContainer.ChildGap = 10;
+            ngramSelectorContainer.ChildPadding = 0;
+            ngramSelectorContainer.Bounds = new Rectangle(0, 0, 0, 35);
+            corpusContentContainer.AddChild(ngramSelectorContainer);
+
+            // Create left container for n-gram size selector and search controls
+            var leftControlsContainer = new Components.Container("LeftControls");
+            leftControlsContainer.AutoSize = true;
+            leftControlsContainer.AutoLayoutChildren = true;
+            leftControlsContainer.LayoutDirection = Components.LayoutDirection.Horizontal;
+            leftControlsContainer.ChildJustification = Components.ChildJustification.Left;
+            leftControlsContainer.ChildGap = 10;
+            leftControlsContainer.ChildPadding = 0;
+            leftControlsContainer.Bounds = new Rectangle(0, 0, 0, 35);
+            ngramSelectorContainer.AddChild(leftControlsContainer);
+
+            // Create label for n-gram selector
+            var ngramLabel = new Components.Label(font, "N-gram Size:", 14);
+            ngramLabel.Bounds = new Rectangle(0, 0, 120, 35);
+            ngramLabel.PositionMode = Components.PositionMode.Absolute;
+            leftControlsContainer.AddChild(ngramLabel);
+
+            // Create n-gram size dropdown
+            List<string> ngramSizes = new List<string> { "Monogram", "Bigram", "Trigram", "Words" };
+            ngramSizeDropdown = new Components.Dropdown(font, ngramSizes, 14);
+            ngramSizeDropdown.SetBounds(new Rectangle(0, 0, 200, 35));
+            ngramSizeDropdown.PositionMode = Components.PositionMode.Absolute;
+            ngramSizeDropdown.OnSelectionChanged = OnNgramSizeSelected;
+            // Set default selection to "Monogram"
+            ngramSizeDropdown.SetSelectedItem("Monogram");
+            leftControlsContainer.AddChild(ngramSizeDropdown);
+
+            // Create search label
+            var searchLabel = new Components.Label(font, "Search:", 14);
+            searchLabel.Bounds = new Rectangle(0, 0, 80, 35);
+            searchLabel.PositionMode = Components.PositionMode.Absolute;
+            leftControlsContainer.AddChild(searchLabel);
+
+            // Create search input
+            searchInput = new Components.TextInput(font, "Enter search term...", 14);
+            searchInput.Bounds = new Rectangle(0, 0, 300, 35);
+            searchInput.PositionMode = Components.PositionMode.Absolute;
+            searchInput.OnTextChanged = OnSearchTextChanged;
+            leftControlsContainer.AddChild(searchInput);
+
+            // Create regex toggle button
+            regexToggleButton = new Components.Button(font, "Regex: Off", 12);
+            regexToggleButton.Bounds = new Rectangle(0, 0, 100, 35);
+            regexToggleButton.PositionMode = Components.PositionMode.Absolute;
+            regexToggleButton.OnClick = ToggleRegexMode;
+            leftControlsContainer.AddChild(regexToggleButton);
+
+            // Create total count label (right-aligned)
+            totalCountLabel = new Components.Label(font, "", 14, null, rightAlign: true);
+            totalCountLabel.Bounds = new Rectangle(0, 0, 250, 35);
+            totalCountLabel.PositionMode = Components.PositionMode.Absolute;
+            ngramSelectorContainer.AddChild(totalCountLabel);
+
+            // Create n-gram table
+            ngramTable = new Components.Table(font, "Rank", "N-gram", "Frequency", "Count", 14);
+            ngramTable.Bounds = new Rectangle(0, 0, 0, 0); // Will be set by Update
+            ngramTable.AutoSize = false;
+            ngramTable.FillRemaining = true; // Fill remaining space after selector
+            ngramTable.PositionMode = Components.PositionMode.Absolute;
+            corpusContentContainer.AddChild(ngramTable);
 
             settingsTabContent = new Components.TabContent(font, "Settings", "Application settings and preferences");
             settingsTabContent.IsVisible = (activeTabIndex == 2);
@@ -138,7 +223,7 @@ namespace Keysharp.UI
             corpusControlsContainer.LayoutDirection = Components.LayoutDirection.Horizontal;
             corpusControlsContainer.ChildJustification = Components.ChildJustification.Left;
             corpusControlsContainer.ChildGap = 10;
-            corpusControlsContainer.ChildPadding = 20;
+            corpusControlsContainer.ChildPadding = 0;
             corpusControlsContainer.Bounds = new Rectangle(0, 0, 0, 35); // Width will be calculated by layout
             corpusRowContainer.AddChild(corpusControlsContainer);
 
@@ -163,12 +248,12 @@ namespace Keysharp.UI
             infoTextContainer.LayoutDirection = Components.LayoutDirection.Horizontal;
             infoTextContainer.ChildJustification = Components.ChildJustification.Right;
             infoTextContainer.ChildGap = 0;
-            infoTextContainer.ChildPadding = 20; // Right padding
+            infoTextContainer.ChildPadding = 0;
             infoTextContainer.Bounds = new Rectangle(0, 0, 0, 35); // Width will be calculated by layout
             corpusRowContainer.AddChild(infoTextContainer);
 
             // Initialize info text
-            infoText = new Components.InfoText(font, "", 14);
+            infoText = new Components.Label(font, "", 14, null, rightAlign: true);
             infoText.Bounds = new Rectangle(0, 0, 0, 35); // Width will be set based on content
             infoTextContainer.AddChild(infoText);
         }
@@ -176,6 +261,14 @@ namespace Keysharp.UI
         public List<string> GetTabs()
         {
             return new List<string>(tabs);
+        }
+
+        /// <summary>
+        /// Gets the currently loaded corpus, or null if no corpus is loaded.
+        /// </summary>
+        public Corpus? GetLoadedCorpus()
+        {
+            return loadedCorpus;
         }
 
         public bool IsTabVisible(string tabName)
@@ -380,7 +473,7 @@ namespace Keysharp.UI
                                 string fileName = Path.GetFileName(loadedCorpusPath);
                                 string infoTextContent = $"Loaded: {fileName}";
                                 float textWidth = FontManager.MeasureText(Font, infoTextContent, 14);
-                                infoTextWidth = textWidth + 40; // Add some padding
+                                infoTextWidth = textWidth + 20; // Add some padding for right alignment
                                 infoText.SetText(infoTextContent);
                                 infoText.Bounds = new Rectangle(0, 0, infoTextWidth, elementHeight);
                                 infoText.IsVisible = true;
@@ -401,16 +494,51 @@ namespace Keysharp.UI
                         }
                     }
                     
-                    // Set content container width (height will be set automatically by fill-remaining logic)
-                    if (corpusContentContainer != null)
+                    // Set content container width and target height for auto-layout
+                    if (corpusContentContainer != null && corpusMainContainer != null)
                     {
+                        // Calculate available height for the content container
+                        // Use actual heights from containers if available, otherwise use expected values
+                        // We need to account for: top padding, header, gap, row, gap, and bottom padding
+                        int actualHeaderHeight = corpusHeaderContainer != null && corpusHeaderContainer.Bounds.Height > 0 ? (int)corpusHeaderContainer.Bounds.Height : 40;
+                        int actualRowHeight = corpusRowContainer != null && corpusRowContainer.Bounds.Height > 0 ? (int)corpusRowContainer.Bounds.Height : 75;
+                        int gaps = (int)corpusMainContainer.ChildGap * 2; // Gap between header->row and row->content
+                        int availableHeight = (int)contentArea.Height - (int)(corpusMainContainer.ChildPadding * 2) - actualHeaderHeight - actualRowHeight - gaps;
+                        
                         corpusContentContainer.Bounds = new Rectangle(
                             0, 0,
                             availableWidth, // Width accounts for parent padding
-                            0 // Height will be set by parent's fill-remaining logic
+                            availableHeight // Set initial height
                         );
+                        corpusContentContainer.TargetHeight = (float)availableHeight; // Set target for FillRemaining children
                         corpusContentContainer.IsVisible = true;
                     }
+
+                    // Set ngramSelectorContainer width for SpaceBetween to work correctly
+                    if (ngramSelectorContainer != null)
+                    {
+                        ngramSelectorContainer.Bounds = new Rectangle(
+                            ngramSelectorContainer.Bounds.X,
+                            ngramSelectorContainer.Bounds.Y,
+                            availableWidth, // Set width explicitly for SpaceBetween
+                            ngramSelectorContainer.Bounds.Height
+                        );
+                    }
+
+                    // Table bounds will be set automatically by container's auto-layout since it has FillRemaining = true
+                    if (ngramTable != null)
+                    {
+                        // Only set width - height and position will be handled by auto-layout
+                        ngramTable.Bounds = new Rectangle(
+                            ngramTable.Bounds.X,
+                            ngramTable.Bounds.Y,
+                            availableWidth,
+                            ngramTable.Bounds.Height // Height will be set by FillRemaining logic
+                        );
+                        ngramTable.IsVisible = true; // Always show table, even if empty
+                    }
+
+                    // Reset scroll position when search changes (handled by UpdateNgramTable)
                 }
                 else
                 {
@@ -475,6 +603,10 @@ namespace Keysharp.UI
             {
                 corpusDropdown.DrawDropdown();
             }
+            if (ngramSizeDropdown != null)
+            {
+                ngramSizeDropdown.DrawDropdown();
+            }
         }
 
         public bool IsHoveringTab(Rectangle bounds, int mouseX, int mouseY)
@@ -501,6 +633,11 @@ namespace Keysharp.UI
                 }
 
                 if (corpusDropdown != null && corpusDropdown.IsHovering(mouseX, mouseY))
+                {
+                    return true;
+                }
+
+                if (ngramSizeDropdown != null && ngramSizeDropdown.IsHovering(mouseX, mouseY))
                 {
                     return true;
                 }
@@ -539,7 +676,188 @@ namespace Keysharp.UI
                 {
                     corpusDropdown.SetCustomDisplayText(null);
                 }
-                System.Console.WriteLine($"Corpus selected: {loadedCorpusPath}");
+                
+                // Load the corpus
+                try
+                {
+                    loadedCorpus = new Corpus(fullPath);
+                    loadedCorpus.Load();
+                    System.Console.WriteLine($"Corpus loaded: {loadedCorpus.FileName}");
+                    System.Console.WriteLine($"  Characters: {loadedCorpus.CharacterCount:N0}");
+                    System.Console.WriteLine($"  Monograms: {loadedCorpus.GetMonograms().UniqueCount} unique, {loadedCorpus.GetMonograms().Total:N0} total");
+                    System.Console.WriteLine($"  Bigrams: {loadedCorpus.GetBigrams().UniqueCount} unique, {loadedCorpus.GetBigrams().Total:N0} total");
+                    System.Console.WriteLine($"  Trigrams: {loadedCorpus.GetTrigrams().UniqueCount} unique, {loadedCorpus.GetTrigrams().Total:N0} total");
+                    
+                    // Update n-gram table with loaded corpus
+                    UpdateNgramTable();
+                }
+                catch (Exception ex)
+                {
+                    System.Console.WriteLine($"Error loading corpus: {ex.Message}");
+                    loadedCorpus = null;
+                    UpdateNgramTable();
+                }
+            }
+        }
+
+        private void OnNgramSizeSelected(string ngramSize)
+        {
+            selectedNgramSize = ngramSize.ToLower();
+            UpdateNgramTable();
+        }
+
+        private void OnSearchTextChanged(string text)
+        {
+            searchText = text;
+            // Reset scroll when search changes
+            if (ngramTable != null)
+            {
+                ngramTable.ResetScroll();
+            }
+            UpdateNgramTable();
+        }
+
+        private void ToggleRegexMode()
+        {
+            useRegex = !useRegex;
+            if (regexToggleButton != null)
+            {
+                regexToggleButton.Text = useRegex ? "Regex: On" : "Regex: Off";
+            }
+            UpdateNgramTable();
+        }
+
+        private bool MatchesSearch(string sequence)
+        {
+            if (string.IsNullOrEmpty(searchText))
+                return true;
+
+            try
+            {
+                if (useRegex)
+                {
+                    // Validate and compile the regex pattern first
+                    // This will throw ArgumentException if the pattern is invalid before we try to match
+                    var regex = new Regex(searchText, RegexOptions.Compiled | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
+                    return regex.IsMatch(sequence);
+                }
+                else
+                {
+                    return sequence.Contains(searchText, StringComparison.OrdinalIgnoreCase);
+                }
+            }
+            catch (ArgumentException)
+            {
+                // Invalid regex pattern, return false (don't match anything)
+                return false;
+            }
+            catch (RegexMatchTimeoutException)
+            {
+                // Regex matching timed out (pattern too complex), return false
+                return false;
+            }
+            catch
+            {
+                // Any other exception, return false
+                return false;
+            }
+        }
+
+        private void UpdateNgramTable()
+        {
+            if (ngramTable == null)
+            {
+                return;
+            }
+
+            if (loadedCorpus == null)
+            {
+                ngramTable.Rows.Clear();
+                return;
+            }
+
+            Grams grams;
+            switch (selectedNgramSize)
+            {
+                case "bigram":
+                    grams = loadedCorpus.GetBigrams();
+                    break;
+                case "trigram":
+                    grams = loadedCorpus.GetTrigrams();
+                    break;
+                case "words":
+                    grams = loadedCorpus.GetWords();
+                    break;
+                default:
+                    grams = loadedCorpus.GetMonograms();
+                    break;
+            }
+
+            // Get all n-grams sorted by frequency
+            var allNgrams = grams.GetAllSorted();
+            
+            // Filter n-grams based on search text
+            // Pre-compile regex if in regex mode for better performance
+            Regex? compiledRegex = null;
+            if (useRegex && !string.IsNullOrEmpty(searchText))
+            {
+                try
+                {
+                    compiledRegex = new Regex(searchText, RegexOptions.Compiled | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
+                }
+                catch
+                {
+                    // Invalid regex pattern - will filter out everything
+                    compiledRegex = null;
+                }
+            }
+            
+            var filteredNgrams = allNgrams.Where(ngram => 
+            {
+                if (string.IsNullOrEmpty(searchText))
+                    return true;
+                
+                if (useRegex)
+                {
+                    if (compiledRegex == null)
+                        return false; // Invalid regex pattern
+                    try
+                    {
+                        return compiledRegex.IsMatch(ngram.sequence);
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    return ngram.sequence.Contains(searchText, StringComparison.OrdinalIgnoreCase);
+                }
+            }).ToList();
+            
+            // Update table rows
+            ngramTable.Rows.Clear();
+            for (int i = 0; i < filteredNgrams.Count; i++)
+            {
+                var ngram = filteredNgrams[i];
+                string rank = (i + 1).ToString();
+                string ngramText = $"\"{EscapeSpecialChars(ngram.sequence)}\""; // Add quotation marks around n-gram and escape special chars
+                // Format frequency as percentage with 3 decimal places
+                string frequency = $"{ngram.frequency * 100:F3}%";
+                // Format count with thousand separators
+                string count = ngram.count.ToString("N0");
+                ngramTable.Rows.Add((rank, ngramText, frequency, count));
+            }
+
+            // Update total count label
+            if (totalCountLabel != null)
+            {
+                long totalCount = grams.Total;
+                string countText = string.IsNullOrEmpty(searchText) 
+                    ? $"Total: {totalCount:N0}" 
+                    : $"Showing {filteredNgrams.Count:N0} of {totalCount:N0}";
+                totalCountLabel.SetText(countText);
             }
         }
 
@@ -577,7 +895,28 @@ namespace Keysharp.UI
                                     string truncatedPath = TruncatePath(filePath, 40); // Max 40 characters
                                     corpusDropdown.SetCustomDisplayText(truncatedPath);
                                 }
-                                System.Console.WriteLine($"Corpus loaded from: {loadedCorpusPath}");
+                                
+                                // Load the corpus
+                                try
+                                {
+                                    loadedCorpus = new Corpus(filePath);
+                                    loadedCorpus.Load();
+                                    System.Console.WriteLine($"Corpus loaded: {loadedCorpus.FileName}");
+                                    System.Console.WriteLine($"  Characters: {loadedCorpus.CharacterCount:N0}");
+                                    System.Console.WriteLine($"  Monograms: {loadedCorpus.GetMonograms().UniqueCount} unique, {loadedCorpus.GetMonograms().Total:N0} total");
+                                    System.Console.WriteLine($"  Bigrams: {loadedCorpus.GetBigrams().UniqueCount} unique, {loadedCorpus.GetBigrams().Total:N0} total");
+                                    System.Console.WriteLine($"  Trigrams: {loadedCorpus.GetTrigrams().UniqueCount} unique, {loadedCorpus.GetTrigrams().Total:N0} total");
+                                    System.Console.WriteLine($"  Words: {loadedCorpus.GetWords().UniqueCount} unique, {loadedCorpus.GetWords().Total:N0} total");
+                                    
+                                    // Update n-gram table with loaded corpus
+                                    UpdateNgramTable();
+                                }
+                                catch (Exception ex)
+                                {
+                                    System.Console.WriteLine($"Error loading corpus: {ex.Message}");
+                                    loadedCorpus = null;
+                                    UpdateNgramTable();
+                                }
                             }
                             else
                             {
@@ -597,6 +936,19 @@ namespace Keysharp.UI
                 System.Console.WriteLine($"Error opening file dialog: {ex.Message}");
                 // Fallback: try using a simple text input or other method
             }
+        }
+
+        private string EscapeSpecialChars(string text)
+        {
+            // Escape special characters for display
+            return text
+                .Replace("\r", "\\r")
+                .Replace("\n", "\\n")
+                .Replace("\t", "\\t")
+                .Replace("\0", "\\0")
+                .Replace("\b", "\\b")
+                .Replace("\f", "\\f")
+                .Replace("\v", "\\v");
         }
 
         private string TruncatePath(string path, int maxLength)

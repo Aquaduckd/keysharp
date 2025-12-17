@@ -61,6 +61,16 @@ namespace Keysharp.Components
             }
         }
 
+        public void SetSelectedItem(string item)
+        {
+            int index = items.IndexOf(item);
+            if (index >= 0)
+            {
+                selectedIndex = index;
+                OnSelectionChanged?.Invoke(item);
+            }
+        }
+
         public void SetBounds(Rectangle bounds)
         {
             this.Bounds = bounds;
@@ -140,7 +150,7 @@ namespace Keysharp.Components
             }
             else
             {
-                displayText = SelectedItem ?? "Select corpus...";
+                displayText = SelectedItem ?? "Select...";
             }
             Color textColor = (SelectedItem != null || customDisplayText != null) ? UITheme.TextColor : UITheme.TextSecondaryColor;
             
