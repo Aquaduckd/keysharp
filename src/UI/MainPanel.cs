@@ -23,12 +23,11 @@ namespace Keysharp.UI
         // Corpus tab state
         private Components.Button? loadCorpusButton;
         private Components.Dropdown? corpusDropdown;
-        private Components.Label? infoText;
+        private Components.Button? saveCsvButton;
         private string? loadedCorpusPath = null;
         private Corpus? loadedCorpus = null;
         private Components.Container? corpusControlsContainer;
         private Components.Container? corpusRowContainer;
-        private Components.Container? infoTextContainer;
         private Components.Container? corpusHeaderContainer;
         private Components.Container? corpusContentContainer;
         private Components.Container? corpusMainContainer;
@@ -242,20 +241,13 @@ namespace Keysharp.UI
             corpusDropdown.OnSelectionChanged = OnCorpusSelected;
             corpusControlsContainer.AddChild(corpusDropdown);
 
-            // Create container for right-aligned info text
-            infoTextContainer = new Components.Container("InfoTextContainer");
-            infoTextContainer.AutoLayoutChildren = true;
-            infoTextContainer.LayoutDirection = Components.LayoutDirection.Horizontal;
-            infoTextContainer.ChildJustification = Components.ChildJustification.Right;
-            infoTextContainer.ChildGap = 0;
-            infoTextContainer.ChildPadding = 0;
-            infoTextContainer.Bounds = new Rectangle(0, 0, 0, 35); // Width will be calculated by layout
-            corpusRowContainer.AddChild(infoTextContainer);
-
-            // Initialize info text
-            infoText = new Components.Label(font, "", 14, null, rightAlign: true);
-            infoText.Bounds = new Rectangle(0, 0, 0, 35); // Width will be set based on content
-            infoTextContainer.AddChild(infoText);
+            // Create save CSV button
+            saveCsvButton = new Components.Button(font, "Save to CSV", 14);
+            saveCsvButton.Bounds = new Rectangle(0, 0, 150, 35);
+            saveCsvButton.PositionMode = Components.PositionMode.Absolute;
+            saveCsvButton.OnClick = SaveNgramsToCsv;
+            saveCsvButton.IsVisible = false; // Hidden until corpus is loaded and has data
+            corpusRowContainer.AddChild(saveCsvButton);
         }
 
         public List<string> GetTabs()
@@ -463,34 +455,17 @@ namespace Keysharp.UI
                             corpusControlsContainer.IsVisible = true;
                         }
 
-                        // Update info text container bounds (will be right-aligned by parent auto-layout)
-                        if (infoTextContainer != null)
+                        // Update save CSV button
+                        if (saveCsvButton != null)
                         {
-                            // Calculate width needed for info text if there's content
-                            float infoTextWidth = 0;
-                            if (infoText != null && !string.IsNullOrEmpty(loadedCorpusPath))
-                            {
-                                string fileName = Path.GetFileName(loadedCorpusPath);
-                                string infoTextContent = $"Loaded: {fileName}";
-                                float textWidth = FontManager.MeasureText(Font, infoTextContent, 14);
-                                infoTextWidth = textWidth + 20; // Add some padding for right alignment
-                                infoText.SetText(infoTextContent);
-                                infoText.Bounds = new Rectangle(0, 0, infoTextWidth, elementHeight);
-                                infoText.IsVisible = true;
-                            }
-                            else if (infoText != null)
-                            {
-                                infoText.SetText("");
-                                infoText.Bounds = new Rectangle(0, 0, 0, 0);
-                                infoText.IsVisible = false;
-                            }
-                            
-                            infoTextContainer.Bounds = new Rectangle(
+                            saveCsvButton.Bounds = new Rectangle(
                                 0, 0,
-                                infoTextWidth, // Width based on content
+                                150,
                                 elementHeight
                             );
-                            infoTextContainer.IsVisible = !string.IsNullOrEmpty(loadedCorpusPath);
+                            // Show button only if corpus is loaded and table has data
+                            bool hasData = ngramTable != null && ngramTable.Rows.Count > 0;
+                            saveCsvButton.IsVisible = loadedCorpus != null && hasData;
                         }
                     }
                     
@@ -690,12 +665,25 @@ namespace Keysharp.UI
                     
                     // Update n-gram table with loaded corpus
                     UpdateNgramTable();
+                    
+                    // Update save CSV button visibility
+                    if (saveCsvButton != null)
+                    {
+                        bool hasData = ngramTable != null && ngramTable.Rows.Count > 0;
+                        saveCsvButton.IsVisible = hasData;
+                    }
                 }
                 catch (Exception ex)
                 {
                     System.Console.WriteLine($"Error loading corpus: {ex.Message}");
                     loadedCorpus = null;
                     UpdateNgramTable();
+                    
+                    // Hide save CSV button on error
+                    if (saveCsvButton != null)
+                    {
+                        saveCsvButton.IsVisible = false;
+                    }
                 }
             }
         }
@@ -773,6 +761,11 @@ namespace Keysharp.UI
             if (loadedCorpus == null)
             {
                 ngramTable.Rows.Clear();
+                // Hide save CSV button when no corpus is loaded
+                if (saveCsvButton != null)
+                {
+                    saveCsvButton.IsVisible = false;
+                }
                 return;
             }
 
@@ -906,6 +899,102 @@ namespace Keysharp.UI
             }
         }
 
+        private void SaveNgramsToCsv()
+        {
+            if (ngramTable == null || loadedCorpus == null || ngramTable.Rows.Count == 0)
+                return;
+
+            try
+            {
+                // Use zenity for file save dialog on Linux
+                ProcessStartInfo startInfo = new ProcessStartInfo
+                {
+                    FileName = "zenity",
+                    Arguments = "--file-selection --title=\"Save CSV File\" --save --confirm-overwrite",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    CreateNoWindow = true
+                };
+
+                Process? process = Process.Start(startInfo);
+                if (process != null)
+                {
+                    string? output = process.StandardOutput.ReadToEnd();
+                    process.WaitForExit();
+
+                    if (process.ExitCode == 0 && !string.IsNullOrWhiteSpace(output))
+                    {
+                        string filePath = output.Trim();
+                        if (!filePath.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+                        {
+                            filePath += ".csv";
+                        }
+
+                        // Write CSV file
+                        using (var writer = new StreamWriter(filePath))
+                        {
+                            // Write header row
+                            var headers = new List<string> { ngramTable.Column1Header, ngramTable.Column2Header, ngramTable.Column3Header, ngramTable.Column4Header };
+                            if (ngramTable.ShowColumn5)
+                            {
+                                headers.Add(ngramTable.Column5Header);
+                            }
+                            if (ngramTable.ShowColumn6)
+                            {
+                                headers.Add(ngramTable.Column6Header);
+                            }
+                            writer.WriteLine(string.Join(",", headers.Select(h => EscapeCsvField(h))));
+
+                            // Write data rows
+                            foreach (var row in ngramTable.Rows)
+                            {
+                                var fields = new List<string> { row.column1, row.column2, row.column3, row.column4 };
+                                if (ngramTable.ShowColumn5)
+                                {
+                                    fields.Add(row.column5);
+                                }
+                                if (ngramTable.ShowColumn6)
+                                {
+                                    fields.Add(row.column6);
+                                }
+                                writer.WriteLine(string.Join(",", fields.Select(f => EscapeCsvField(f))));
+                            }
+                        }
+
+                        System.Console.WriteLine($"CSV saved to: {filePath}");
+                    }
+                    else
+                    {
+                        System.Console.WriteLine("CSV save cancelled");
+                    }
+                }
+                else
+                {
+                    System.Console.WriteLine("zenity not available for file save dialog");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"Error saving CSV: {ex.Message}");
+            }
+        }
+
+        private string EscapeCsvField(string field)
+        {
+            // Remove quotes from n-gram text if present, then properly escape for CSV
+            if (field.StartsWith("\"") && field.EndsWith("\""))
+            {
+                field = field.Substring(1, field.Length - 2);
+            }
+            
+            // Escape quotes and wrap in quotes if field contains comma, quote, or newline
+            if (field.Contains(",") || field.Contains("\"") || field.Contains("\n") || field.Contains("\r"))
+            {
+                field = "\"" + field.Replace("\"", "\"\"") + "\"";
+            }
+            return field;
+        }
+
         private void LoadCorpusFromFile()
         {
             try
@@ -961,6 +1050,12 @@ namespace Keysharp.UI
                                     System.Console.WriteLine($"Error loading corpus: {ex.Message}");
                                     loadedCorpus = null;
                                     UpdateNgramTable();
+                                    
+                                    // Hide save CSV button on error
+                                    if (saveCsvButton != null)
+                                    {
+                                        saveCsvButton.IsVisible = false;
+                                    }
                                 }
                             }
                             else
