@@ -1,4 +1,5 @@
 using Raylib_cs;
+using System.Reflection;
 using Keysharp.Components;
 using Keysharp.UI;
 
@@ -25,6 +26,21 @@ namespace Keysharp
             // Recursively draw all UI elements starting from root
             // This includes panels, tabs, buttons, dropdowns, info text, splitters, and menu bar
             DrawUIElement(rootUI);
+
+            // Also draw help screen if it's visible (it's not in the normal hierarchy)
+            try
+            {
+                var helpScreen = GetHelpScreenFromMainPanel(rootUI.MainPanel);
+                if (helpScreen != null && helpScreen.IsVisible)
+                {
+                    DrawUIElement(helpScreen);
+                }
+            }
+            catch
+            {
+                // If reflection fails, just skip drawing the help screen
+                // Don't let it prevent the debug overlay from working
+            }
         }
 
         private void DrawUIElement(Components.UIElement element)
@@ -63,6 +79,29 @@ namespace Keysharp
             }
         }
 
+        private Components.UIElement? GetHelpScreenFromMainPanel(MainPanel mainPanel)
+        {
+            try
+            {
+                // Use reflection to access the private corpusTab field
+                var corpusTabField = typeof(MainPanel).GetField("corpusTab", BindingFlags.NonPublic | BindingFlags.Instance);
+                if (corpusTabField == null)
+                    return null;
+                
+                var corpusTab = corpusTabField.GetValue(mainPanel);
+                if (corpusTab == null)
+                    return null;
+                
+                var regexHelpScreenProperty = corpusTab.GetType().GetProperty("RegexHelpScreen");
+                if (regexHelpScreenProperty == null)
+                    return null;
+                
+                return regexHelpScreenProperty.GetValue(corpusTab) as Components.UIElement;
+            }
+            catch
+            {
+                return null;
+            }
+        }
     }
 }
-

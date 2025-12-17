@@ -236,6 +236,15 @@ namespace Keysharp.UI
             corpusTab?.NgramSizeDropdown?.DrawDropdown();
         }
 
+        public void DrawHelpScreen()
+        {
+            // Draw help screen on top of everything
+            if (corpusTab?.RegexHelpScreen != null && corpusTab.RegexHelpScreen.IsVisible)
+            {
+                corpusTab.RegexHelpScreen.Draw();
+            }
+        }
+
         public bool IsHoveringTab(Rectangle bounds, int mouseX, int mouseY)
         {
             return mouseY >= bounds.Y && mouseY <= bounds.Y + TabHeight &&

@@ -34,6 +34,8 @@ namespace Keysharp.UI
         private Components.TextInput? limitInput;
         private Components.TextInput? searchInput;
         private Components.Button? regexToggleButton;
+        private Components.Button? regexHelpButton;
+        private RegexHelpScreen? regexHelpScreen;
         private Components.Label? totalCountLabel;
         private string selectedNgramSize = "bigram"; // "monogram", "bigram", "trigram", or "words"
         private string searchText = "";
@@ -43,6 +45,7 @@ namespace Keysharp.UI
         public Components.TabContent TabContent => tabContent;
         public Components.Dropdown? CorpusDropdown => corpusDropdown;
         public Components.Dropdown? NgramSizeDropdown => ngramSizeDropdown;
+        public RegexHelpScreen? RegexHelpScreen => regexHelpScreen;
 
         public CorpusTab(Font font)
         {
@@ -166,6 +169,19 @@ namespace Keysharp.UI
             regexToggleButton.OnClick = ToggleRegexMode;
             leftControlsContainer.AddChild(regexToggleButton);
 
+            // Create regex help button
+            regexHelpButton = new Components.Button(font, "?", 12);
+            regexHelpButton.Bounds = new Rectangle(0, 0, 35, 35);
+            regexHelpButton.PositionMode = Components.PositionMode.Absolute;
+            regexHelpButton.OnClick = ShowRegexHelp;
+            leftControlsContainer.AddChild(regexHelpButton);
+
+            // Create regex help screen
+            // Note: Not added as a child to tabContent because it uses absolute screen coordinates
+            // and is updated explicitly in Update() method
+            regexHelpScreen = new RegexHelpScreen(font);
+            regexHelpScreen.SetPatternSelectedCallback(OnRegexPatternSelected);
+
             // Create total count label (right-aligned)
             totalCountLabel = new Components.Label(font, "", 14, null, rightAlign: true);
             totalCountLabel.Bounds = new Rectangle(0, 0, 250, 35);
@@ -218,6 +234,12 @@ namespace Keysharp.UI
         {
             tabContent.Bounds = new Rectangle(0, 0, contentArea.Width, contentArea.Height);
             tabContent.RelativePosition = new System.Numerics.Vector2(0, 0);
+
+            // Update help screen explicitly (it uses absolute screen coordinates, not relative to parent)
+            if (regexHelpScreen != null)
+            {
+                regexHelpScreen.Update();
+            }
 
             if (isActive)
             {
@@ -478,6 +500,38 @@ namespace Keysharp.UI
             if (regexToggleButton != null)
             {
                 regexToggleButton.Text = useRegex ? "Regex: On" : "Regex: Off";
+            }
+            UpdateNgramTable();
+        }
+
+        private void ShowRegexHelp()
+        {
+            if (regexHelpScreen != null)
+            {
+                regexHelpScreen.Show();
+            }
+        }
+
+        private void OnRegexPatternSelected(string pattern)
+        {
+            // Enable regex mode
+            useRegex = true;
+            if (regexToggleButton != null)
+            {
+                regexToggleButton.Text = "Regex: On";
+            }
+
+            // Set search text to the selected pattern
+            searchText = pattern;
+            if (searchInput != null)
+            {
+                searchInput.SetText(pattern);
+            }
+
+            // Update the table
+            if (ngramTable != null)
+            {
+                ngramTable.ResetScroll();
             }
             UpdateNgramTable();
         }

@@ -542,8 +542,18 @@ namespace Keysharp.Components
             }
 
             // Position children vertically
+            // For vertical layouts, children should get the full available width (minus padding) if their width is 0 or very small
+            float availableChildWidth = Bounds.Width - (ChildPadding * 2);
+            
             foreach (var child in visibleChildren)
             {
+                // If child has zero or very small width, give it the full available width
+                float childWidth = child.Bounds.Width;
+                if (childWidth <= 1)
+                {
+                    childWidth = availableChildWidth;
+                }
+                
                 if (child.PositionMode == PositionMode.Relative)
                 {
                     // Update relative position
@@ -551,7 +561,7 @@ namespace Keysharp.Components
                     child.Bounds = new Rectangle(
                         Bounds.X + currentX,
                         Bounds.Y + currentY,
-                        child.Bounds.Width,
+                        childWidth,
                         child.Bounds.Height
                     );
                 }
@@ -561,7 +571,7 @@ namespace Keysharp.Components
                     child.Bounds = new Rectangle(
                         Bounds.X + currentX,
                         Bounds.Y + currentY,
-                        child.Bounds.Width,
+                        childWidth,
                         child.Bounds.Height
                     );
                 }
