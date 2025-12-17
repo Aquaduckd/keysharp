@@ -31,8 +31,10 @@ namespace Keysharp.UI
         {
             ("Starts with exact", "^{0}", true),
             ("Ends with exact", "{0}$", true),
+            ("Starts and ends with exact", "^{0}.*{0}$", true),
             ("Starts with any", "^[{0}]", true),
             ("Ends with any", "[{0}]$", true),
+            ("Starts and ends with any", "^[{0}].*[{0}]$", true),
             ("Contains exact", "{0}", true),
             ("Contains any", "[{0}]", true),
             ("Any two in a row", "[{0}]{{2}}", true),
