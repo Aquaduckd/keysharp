@@ -29,6 +29,22 @@ namespace Keysharp.UI
         private CorpusTab? corpusTab;
         private SettingsTab? settingsTab;
 
+        // Reference to side panel for key info display
+        private SidePanel? sidePanel;
+        public SidePanel? SidePanel
+        {
+            get => sidePanel;
+            set
+            {
+                sidePanel = value;
+                // Propagate to layout tab if it exists
+                if (layoutTab != null)
+                {
+                    layoutTab.SidePanel = value;
+                }
+            }
+        }
+
         public MainPanel(Font font) : base(font, "MainPanel")
         {
             // All tabs visible by default
@@ -65,6 +81,7 @@ namespace Keysharp.UI
 
             // Create tab classes
             layoutTab = new LayoutTab(font);
+            layoutTab.SidePanel = sidePanel; // Connect to side panel for key info display (may be null initially)
             layoutTab.SetVisible(activeTabIndex == 0);
             tabContentContainer.AddChild(layoutTab.TabContent);
 
@@ -174,7 +191,7 @@ namespace Keysharp.UI
             // Update tab visibility (this will update both tab elements and tab content)
             UpdateTabVisibility();
 
-            // Update tab content container bounds
+            // Calculate content area before base.Update() so tabContentContainer can have correct bounds
             Rectangle contentArea = new Rectangle(
                 bounds.X,
                 bounds.Y + TabHeight,
@@ -182,12 +199,13 @@ namespace Keysharp.UI
                 bounds.Height - TabHeight
             );
 
+            // Set tab content container bounds before base.Update() so children can use correct parent bounds
             if (tabContentContainer != null)
             {
                 tabContentContainer.Bounds = contentArea;
             }
 
-            // Update tab content bounds
+            // Update tab content bounds BEFORE base.Update() so they have correct bounds when container updates
             bool isLayoutActive = tabs[activeTabIndex] == "layout";
             bool isCorpusActive = tabs[activeTabIndex] == "corpus";
             bool isSettingsActive = tabs[activeTabIndex] == "settings";
@@ -195,12 +213,13 @@ namespace Keysharp.UI
             layoutTab?.Update(contentArea);
             corpusTab?.Update(contentArea, isCorpusActive);
             settingsTab?.Update(contentArea);
-            
-            // Update tab visibility
-            UpdateTabVisibility();
 
-            // Recursively update all children (this triggers auto-layout)
+            // Recursively update all children (this triggers auto-layout for tabsContainer and updates tabContentContainer)
+            // Now tabContent elements have correct bounds, so they'll position correctly relative to tabContentContainer
             base.Update();
+            
+            // Update tab visibility again after content updates
+            UpdateTabVisibility();
             
         }
 

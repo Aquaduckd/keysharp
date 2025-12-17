@@ -1,5 +1,6 @@
 using Raylib_cs;
 using Keysharp.UI;
+using Keysharp;
 
 namespace Keysharp.Components
 {
@@ -37,17 +38,48 @@ namespace Keysharp.Components
 
         protected override void DrawSelf()
         {
-            if (!string.IsNullOrEmpty(text) && Bounds.Width > 0 && Bounds.Height > 0)
+            if (string.IsNullOrEmpty(text))
+                return;
+                
+            if (Bounds.Width <= 0 || Bounds.Height <= 0)
+                return;
+
+            // Draw multiline text line by line
+            if (text.Contains('\n'))
             {
+                string[] lines = text.Split('\n');
+                int lineHeight = fontSize + 4; // Add spacing between lines
+                int startY = (int)Bounds.Y;
+                
+                foreach (string line in lines)
+                {
+                    if (!string.IsNullOrEmpty(line))
+                    {
+                        int y = startY;
+                        if (rightAlign)
+                        {
+                            float textWidth = FontManager.MeasureText(font, line, fontSize);
+                            int textX = (int)(Bounds.X + Bounds.Width - textWidth - 10);
+                            FontManager.DrawText(font, line, textX, y, fontSize, color);
+                        }
+                        else
+                        {
+                            FontManager.DrawText(font, line, (int)Bounds.X, y, fontSize, color);
+                        }
+                    }
+                    startY += lineHeight;
+                }
+            }
+            else
+            {
+                // Single line text
                 if (rightAlign)
                 {
-                    // Draw right-aligned text within the bounds
                     TextContainer.DrawRightAlignedText(font, text, Bounds, fontSize, color, 10);
                 }
                 else
                 {
-                    // Draw left-aligned text within the bounds
-                    TextContainer.DrawLeftAlignedText(font, text, Bounds, fontSize, color, 0);
+                    FontManager.DrawText(font, text, (int)Bounds.X, (int)Bounds.Y, fontSize, color);
                 }
             }
         }

@@ -122,13 +122,13 @@ namespace Keysharp.Components
                 );
             }
 
-            // Layout children if auto-layout is enabled
+            // Layout children if auto-layout is enabled (this positions children correctly)
             if (AutoLayoutChildren)
             {
                 LayoutChildren();
             }
 
-            // Update all children (they will check their own visibility)
+            // Update all children (after layout so their bounds are correct for input detection)
             foreach (var child in Children)
             {
                 child.Update();
@@ -176,6 +176,8 @@ namespace Keysharp.Components
             
             float oldWidth = Bounds.Width;
             float oldHeight = Bounds.Height;
+            float oldX = Bounds.X;
+            float oldY = Bounds.Y;
                 
             if (LayoutDirection == LayoutDirection.Horizontal)
             {
@@ -259,22 +261,50 @@ namespace Keysharp.Components
                 float requiredHeight = totalChildrenHeight + totalGap + ChildPadding * 2;
                 
                 // Update bounds (preserve position)
+                // If using relative positioning, preserve the relative position calculation
+                float newX = Bounds.X;
+                float newY = Bounds.Y;
+                
+                // If position is relative, recalculate absolute position after size change
+                if (PositionMode == PositionMode.Relative && Parent != null)
+                {
+                    newX = Parent.Bounds.X + RelativePosition.X;
+                    newY = Parent.Bounds.Y + RelativePosition.Y;
+                }
+                
                 Bounds = new Rectangle(
-                    Bounds.X,
-                    Bounds.Y,
+                    newX,
+                    newY,
                     requiredWidth,
                     requiredHeight
                 );
             }
             
-            // If size changed, notify parent to resize if it has AutoSize enabled
-            if ((Bounds.Width != oldWidth || Bounds.Height != oldHeight) && 
-                Parent != null && 
-                Parent.AutoSize && 
-                Parent.AutoLayoutChildren)
+            // If size or position changed, update children's relative positions if needed
+            if ((Bounds.Width != oldWidth || Bounds.Height != oldHeight || Bounds.X != oldX || Bounds.Y != oldY))
             {
-                // Trigger parent's layout which will resize it if needed
-                Parent.LayoutChildren();
+                // Update children that use relative positioning to recalculate their absolute positions
+                foreach (var child in Children)
+                {
+                    if (child.PositionMode == PositionMode.Relative && child.IsVisible)
+                    {
+                        child.Bounds = new Rectangle(
+                            Bounds.X + child.RelativePosition.X,
+                            Bounds.Y + child.RelativePosition.Y,
+                            child.Bounds.Width,
+                            child.Bounds.Height
+                        );
+                    }
+                }
+                
+                // Notify parent to resize if it has AutoSize enabled
+                if (Parent != null && 
+                    Parent.AutoSize && 
+                    Parent.AutoLayoutChildren)
+                {
+                    // Trigger parent's layout which will resize it if needed
+                    Parent.LayoutChildren();
+                }
             }
         }
 

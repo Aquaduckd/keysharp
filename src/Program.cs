@@ -23,6 +23,7 @@ namespace Keysharp
             // Create panels
             SidePanel sidePanel = new SidePanel(font);
             MainPanel mainPanel = new MainPanel(font);
+            mainPanel.SidePanel = sidePanel; // Connect side panel for key info display
             BottomPanel bottomPanel = new BottomPanel(font);
 
             // Create menu bar (pass mainPanel so it can access tabs)
