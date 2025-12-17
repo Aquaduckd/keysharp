@@ -39,7 +39,7 @@ namespace Keysharp.UI
         private Components.TextInput? searchInput;
         private Components.Button? regexToggleButton;
         private Components.Label? totalCountLabel;
-        private string selectedNgramSize = "monogram"; // "monogram", "bigram", "trigram", or "words"
+        private string selectedNgramSize = "bigram"; // "monogram", "bigram", "trigram", or "words"
         private string searchText = "";
         private int? resultLimit = null; // Null means no limit
         private bool useRegex = false;
@@ -175,8 +175,8 @@ namespace Keysharp.UI
             ngramSizeDropdown.SetBounds(new Rectangle(0, 0, 200, 35));
             ngramSizeDropdown.PositionMode = Components.PositionMode.Absolute;
             ngramSizeDropdown.OnSelectionChanged = OnNgramSizeSelected;
-            // Set default selection to "Monogram"
-            ngramSizeDropdown.SetSelectedItem("Monogram");
+            // Set default selection to "Bigram"
+            ngramSizeDropdown.SetSelectedItem("Bigram");
             leftControlsContainer.AddChild(ngramSizeDropdown);
 
             // Create limit label
