@@ -202,7 +202,7 @@ namespace Keysharp.UI
                 ("No whitespace", "^\\S+$"),
                 ("No punctuation", "^[^.,!?;:]+$"),
                 ("Lowercase", "^[a-z]+$"),
-                ("Double letters", "([a-zA-Z])\\1")
+                ("Double letters", "(.)\\1")
             };
 
             foreach (var (label, pattern) in staticPatterns)
