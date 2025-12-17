@@ -37,10 +37,16 @@ namespace Keysharp.UI
         private Components.Button? regexHelpButton;
         private RegexHelpScreen? regexHelpScreen;
         private Components.Label? totalCountLabel;
+        private Components.Checkbox? ignoreSpaceCheckbox;
+        private Components.Checkbox? collapseCaseCheckbox;
+        private Components.Checkbox? collapsePunctuationCheckbox;
         private string selectedNgramSize = "bigram"; // "monogram", "bigram", "trigram", or "words"
         private string searchText = "";
         private int? resultLimit = null; // Null means no limit
         private bool useRegex = false;
+        private bool ignoreSpace = true;
+        private bool collapseCase = true;
+        private bool collapsePunctuation = false;
 
         public Components.TabContent TabContent => tabContent;
         public Components.Dropdown? CorpusDropdown => corpusDropdown;
@@ -220,6 +226,27 @@ namespace Keysharp.UI
             corpusDropdown.PositionMode = Components.PositionMode.Absolute; // Will be positioned by container's auto-layout
             corpusDropdown.OnSelectionChanged = OnCorpusSelected;
             corpusControlsContainer.AddChild(corpusDropdown);
+
+            // Create checkboxes for filtering/transforming n-grams
+            ignoreSpaceCheckbox = new Components.Checkbox(font, "Ignore Space", 14);
+            ignoreSpaceCheckbox.Bounds = new Rectangle(0, 0, 120, 35);
+            ignoreSpaceCheckbox.PositionMode = Components.PositionMode.Absolute;
+            ignoreSpaceCheckbox.IsChecked = true; // Checked by default
+            ignoreSpaceCheckbox.OnCheckedChanged = (isChecked) => { ignoreSpace = isChecked; UpdateNgramTable(); };
+            corpusControlsContainer.AddChild(ignoreSpaceCheckbox);
+
+            collapseCaseCheckbox = new Components.Checkbox(font, "Collapse Case", 14);
+            collapseCaseCheckbox.Bounds = new Rectangle(0, 0, 128, 35);
+            collapseCaseCheckbox.PositionMode = Components.PositionMode.Absolute;
+            collapseCaseCheckbox.IsChecked = true; // Checked by default
+            collapseCaseCheckbox.OnCheckedChanged = (isChecked) => { collapseCase = isChecked; UpdateNgramTable(); };
+            corpusControlsContainer.AddChild(collapseCaseCheckbox);
+
+            collapsePunctuationCheckbox = new Components.Checkbox(font, "Collapse Punctuation", 14);
+            collapsePunctuationCheckbox.Bounds = new Rectangle(0, 0, 160, 35);
+            collapsePunctuationCheckbox.PositionMode = Components.PositionMode.Absolute;
+            collapsePunctuationCheckbox.OnCheckedChanged = (isChecked) => { collapsePunctuation = isChecked; UpdateNgramTable(); };
+            corpusControlsContainer.AddChild(collapsePunctuationCheckbox);
 
             // Create save CSV button
             saveCsvButton = new Components.Button(font, "Save to CSV", 14);
@@ -536,6 +563,51 @@ namespace Keysharp.UI
             UpdateNgramTable();
         }
 
+        private Grams ApplyTransformations(Grams grams)
+        {
+            var resultCounts = new Dictionary<string, long>();
+
+            foreach (var kvp in grams.Counts)
+            {
+                string sequence = kvp.Key;
+                long count = kvp.Value;
+
+                // Ignore space: filter out grams that contain space
+                if (ignoreSpace && sequence.Contains(' '))
+                {
+                    continue;
+                }
+
+                // Apply transformations
+                string transformedSequence = sequence;
+
+                // Collapse case: lowercase all grams
+                if (collapseCase)
+                {
+                    transformedSequence = transformedSequence.ToLowerInvariant();
+                }
+
+                // Collapse punctuation: remove punctuation characters
+                if (collapsePunctuation)
+                {
+                    transformedSequence = new string(transformedSequence.Where(c => !char.IsPunctuation(c)).ToArray());
+                }
+
+                // Add or combine counts for transformed sequence
+                if (resultCounts.ContainsKey(transformedSequence))
+                {
+                    resultCounts[transformedSequence] += count;
+                }
+                else
+                {
+                    resultCounts[transformedSequence] = count;
+                }
+            }
+
+            // Create new Grams object from transformed counts
+            return Grams.FromDictionary(resultCounts);
+        }
+
         private bool MatchesSearch(string sequence)
         {
             if (string.IsNullOrEmpty(searchText))
@@ -606,6 +678,9 @@ namespace Keysharp.UI
                     grams = loadedCorpus.GetMonograms();
                     break;
             }
+
+            // Apply transformations if any checkbox is checked
+            grams = ApplyTransformations(grams);
 
             // Get all n-grams sorted by frequency
             var allNgrams = grams.GetAllSorted();
