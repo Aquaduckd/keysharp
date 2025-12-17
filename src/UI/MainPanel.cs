@@ -191,7 +191,7 @@ namespace Keysharp.UI
             // Update tab visibility (this will update both tab elements and tab content)
             UpdateTabVisibility();
 
-            // Calculate content area before base.Update() so tabContentContainer can have correct bounds
+            // Calculate content area
             Rectangle contentArea = new Rectangle(
                 bounds.X,
                 bounds.Y + TabHeight,
@@ -199,13 +199,13 @@ namespace Keysharp.UI
                 bounds.Height - TabHeight
             );
 
-            // Set tab content container bounds before base.Update() so children can use correct parent bounds
+            // Set tab content container bounds
             if (tabContentContainer != null)
             {
                 tabContentContainer.Bounds = contentArea;
             }
 
-            // Update tab content bounds BEFORE base.Update() so they have correct bounds when container updates
+            // Set tab content bounds (external bounds setting)
             bool isLayoutActive = tabs[activeTabIndex] == "layout";
             bool isCorpusActive = tabs[activeTabIndex] == "corpus";
             bool isSettingsActive = tabs[activeTabIndex] == "settings";
@@ -214,8 +214,13 @@ namespace Keysharp.UI
             corpusTab?.Update(contentArea, isCorpusActive);
             settingsTab?.Update(contentArea);
 
-            // Recursively update all children (this triggers auto-layout for tabsContainer and updates tabContentContainer)
-            // Now tabContent elements have correct bounds, so they'll position correctly relative to tabContentContainer
+            // Phase 1: Resolve all bounds (converts relative to absolute, calculates AutoSize)
+            ResolveBounds();
+
+            // Constrain canvas width after bounds resolution (for layout tab)
+            layoutTab?.ConstrainCanvasWidth(contentArea);
+
+            // Phase 2: Layout and input handling
             base.Update();
             
             // Update tab visibility again after content updates

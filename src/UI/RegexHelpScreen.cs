@@ -111,7 +111,7 @@ namespace Keysharp.UI
                 var tipColumn = new Components.Container($"TipColumn{col}");
                 tipColumn.AutoLayoutChildren = true;
                 tipColumn.LayoutDirection = Components.LayoutDirection.Vertical;
-                tipColumn.AutoSize = true;
+                tipColumn.AutoSize = true; // AutoSize calculates height, width overridden in ResolveBounds()
                 tipColumn.ChildPadding = 0;
                 tipColumn.ChildGap = 8;
                 tipsContainer.AddChild(tipColumn);
@@ -498,20 +498,24 @@ namespace Keysharp.UI
             IsVisible = false;
         }
 
-        public override void Update()
+        /// <summary>
+        /// Phase 1: Resolve bounds. Sets up bounds for help screen and children, calculates AutoSize.
+        /// </summary>
+        public override void ResolveBounds()
         {
-            int screenWidth = Raylib.GetScreenWidth();
-            int screenHeight = Raylib.GetScreenHeight();
-            
             // Fixed width for the help screen (wider for 5 columns with longer text)
-            int helpWidth = 1400;
+            const int helpWidth = 1400;
 
-            if (!IsVisible)
+            // Only resolve if visible and enabled
+            if (!IsVisible || !IsEnabled)
             {
                 // Set minimal bounds when not visible (for click detection)
                 Bounds = new Rectangle(0, 0, helpWidth, 100);
                 return;
             }
+
+            int screenWidth = Raylib.GetScreenWidth();
+            int screenHeight = Raylib.GetScreenHeight();
 
             // Set temporary bounds first (needed for relative positioning of children)
             // We'll update with the actual height after auto-sizing
@@ -553,24 +557,8 @@ namespace Keysharp.UI
                     );
                 }
 
-                // Update tip column widths (3 columns)
-                if (tipsContainer != null)
-                {
-                    const int tipColumnGap = 15;
-                    float tipColumnWidth = (childWidth - (tipColumnGap * 2)) / 3;
-                    foreach (var child in tipsContainer.Children)
-                    {
-                        if (child is Components.Container tipColumn && tipColumn.Name.StartsWith("TipColumn"))
-                        {
-                            tipColumn.Bounds = new Rectangle(
-                                tipColumn.Bounds.X,
-                                tipColumn.Bounds.Y,
-                                tipColumnWidth,
-                                tipColumn.Bounds.Height
-                            );
-                    }
-                }
-                }
+                // Tip column widths are set after base.ResolveBounds() so AutoSize can calculate height first
+                // (see code after base.ResolveBounds() call)
 
                 // Update regex input and paste button widths
                 if (regexInput != null && pasteRegexButton != null)
@@ -672,8 +660,29 @@ namespace Keysharp.UI
                 }
             }
 
-            // Update the container so it can auto-size based on its children
-            base.Update();
+            // Now call base.ResolveBounds() to handle relative positioning and AutoSize for children
+            base.ResolveBounds();
+
+            // Override tip column widths after AutoSize has calculated their heights
+            if (tipsContainer != null)
+            {
+                float childWidth = helpWidth - (helpContainer != null ? helpContainer.ChildPadding * 2 : 0);
+                const int tipColumnGap = 15;
+                float tipColumnWidth = (childWidth - (tipColumnGap * 2)) / 3;
+                foreach (var child in tipsContainer.Children)
+                {
+                    if (child is Components.Container tipColumn && tipColumn.Name.StartsWith("TipColumn"))
+                    {
+                        // Override width while keeping auto-calculated height
+                        tipColumn.Bounds = new Rectangle(
+                            tipColumn.Bounds.X,
+                            tipColumn.Bounds.Y,
+                            tipColumnWidth,
+                            tipColumn.Bounds.Height  // Keep auto-calculated height
+                        );
+                    }
+                }
+            }
 
             // After container has auto-sized, use its calculated height to update help screen bounds
             if (helpContainer != null && helpContainer.Bounds.Height > 0)
@@ -691,6 +700,19 @@ namespace Keysharp.UI
                     );
                 }
             }
+        }
+
+        /// <summary>
+        /// Phase 2: Layout and input handling. Positions children and handles close-on-outside-click.
+        /// </summary>
+        public override void Update()
+        {
+            // Only update if visible and enabled
+            if (!IsVisible || !IsEnabled)
+                return;
+
+            // Layout children and handle input
+            base.Update();
 
             // Handle clicks to close when clicking outside
             // Skip this check if we were just shown (ignore the click that opened us)

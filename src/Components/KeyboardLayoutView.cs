@@ -13,7 +13,7 @@ namespace Keysharp.Components
         private Font font;
         private Layout? layout;
         private float pixelsPerU = 50.0f; // Scale factor: 50 pixels per 1U
-        private float padding = 20.0f; // Padding around the keyboard view
+        private float padding = 0.0f; // No padding around the keyboard view
         private PhysicalKey? selectedKey;
         private Dictionary<PhysicalKey, Rectangle> keyRectangles = new Dictionary<PhysicalKey, Rectangle>();
 
@@ -56,15 +56,19 @@ namespace Keysharp.Components
             IsHoverable = true;
         }
 
-        public override void Update()
+        public override void ResolveBounds()
         {
-            // Store old bounds to detect changes
+            // Store old bounds BEFORE base.ResolveBounds() updates them via relative positioning
             float oldX = Bounds.X;
             float oldY = Bounds.Y;
-            float oldWidth = Bounds.Width;
-            float oldHeight = Bounds.Height;
             
-            base.Update();
+            base.ResolveBounds();
+            
+            // Clear cached rectangles if position changed (parent bounds may have moved)
+            if (oldX != Bounds.X || oldY != Bounds.Y)
+            {
+                keyRectangles.Clear();
+            }
             
             if (layout != null)
             {
@@ -97,12 +101,23 @@ namespace Keysharp.Components
                         );
                     }
                 }
-                
-                // Clear cached rectangles if position or size changed
-                if (oldX != Bounds.X || oldY != Bounds.Y || oldWidth != Bounds.Width || oldHeight != Bounds.Height)
-                {
-                    keyRectangles.Clear();
-                }
+            }
+        }
+
+        public override void Update()
+        {
+            // Store old bounds to detect changes for cache invalidation
+            float oldX = Bounds.X;
+            float oldY = Bounds.Y;
+            float oldWidth = Bounds.Width;
+            float oldHeight = Bounds.Height;
+            
+            base.Update();
+            
+            // Clear cached rectangles if position or size changed during update
+            if (oldX != Bounds.X || oldY != Bounds.Y || oldWidth != Bounds.Width || oldHeight != Bounds.Height)
+            {
+                keyRectangles.Clear();
             }
 
             // Handle mouse clicks to select keys

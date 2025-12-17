@@ -266,6 +266,13 @@ namespace Keysharp.UI
             tabContent.RelativePosition = new System.Numerics.Vector2(0, 0);
 
             // Update help screen explicitly (it uses absolute screen coordinates, not relative to parent)
+            // Phase 1: Resolve bounds
+            if (regexHelpScreen != null)
+            {
+                regexHelpScreen.ResolveBounds();
+            }
+            
+            // Phase 2: Layout and input handling
             if (regexHelpScreen != null)
             {
                 regexHelpScreen.Update();

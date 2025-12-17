@@ -74,21 +74,55 @@ namespace Keysharp.UI
             tabContent.RelativePosition = new System.Numerics.Vector2(0, 0);
             tabContent.TargetHeight = contentArea.Height; // Set target height for vertical layout
 
-            // Set title label width to fill available space
-            titleLabel.Bounds = new Rectangle(0, 0, contentArea.Width, 40);
+            // Set title label width to fill available space (accounting for padding)
+            float availableWidth = contentArea.Width - (tabContent.ChildPadding * 2);
+            titleLabel.Bounds = new Rectangle(0, 0, availableWidth, 40);
 
-            // Update keyboard view to calculate its bounds if needed (this will set width/height)
-            keyboardView.Update();
-            
-            // Canvas will auto-size to fit keyboard, but we need to ensure keyboard has proper bounds
-            // The canvas's AutoSize will handle resizing based on keyboardView's bounds
+            // Set keyboard view initial size calculation (width/height will be calculated in ResolveBounds)
+            // We just need to trigger the initial calculation
+            if (keyboardView.Layout != null && keyboardView.Bounds.Width <= 0)
+            {
+                // Calculate the bounding box of all keys to set initial size
+                float maxX = 0;
+                float maxY = 0;
+                foreach (var key in keyboardView.Layout.GetPhysicalKeys())
+                {
+                    float keyRight = key.X + key.Width;
+                    float keyBottom = key.Y + key.Height;
+                    if (keyRight > maxX) maxX = keyRight;
+                    if (keyBottom > maxY) maxY = keyBottom;
+                }
+                if (maxX > 0 && maxY > 0)
+                {
+                    keyboardView.Bounds = new Rectangle(0, 0, maxX * keyboardView.PixelsPerU + 40, maxY * keyboardView.PixelsPerU + 40);
+                }
+            }
 
             // Align the keyboard view to top-left within the canvas using relative position
-            if (keyboardView.Bounds.Width > 0 && keyboardView.Bounds.Height > 0)
+            keyboardView.RelativePosition = new System.Numerics.Vector2(0, 0);
+        }
+
+        /// <summary>
+        /// Called after ResolveBounds() to constrain canvas width to available space.
+        /// This should be called from MainPanel after ResolveBounds() has been called.
+        /// </summary>
+        public void ConstrainCanvasWidth(Rectangle contentArea)
+        {
+            if (keyboardCanvas != null)
             {
-                float keyboardX = 0; // Left align
-                float keyboardY = 0; // Top align (title is handled by layout)
-                keyboardView.RelativePosition = new System.Numerics.Vector2(keyboardX, keyboardY);
+                // Calculate available width accounting for padding
+                float availableWidth = contentArea.Width - (tabContent.ChildPadding * 2);
+                
+                // Constrain canvas width if it exceeds available space
+                if (keyboardCanvas.Bounds.Width > availableWidth)
+                {
+                    keyboardCanvas.Bounds = new Rectangle(
+                        keyboardCanvas.Bounds.X,
+                        keyboardCanvas.Bounds.Y,
+                        availableWidth,
+                        keyboardCanvas.Bounds.Height
+                    );
+                }
             }
         }
 

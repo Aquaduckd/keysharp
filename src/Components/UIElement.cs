@@ -105,13 +105,18 @@ namespace Keysharp.Components
             Bounds = new Rectangle(0, 0, 0, 0);
         }
 
-        public virtual void Update()
+        /// <summary>
+        /// Phase 1: Resolve bounds. Converts relative positioning to absolute bounds based on parent.
+        /// This should be called before Update() to ensure all bounds are resolved.
+        /// Order: 1) Resolve own position (if relative, needs parent bounds), 2) Resolve children, 3) Calculate AutoSize.
+        /// </summary>
+        public virtual void ResolveBounds()
         {
-            // Only update if visible and enabled
+            // Only resolve if visible and enabled
             if (!IsVisible || !IsEnabled)
                 return;
 
-            // Update own position if relative to parent
+            // Step 1: Resolve own position if relative to parent (needs parent bounds, which should be resolved already)
             if (PositionMode == PositionMode.Relative && Parent != null)
             {
                 Bounds = new Rectangle(
@@ -121,6 +126,29 @@ namespace Keysharp.Components
                     Bounds.Height
                 );
             }
+
+            // Step 2: Resolve children bounds (they can now use our resolved bounds)
+            foreach (var child in Children)
+            {
+                child.ResolveBounds();
+            }
+
+            // Step 3: Calculate AutoSize if needed (now that children have correct bounds)
+            if (AutoSize && AutoLayoutChildren)
+            {
+                CalculateAutoSize();
+            }
+        }
+
+        /// <summary>
+        /// Phase 2: Layout and input handling. Positions children and handles input.
+        /// ResolveBounds() should be called before this.
+        /// </summary>
+        public virtual void Update()
+        {
+            // Only update if visible and enabled
+            if (!IsVisible || !IsEnabled)
+                return;
 
             // Layout children if auto-layout is enabled (this positions children correctly)
             if (AutoLayoutChildren)
@@ -162,13 +190,31 @@ namespace Keysharp.Components
                 LayoutChildrenVertical(visibleChildren);
             }
             
-            // Auto-resize if enabled
-            if (AutoSize)
-            {
-                ResizeToFitChildren(visibleChildren);
-            }
+            // Auto-resize is handled in ResolveBounds(), not here
+            // Layout only positions children, it doesn't resize the parent
         }
         
+        /// <summary>
+        /// Calculates and applies AutoSize based on children. Called from ResolveBounds().
+        /// </summary>
+        private void CalculateAutoSize()
+        {
+            // Filter visible children
+            var visibleChildren = new List<UIElement>();
+            foreach (var child in Children)
+            {
+                if (child.IsVisible)
+                {
+                    visibleChildren.Add(child);
+                }
+            }
+
+            if (visibleChildren.Count == 0)
+                return;
+
+            ResizeToFitChildren(visibleChildren);
+        }
+
         private void ResizeToFitChildren(List<UIElement> visibleChildren)
         {
             if (visibleChildren.Count == 0)

@@ -66,12 +66,19 @@ namespace Keysharp.UI
             verticalSplitter.Bounds = layoutRect.VerticalSplitter;
             horizontalSplitter.Bounds = layoutRect.HorizontalSplitter;
 
-            // MainPanel has a special Update(Rectangle) method for tab-specific logic
-            // This sets bounds and calls base.Update() internally, so we don't need to call base.Update() here
+            // Phase 1: Resolve all bounds (converts relative to absolute, calculates AutoSize)
+            // Resolve bounds for all children (MainPanel will handle its own ResolveBounds in its Update method)
+            // For other children, we need to call ResolveBounds explicitly
+            menuBar.ResolveBounds();
+            sidePanel.ResolveBounds();
+            bottomPanel.ResolveBounds();
+            verticalSplitter.ResolveBounds();
+            horizontalSplitter.ResolveBounds();
+            
+            // MainPanel has a special Update(Rectangle) method that handles ResolveBounds internally
             mainPanel.Update(layoutRect.MainPanel);
             
-            // Update other children (menu bar, side panel, bottom panel, splitters)
-            // MainPanel is already updated above, so skip it
+            // Phase 2: Layout and input handling
             menuBar.Update();
             sidePanel.Update();
             bottomPanel.Update();
