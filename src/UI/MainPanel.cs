@@ -35,11 +35,13 @@ namespace Keysharp.UI
         private Components.Label? corpusHeaderLabel;
         private Components.Dropdown? ngramSizeDropdown;
         private Components.Table? ngramTable;
+        private Components.TextInput? limitInput;
         private Components.TextInput? searchInput;
         private Components.Button? regexToggleButton;
         private Components.Label? totalCountLabel;
         private string selectedNgramSize = "monogram"; // "monogram", "bigram", "trigram", or "words"
         private string searchText = "";
+        private int? resultLimit = null; // Null means no limit
         private bool useRegex = false;
 
         // Tab elements
@@ -176,6 +178,19 @@ namespace Keysharp.UI
             // Set default selection to "Monogram"
             ngramSizeDropdown.SetSelectedItem("Monogram");
             leftControlsContainer.AddChild(ngramSizeDropdown);
+
+            // Create limit label
+            var limitLabel = new Components.Label(font, "Limit:", 14);
+            limitLabel.Bounds = new Rectangle(0, 0, 60, 35);
+            limitLabel.PositionMode = Components.PositionMode.Absolute;
+            leftControlsContainer.AddChild(limitLabel);
+
+            // Create limit input
+            limitInput = new Components.TextInput(font, "All", 14);
+            limitInput.Bounds = new Rectangle(0, 0, 80, 35);
+            limitInput.PositionMode = Components.PositionMode.Absolute;
+            limitInput.OnTextChanged = OnLimitTextChanged;
+            leftControlsContainer.AddChild(limitInput);
 
             // Create search label
             var searchLabel = new Components.Label(font, "Search:", 14);
@@ -694,6 +709,30 @@ namespace Keysharp.UI
             UpdateNgramTable();
         }
 
+        private void OnLimitTextChanged(string text)
+        {
+            // Parse the limit value
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                resultLimit = null; // No limit
+            }
+            else if (int.TryParse(text, out int limit) && limit > 0)
+            {
+                resultLimit = limit;
+            }
+            else
+            {
+                resultLimit = null; // Invalid input, no limit
+            }
+            
+            // Reset scroll when limit changes
+            if (ngramTable != null)
+            {
+                ngramTable.ResetScroll();
+            }
+            UpdateNgramTable();
+        }
+
         private void OnSearchTextChanged(string text)
         {
             searchText = text;
@@ -844,6 +883,18 @@ namespace Keysharp.UI
                 filteredTotal = filteredNgrams.Sum(ng => ng.count);
             }
             
+            // Store counts before applying limit (for display in total label)
+            int filteredCountBeforeLimit = filteredNgrams.Count;
+            long filteredTotalBeforeLimit = filteredTotal;
+            
+            // Apply limit if specified
+            if (resultLimit.HasValue && resultLimit.Value > 0)
+            {
+                filteredNgrams = filteredNgrams.Take(resultLimit.Value).ToList();
+                // Recalculate filtered total based on limited results
+                filteredTotal = filteredNgrams.Sum(ng => ng.count);
+            }
+            
             // Show/hide conditional columns based on whether we're filtered
             ngramTable.ShowColumn5 = isFiltered; // Global Rank
             ngramTable.ShowColumn6 = isFiltered; // Relative Frequency
@@ -885,15 +936,20 @@ namespace Keysharp.UI
             {
                 long totalCount = grams.Total;
                 string countText;
-                if (string.IsNullOrEmpty(searchText))
+                
+                // Calculate what we're actually showing (after limit)
+                long showingTotal = filteredNgrams.Sum(ng => ng.count);
+                
+                if (showingTotal == totalCount && (string.IsNullOrEmpty(searchText) && !resultLimit.HasValue))
                 {
+                    // Showing everything, no filters or limits
                     countText = $"Total: {totalCount:N0}";
                 }
                 else
                 {
-                    // Show the filtered total (sum of counts) vs the overall total
-                    long filteredTotalCount = filteredTotal > 0 ? filteredTotal : 0;
-                    countText = $"Showing {filteredTotalCount:N0} of {totalCount:N0}";
+                    // Show what's displayed vs total
+                    double frequency = totalCount > 0 ? (double)showingTotal / totalCount : 0.0;
+                    countText = $"Showing {showingTotal:N0} of {totalCount:N0} ({frequency * 100:F3}%)";
                 }
                 totalCountLabel.SetText(countText);
             }
