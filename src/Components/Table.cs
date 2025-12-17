@@ -20,6 +20,8 @@ namespace Keysharp.Components
         private int scrollbarDragStartY = 0;
         private int scrollbarDragStartOffset = 0;
 
+        public int ScrollOffset => scrollOffset;
+
         public void ResetScroll()
         {
             scrollOffset = 0;
@@ -34,6 +36,13 @@ namespace Keysharp.Components
         public string Column6Header { get; set; }
         public bool ShowColumn5 { get; set; } = false; // Global Rank
         public bool ShowColumn6 { get; set; } = false; // Relative Frequency
+        
+        // Store match positions for highlighting in column 2 (n-gram column)
+        // Maps row index to list of (start, length) match positions in the display text
+        public Dictionary<int, List<(int start, int length)>> Column2MatchPositions { get; set; } = new Dictionary<int, List<(int, int)>>();
+        
+        // Callback to calculate match positions for a row (used for lazy calculation during drawing)
+        public Func<int, string, List<(int start, int length)>>? CalculateMatchPositionsCallback { get; set; }
 
         public Table(Font font, string column1Header, string column2Header, string column3Header, string column4Header, string column5Header, string column6Header, int fontSize = 12) 
             : base("Table")
@@ -156,7 +165,35 @@ namespace Keysharp.Components
                 float rowCurrentX = x;
                 TextContainer.DrawRightAlignedText(font, row.column1, new Rectangle(rowCurrentX, rowY, col1Width, RowHeight), fontSize - 1, UITheme.TextColor, Padding);
                 rowCurrentX += col1Width;
-                TextContainer.DrawRightAlignedText(font, row.column2, new Rectangle(rowCurrentX, rowY, col2Width, RowHeight), fontSize - 1, UITheme.TextColor, Padding);
+                
+                // Draw column 2 (n-gram) with potential highlighting
+                Rectangle column2Rect = new Rectangle(rowCurrentX, rowY, col2Width, RowHeight);
+                TextContainer.DrawRightAlignedText(font, row.column2, column2Rect, fontSize - 1, UITheme.TextColor, Padding);
+                
+                // Get or calculate match positions for this row (lazy calculation)
+                List<(int start, int length)>? matchPositions = null;
+                if (Column2MatchPositions != null && Column2MatchPositions.TryGetValue(rowIndex, out var cachedPositions))
+                {
+                    matchPositions = cachedPositions;
+                }
+                else if (CalculateMatchPositionsCallback != null)
+                {
+                    // Calculate on-demand during drawing
+                    matchPositions = CalculateMatchPositionsCallback(rowIndex, row.column2);
+                    if (matchPositions != null && matchPositions.Count > 0)
+                    {
+                        // Cache the result
+                        if (Column2MatchPositions == null)
+                            Column2MatchPositions = new Dictionary<int, List<(int, int)>>();
+                        Column2MatchPositions[rowIndex] = matchPositions;
+                    }
+                }
+                
+                // Draw highlights if we have match positions
+                if (matchPositions != null && matchPositions.Count > 0)
+                {
+                    DrawColumn2Highlights(row.column2, column2Rect, matchPositions, rowIndex);
+                }
                 rowCurrentX += col2Width;
                 TextContainer.DrawRightAlignedText(font, row.column3, new Rectangle(rowCurrentX, rowY, col3Width, RowHeight), fontSize - 1, UITheme.TextColor, Padding);
                 rowCurrentX += col3Width;
@@ -186,6 +223,43 @@ namespace Keysharp.Components
             if (needsScrollbar && Rows.Count > 0)
             {
                 DrawScrollbar(x + tableWidth, y + HeaderHeight, availableHeight, Rows.Count, visibleRows);
+            }
+        }
+
+        private void DrawColumn2Highlights(string displayText, Rectangle cellRect, List<(int start, int length)> matchPositions, int rowIndex)
+        {
+            if (string.IsNullOrEmpty(displayText) || matchPositions.Count == 0)
+                return;
+
+            // Calculate text position (right-aligned)
+            float textWidth = FontManager.MeasureText(font, displayText, fontSize - 1);
+            float textX = cellRect.X + cellRect.Width - textWidth - Padding;
+            float textY = cellRect.Y + (cellRect.Height - (fontSize - 1)) / 2;
+
+            // Draw highlighting rectangles for each match
+            Color highlightColor = new Color(255, 165, 0, 50); // Semi-transparent yellow with reduced opacity
+
+            foreach (var (start, length) in matchPositions)
+            {
+                if (start >= displayText.Length || start + length > displayText.Length)
+                    continue;
+
+                // Measure text before the match
+                string beforeMatch = displayText.Substring(0, start);
+                float beforeWidth = FontManager.MeasureText(font, beforeMatch, fontSize - 1);
+
+                // Measure the matched text
+                string matchedText = displayText.Substring(start, length);
+                float matchWidth = FontManager.MeasureText(font, matchedText, fontSize - 1);
+
+                // Draw highlight rectangle
+                Rectangle highlightRect = new Rectangle(
+                    textX + beforeWidth,
+                    textY,
+                    matchWidth,
+                    fontSize - 1
+                );
+                Raylib.DrawRectangleRec(highlightRect, highlightColor);
             }
         }
 

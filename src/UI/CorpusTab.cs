@@ -47,6 +47,9 @@ namespace Keysharp.UI
         private bool ignoreSpace = true;
         private bool collapseCase = true;
         private bool collapsePunctuation = false;
+        
+        // Store filtered n-grams for lazy highlight calculation
+        private List<(string displayText, string originalSequence)> storedNgramsForHighlighting = new List<(string, string)>();
 
         public Components.TabContent TabContent => tabContent;
         public Components.Dropdown? CorpusDropdown => corpusDropdown;
@@ -758,12 +761,22 @@ namespace Keysharp.UI
 
             // Update table rows
             ngramTable.Rows.Clear();
+            ngramTable.Column2MatchPositions.Clear(); // Clear previous match positions
+            
+            // Store filtered n-grams for lazy highlight calculation
+            storedNgramsForHighlighting.Clear();
+            
             for (int i = 0; i < filteredNgrams.Count; i++)
             {
                 var ngram = filteredNgrams[i];
                 // Rank is relative rank within filtered results (1-based)
                 string rank = (i + 1).ToString();
                 string ngramText = $"\"{EscapeSpecialChars(ngram.sequence)}\""; // Add quotation marks around n-gram and escape special chars
+                string originalSequence = ngram.sequence;
+                
+                // Store for lazy calculation
+                storedNgramsForHighlighting.Add((ngramText, originalSequence));
+                
                 // Format frequency as percentage with 3 decimal places
                 string frequency = $"{ngram.frequency * 100:F3}%";
                 // Format count with thousand separators
@@ -786,6 +799,24 @@ namespace Keysharp.UI
 
                 // Column order: Rank, N-gram, Frequency, Count, Global Rank, Relative Frequency
                 ngramTable.Rows.Add((rank, ngramText, frequency, count, globalRank, relativeFreq));
+            }
+            
+            // Set up callback for lazy highlight calculation
+            if (!string.IsNullOrEmpty(searchText))
+            {
+                ngramTable.CalculateMatchPositionsCallback = (rowIndex, displayText) =>
+                {
+                    if (rowIndex >= 0 && rowIndex < storedNgramsForHighlighting.Count)
+                    {
+                        var (_, originalSequence) = storedNgramsForHighlighting[rowIndex];
+                        return CalculateMatchPositions(displayText, originalSequence);
+                    }
+                    return new List<(int, int)>();
+                };
+            }
+            else
+            {
+                ngramTable.CalculateMatchPositionsCallback = null;
             }
 
             // Update total count label
@@ -989,6 +1020,86 @@ namespace Keysharp.UI
                 System.Console.WriteLine($"Error opening file dialog: {ex.Message}");
                 // Fallback: try using a simple text input or other method
             }
+        }
+
+        private List<(int start, int length)> CalculateMatchPositions(string displayText, string originalSequence)
+        {
+            var matchPositions = new List<(int, int)>();
+            
+            if (string.IsNullOrEmpty(searchText) || string.IsNullOrEmpty(originalSequence))
+                return matchPositions;
+
+            try
+            {
+                if (useRegex)
+                {
+                    // For regex mode, search the original sequence to get match positions
+                    var regex = new Regex(searchText, RegexOptions.Compiled | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
+                    var matches = regex.Matches(originalSequence);
+                    
+                    // Map match positions from original sequence to display text
+                    // Display text format: "escaped_sequence" (quotes + escaped chars)
+                    string escapedSequence = EscapeSpecialChars(originalSequence);
+                    
+                    foreach (Match match in matches)
+                    {
+                        // Match is in originalSequence at (match.Index, match.Length)
+                        // We need to find where this appears in the display text
+                        // Display text: "\"escapedSequence\""
+                        // Opening quote is at position 0, content starts at 1
+                        
+                        // Calculate start position in display text
+                        // Start with 1 (after opening quote), then add length of escaped text before match
+                        int displayStart = 1; // Skip opening quote
+                        
+                        // Calculate how many characters the prefix (before match) takes in escaped form
+                        string prefix = originalSequence.Substring(0, match.Index);
+                        string escapedPrefix = EscapeSpecialChars(prefix);
+                        displayStart += escapedPrefix.Length;
+                        
+                        // Calculate match length in display text
+                        string matchedText = originalSequence.Substring(match.Index, match.Length);
+                        string escapedMatch = EscapeSpecialChars(matchedText);
+                        int displayLength = escapedMatch.Length;
+                        
+                        matchPositions.Add((displayStart, displayLength));
+                    }
+                }
+                else
+                {
+                    // For non-regex mode, find all occurrences in original sequence and map to display text
+                    string searchLower = searchText.ToLowerInvariant();
+                    string originalLower = originalSequence.ToLowerInvariant();
+                    
+                    int startIndex = 0;
+                    while (true)
+                    {
+                        int index = originalLower.IndexOf(searchLower, startIndex, StringComparison.Ordinal);
+                        if (index == -1)
+                            break;
+                        
+                        // Map position from original to display text
+                        int displayStart = 1; // Skip opening quote
+                        string prefix = originalSequence.Substring(0, index);
+                        string escapedPrefix = EscapeSpecialChars(prefix);
+                        displayStart += escapedPrefix.Length;
+                        
+                        // Match length in display text (account for escaped chars)
+                        string matchedText = originalSequence.Substring(index, searchText.Length);
+                        string escapedMatch = EscapeSpecialChars(matchedText);
+                        int displayLength = escapedMatch.Length;
+                        
+                        matchPositions.Add((displayStart, displayLength));
+                        startIndex = index + 1;
+                    }
+                }
+            }
+            catch
+            {
+                // Invalid regex or other error - return empty list
+            }
+            
+            return matchPositions;
         }
 
         private string EscapeSpecialChars(string text)
