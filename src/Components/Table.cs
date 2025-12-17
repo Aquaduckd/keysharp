@@ -25,13 +25,17 @@ namespace Keysharp.Components
             scrollOffset = 0;
         }
 
-        public List<(string column1, string column2, string column3, string column4)> Rows { get; set; }
+        public List<(string column1, string column2, string column3, string column4, string column5, string column6)> Rows { get; set; }
         public string Column1Header { get; set; }
         public string Column2Header { get; set; }
         public string Column3Header { get; set; }
         public string Column4Header { get; set; }
+        public string Column5Header { get; set; }
+        public string Column6Header { get; set; }
+        public bool ShowColumn5 { get; set; } = false; // Global Rank
+        public bool ShowColumn6 { get; set; } = false; // Relative Frequency
 
-        public Table(Font font, string column1Header, string column2Header, string column3Header, string column4Header, int fontSize = 12) 
+        public Table(Font font, string column1Header, string column2Header, string column3Header, string column4Header, string column5Header, string column6Header, int fontSize = 12) 
             : base("Table")
         {
             this.font = font;
@@ -40,7 +44,9 @@ namespace Keysharp.Components
             this.Column2Header = column2Header;
             this.Column3Header = column3Header;
             this.Column4Header = column4Header;
-            this.Rows = new List<(string, string, string, string)>();
+            this.Column5Header = column5Header;
+            this.Column6Header = column6Header;
+            this.Rows = new List<(string, string, string, string, string, string)>();
 
             // Tables are interactive for scrolling
             IsClickable = true;
@@ -53,7 +59,7 @@ namespace Keysharp.Components
                 return;
             
             if (Rows == null)
-                Rows = new List<(string, string, string, string)>();
+                Rows = new List<(string, string, string, string, string, string)>();
 
             int x = (int)Bounds.X;
             int y = (int)Bounds.Y;
@@ -70,10 +76,28 @@ namespace Keysharp.Components
                 tableWidth -= ScrollbarWidth;
             }
             
-            int col1Width = (int)(tableWidth * 0.10f); // Rank
-            int col2Width = (int)(tableWidth * 0.50f); // N-gram
-            int col3Width = (int)(tableWidth * 0.20f); // Frequency
-            int col4Width = (int)(tableWidth * 0.20f); // Count
+            // Calculate column widths based on whether conditional columns are shown
+            // Column order: Rank, N-gram, Frequency, Count, Global Rank (conditional), Relative Frequency (conditional)
+            int col1Width, col2Width, col3Width, col4Width, col5Width, col6Width;
+            bool showConditional = ShowColumn5 || ShowColumn6;
+            if (showConditional)
+            {
+                col1Width = (int)(tableWidth * 0.08f); // Rank
+                col2Width = (int)(tableWidth * 0.35f); // N-gram
+                col3Width = (int)(tableWidth * 0.12f); // Frequency
+                col4Width = (int)(tableWidth * 0.15f); // Count
+                col5Width = ShowColumn5 ? (int)(tableWidth * 0.10f) : 0; // Global Rank
+                col6Width = ShowColumn6 ? (int)(tableWidth * 0.20f) : 0; // Relative Frequency
+            }
+            else
+            {
+                col1Width = (int)(tableWidth * 0.10f); // Rank
+                col2Width = (int)(tableWidth * 0.50f); // N-gram
+                col3Width = (int)(tableWidth * 0.20f); // Frequency
+                col4Width = (int)(tableWidth * 0.20f); // Count
+                col5Width = 0;
+                col6Width = 0;
+            }
 
             // Draw header background
             Rectangle headerRect = new Rectangle(x, y, Bounds.Width, HeaderHeight);
@@ -81,15 +105,26 @@ namespace Keysharp.Components
             Raylib.DrawRectangleLinesEx(headerRect, 1, UITheme.BorderColor);
 
             // Draw header text (all right-aligned)
-            Rectangle col1HeaderRect = new Rectangle(x, y, col1Width, HeaderHeight);
-            Rectangle col2HeaderRect = new Rectangle(x + col1Width, y, col2Width, HeaderHeight);
-            Rectangle col3HeaderRect = new Rectangle(x + col1Width + col2Width, y, col3Width, HeaderHeight);
-            Rectangle col4HeaderRect = new Rectangle(x + col1Width + col2Width + col3Width, y, col4Width, HeaderHeight);
-
-            TextContainer.DrawRightAlignedText(font, Column1Header, col1HeaderRect, fontSize, UITheme.TextColor, Padding);
-            TextContainer.DrawRightAlignedText(font, Column2Header, col2HeaderRect, fontSize, UITheme.TextColor, Padding);
-            TextContainer.DrawRightAlignedText(font, Column3Header, col3HeaderRect, fontSize, UITheme.TextColor, Padding);
-            TextContainer.DrawRightAlignedText(font, Column4Header, col4HeaderRect, fontSize, UITheme.TextColor, Padding);
+            // Column order: Rank, N-gram, Frequency, Count, Global Rank (conditional), Relative Frequency (conditional)
+            float currentX = x;
+            TextContainer.DrawRightAlignedText(font, Column1Header, new Rectangle(currentX, y, col1Width, HeaderHeight), fontSize, UITheme.TextColor, Padding);
+            currentX += col1Width;
+            TextContainer.DrawRightAlignedText(font, Column2Header, new Rectangle(currentX, y, col2Width, HeaderHeight), fontSize, UITheme.TextColor, Padding);
+            currentX += col2Width;
+            TextContainer.DrawRightAlignedText(font, Column3Header, new Rectangle(currentX, y, col3Width, HeaderHeight), fontSize, UITheme.TextColor, Padding);
+            currentX += col3Width;
+            TextContainer.DrawRightAlignedText(font, Column4Header, new Rectangle(currentX, y, col4Width, HeaderHeight), fontSize, UITheme.TextColor, Padding);
+            currentX += col4Width;
+            if (ShowColumn5)
+            {
+                TextContainer.DrawRightAlignedText(font, Column5Header, new Rectangle(currentX, y, col5Width, HeaderHeight), fontSize, UITheme.TextColor, Padding);
+                currentX += col5Width;
+            }
+            if (ShowColumn6)
+            {
+                TextContainer.DrawRightAlignedText(font, Column6Header, new Rectangle(currentX, y, col6Width, HeaderHeight), fontSize, UITheme.TextColor, Padding);
+                currentX += col6Width;
+            }
 
             // Draw rows
             int rowY = y + HeaderHeight;
@@ -117,15 +152,26 @@ namespace Keysharp.Components
                 Raylib.DrawRectangleRec(rowRect, rowColor);
 
                 // Draw row text (all right-aligned)
-                Rectangle col1Rect = new Rectangle(x, rowY, col1Width, RowHeight);
-                Rectangle col2Rect = new Rectangle(x + col1Width, rowY, col2Width, RowHeight);
-                Rectangle col3Rect = new Rectangle(x + col1Width + col2Width, rowY, col3Width, RowHeight);
-                Rectangle col4Rect = new Rectangle(x + col1Width + col2Width + col3Width, rowY, col4Width, RowHeight);
-
-                TextContainer.DrawRightAlignedText(font, row.column1, col1Rect, fontSize - 1, UITheme.TextColor, Padding);
-                TextContainer.DrawRightAlignedText(font, row.column2, col2Rect, fontSize - 1, UITheme.TextColor, Padding);
-                TextContainer.DrawRightAlignedText(font, row.column3, col3Rect, fontSize - 1, UITheme.TextColor, Padding);
-                TextContainer.DrawRightAlignedText(font, row.column4, col4Rect, fontSize - 1, UITheme.TextColor, Padding);
+                // Column order: Rank, N-gram, Frequency, Count, Global Rank (conditional), Relative Frequency (conditional)
+                float rowCurrentX = x;
+                TextContainer.DrawRightAlignedText(font, row.column1, new Rectangle(rowCurrentX, rowY, col1Width, RowHeight), fontSize - 1, UITheme.TextColor, Padding);
+                rowCurrentX += col1Width;
+                TextContainer.DrawRightAlignedText(font, row.column2, new Rectangle(rowCurrentX, rowY, col2Width, RowHeight), fontSize - 1, UITheme.TextColor, Padding);
+                rowCurrentX += col2Width;
+                TextContainer.DrawRightAlignedText(font, row.column3, new Rectangle(rowCurrentX, rowY, col3Width, RowHeight), fontSize - 1, UITheme.TextColor, Padding);
+                rowCurrentX += col3Width;
+                TextContainer.DrawRightAlignedText(font, row.column4, new Rectangle(rowCurrentX, rowY, col4Width, RowHeight), fontSize - 1, UITheme.TextColor, Padding);
+                rowCurrentX += col4Width;
+                if (ShowColumn5)
+                {
+                    TextContainer.DrawRightAlignedText(font, row.column5, new Rectangle(rowCurrentX, rowY, col5Width, RowHeight), fontSize - 1, UITheme.TextColor, Padding);
+                    rowCurrentX += col5Width;
+                }
+                if (ShowColumn6)
+                {
+                    TextContainer.DrawRightAlignedText(font, row.column6, new Rectangle(rowCurrentX, rowY, col6Width, RowHeight), fontSize - 1, UITheme.TextColor, Padding);
+                    rowCurrentX += col6Width;
+                }
 
                 rowY += RowHeight;
             }

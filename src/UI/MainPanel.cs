@@ -204,8 +204,8 @@ namespace Keysharp.UI
             totalCountLabel.PositionMode = Components.PositionMode.Absolute;
             ngramSelectorContainer.AddChild(totalCountLabel);
 
-            // Create n-gram table
-            ngramTable = new Components.Table(font, "Rank", "N-gram", "Frequency", "Count", 14);
+            // Create n-gram table (Rank, N-gram, Frequency, Count, Global Rank, Rel. Freq.)
+            ngramTable = new Components.Table(font, "Rank", "N-gram", "Frequency", "Count", "Global Rank", "Rel. Freq.", 14);
             ngramTable.Bounds = new Rectangle(0, 0, 0, 0); // Will be set by Update
             ngramTable.AutoSize = false;
             ngramTable.FillRemaining = true; // Fill remaining space after selector
@@ -796,6 +796,13 @@ namespace Keysharp.UI
             // Get all n-grams sorted by frequency
             var allNgrams = grams.GetAllSorted();
             
+            // Create a dictionary mapping n-gram sequences to their actual rank (1-based)
+            var actualRankMap = new Dictionary<string, int>();
+            for (int i = 0; i < allNgrams.Count; i++)
+            {
+                actualRankMap[allNgrams[i].sequence] = i + 1;
+            }
+            
             // Filter n-grams based on search text
             // Pre-compile regex if in regex mode for better performance
             Regex? compiledRegex = null;
@@ -836,27 +843,65 @@ namespace Keysharp.UI
                 }
             }).ToList();
             
+            // Calculate filtered total for relative frequency (only when filtered)
+            bool isFiltered = !string.IsNullOrEmpty(searchText);
+            long filteredTotal = 0;
+            if (isFiltered && filteredNgrams.Count > 0)
+            {
+                filteredTotal = filteredNgrams.Sum(ng => ng.count);
+            }
+            
+            // Show/hide conditional columns based on whether we're filtered
+            ngramTable.ShowColumn5 = isFiltered; // Global Rank
+            ngramTable.ShowColumn6 = isFiltered; // Relative Frequency
+            
             // Update table rows
             ngramTable.Rows.Clear();
             for (int i = 0; i < filteredNgrams.Count; i++)
             {
                 var ngram = filteredNgrams[i];
+                // Rank is relative rank within filtered results (1-based)
                 string rank = (i + 1).ToString();
                 string ngramText = $"\"{EscapeSpecialChars(ngram.sequence)}\""; // Add quotation marks around n-gram and escape special chars
                 // Format frequency as percentage with 3 decimal places
                 string frequency = $"{ngram.frequency * 100:F3}%";
                 // Format count with thousand separators
                 string count = ngram.count.ToString("N0");
-                ngramTable.Rows.Add((rank, ngramText, frequency, count));
+                
+                // Get global rank from all n-grams (conditional)
+                string globalRank = "";
+                if (isFiltered && actualRankMap.TryGetValue(ngram.sequence, out int actualRank))
+                {
+                    globalRank = actualRank.ToString();
+                }
+                
+                // Calculate relative frequency (count / filtered total) if filtered (conditional, last column)
+                string relativeFreq = "";
+                if (isFiltered && filteredTotal > 0)
+                {
+                    double relFreq = (double)ngram.count / filteredTotal;
+                    relativeFreq = $"{relFreq * 100:F3}%";
+                }
+                
+                // Column order: Rank, N-gram, Frequency, Count, Global Rank, Relative Frequency
+                ngramTable.Rows.Add((rank, ngramText, frequency, count, globalRank, relativeFreq));
             }
 
             // Update total count label
             if (totalCountLabel != null)
             {
                 long totalCount = grams.Total;
-                string countText = string.IsNullOrEmpty(searchText) 
-                    ? $"Total: {totalCount:N0}" 
-                    : $"Showing {filteredNgrams.Count:N0} of {totalCount:N0}";
+                string countText;
+                if (string.IsNullOrEmpty(searchText))
+                {
+                    countText = $"Total: {totalCount:N0}";
+                }
+                else
+                {
+                    // Show the filtered total (sum of counts) vs the overall total
+                    long filteredTotalCount = filteredTotal > 0 ? filteredTotal : 0;
+                    countText = $"Showing {filteredTotalCount:N0} of {totalCount:N0}";
+                }
                 totalCountLabel.SetText(countText);
             }
         }
