@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Keysharp
+namespace Keysharp.Core
 {
     /// <summary>
     /// Represents a collection of character sequence counts (n-grams) with helper methods.

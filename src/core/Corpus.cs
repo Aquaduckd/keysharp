@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace Keysharp
+namespace Keysharp.Core
 {
     /// <summary>
     /// Represents a loaded corpus (text file) with n-gram analysis capabilities.
