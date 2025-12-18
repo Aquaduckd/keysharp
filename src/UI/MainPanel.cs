@@ -41,6 +41,11 @@ namespace Keysharp.UI
                 if (layoutTab != null)
                 {
                     layoutTab.SidePanel = value;
+                    // Also connect layout tab back to side panel for disabled key changes
+                    if (value != null)
+                    {
+                        value.LayoutTab = layoutTab;
+                    }
                 }
             }
         }
@@ -83,7 +88,12 @@ namespace Keysharp.UI
             corpusTab = new CorpusTab(font);
             
             layoutTab = new LayoutTab(font);
-            layoutTab.SidePanel = sidePanel; // Connect to side panel for key info display (may be null initially)
+            layoutTab.SidePanel = sidePanel;
+            // Connect layout tab to side panel for disabled key changes
+            if (sidePanel != null)
+            {
+                sidePanel.LayoutTab = layoutTab;
+            } // Connect to side panel for key info display (may be null initially)
             layoutTab.CorpusTab = corpusTab; // Connect to corpus tab for heatmap data
             
             // Notify layout tab when corpus changes

@@ -21,10 +21,13 @@ namespace Keysharp.UI
         private Components.TextInput? primaryCharacterInput;
         private Components.Label? shiftCharacterLabel;
         private Components.TextInput? shiftCharacterInput;
+        private Components.Label? disabledLabel;
+        private Components.Checkbox? disabledCheckbox;
         private Components.Label? placeholderLabel;
         private Keysharp.Core.PhysicalKey? selectedKey;
         private Core.Layout? layout; // Reference to layout for rebuilding mappings
         private bool isUpdatingFromKey = false; // Flag to prevent circular updates
+        private LayoutTab? layoutTab; // Reference to layout tab for updating checkbox visibility
         
         // HSV color controls for heatmap
         private Components.Container? colorControlsContainer;
@@ -125,6 +128,20 @@ namespace Keysharp.UI
                 }
             };
             keyInfoContainer.AddChild(shiftCharacterRow.container);
+
+            // Create disabled row with checkbox
+            var disabledRow = CreateInfoRowWithCheckbox(font, "Disabled:");
+            disabledLabel = disabledRow.label;
+            disabledCheckbox = disabledRow.checkbox;
+            disabledCheckbox.OnCheckedChanged = (isChecked) => {
+                if (!isUpdatingFromKey && selectedKey != null)
+                {
+                    selectedKey.Disabled = isChecked;
+                    // Notify layout tab to update checkbox visibility
+                    layoutTab?.UpdateShowDisabledCheckboxVisibility();
+                }
+            };
+            keyInfoContainer.AddChild(disabledRow.container);
 
             // Create color controls container for HSV inputs
             colorControlsContainer = new Components.Container("ColorControlsContainer");
@@ -229,6 +246,31 @@ namespace Keysharp.UI
             row.AddChild(dropdown);
 
             return (row, label, dropdown);
+        }
+
+        private (Components.Container container, Components.Label label, Components.Checkbox checkbox) CreateInfoRowWithCheckbox(Font font, string labelText)
+        {
+            var row = new Components.Container($"InfoRow_{labelText}");
+            row.AutoLayoutChildren = true;
+            row.LayoutDirection = Components.LayoutDirection.Horizontal;
+            row.AutoSize = true;
+            row.ChildPadding = 0;
+            row.ChildGap = 8;
+            row.PositionMode = Components.PositionMode.Relative;
+
+            var label = new Components.Label(font, labelText, 14);
+            label.AutoSize = false;
+            label.Bounds = new Rectangle(0, 0, 0, 18);
+            label.PositionMode = Components.PositionMode.Relative;
+            row.AddChild(label);
+
+            var checkbox = new Components.Checkbox(font, "", 14);
+            checkbox.AutoSize = false;
+            checkbox.Bounds = new Rectangle(0, 0, 16, 16);
+            checkbox.PositionMode = Components.PositionMode.Relative;
+            row.AddChild(checkbox);
+
+            return (row, label, checkbox);
         }
 
         private List<string> GetFingerNames()
@@ -429,6 +471,12 @@ namespace Keysharp.UI
             }
         }
 
+        public LayoutTab? LayoutTab
+        {
+            get => layoutTab;
+            set => layoutTab = value;
+        }
+
         public void SetSelectedKey(Keysharp.Core.PhysicalKey? key)
         {
             selectedKey = key;
@@ -516,6 +564,18 @@ namespace Keysharp.UI
                     isUpdatingFromKey = false;
                 }
             }
+
+            if (disabledLabel != null && disabledCheckbox != null)
+            {
+                disabledLabel.IsVisible = hasKey;
+                disabledCheckbox.IsVisible = hasKey;
+                if (hasKey && selectedKey != null)
+                {
+                    isUpdatingFromKey = true;
+                    disabledCheckbox.IsChecked = selectedKey.Disabled;
+                    isUpdatingFromKey = false;
+                }
+            }
         }
 
         private string GetFingerName(Finger finger)
@@ -598,6 +658,12 @@ namespace Keysharp.UI
                 {
                     shiftCharacterLabel.SetSize(labelWidth, 18);
                     shiftCharacterInput.SetSize(valueWidth, 24);
+                }
+
+                if (disabledLabel != null && disabledCheckbox != null)
+                {
+                    disabledLabel.SetSize(labelWidth, 18);
+                    disabledCheckbox.SetSize(16, 16);
                 }
             }
             

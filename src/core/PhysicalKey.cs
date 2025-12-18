@@ -46,6 +46,11 @@ namespace Keysharp.Core
         /// </summary>
         public string? ShiftCharacter { get; set; }
 
+        /// <summary>
+        /// Whether this key is disabled. Disabled keys may be hidden or shown with an outline depending on view settings.
+        /// </summary>
+        public bool Disabled { get; set; } = false;
+
         public PhysicalKey(float x, float y, float width, float height, Finger finger, string? identifier = null)
         {
             X = x;

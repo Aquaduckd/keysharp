@@ -1,6 +1,7 @@
 using Raylib_cs;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Keysharp.Components;
 using Keysharp.Core;
 
@@ -11,9 +12,11 @@ namespace Keysharp.UI
         private Components.TabContent tabContent;
         private Components.Label titleLabel;
         private Components.Container? viewControlsContainer;
+        private Components.Container? radioButtonsContainer;
         private Components.RadioButton? regularRadioButton;
         private Components.RadioButton? fingerColorsRadioButton;
         private Components.RadioButton? heatmapRadioButton;
+        private Components.Checkbox? showDisabledCheckbox;
         private Components.Canvas keyboardCanvas;
         private Components.KeyboardLayoutView keyboardView;
         private Layout layout;
@@ -79,7 +82,20 @@ namespace Keysharp.UI
             viewControlsContainer.Bounds = new Rectangle(0, 0, 0, 30); // Height for controls
             viewControlsContainer.ChildPadding = 0;
             viewControlsContainer.ChildGap = 15;
+            viewControlsContainer.ChildJustification = Components.ChildJustification.SpaceBetween; // Space between radio buttons container and checkbox
             viewControlsContainer.PositionMode = Components.PositionMode.Relative;
+
+            // Create container for radio buttons (so they stay left-justified together)
+            radioButtonsContainer = new Components.Container("RadioButtonsContainer");
+            radioButtonsContainer.AutoLayoutChildren = true;
+            radioButtonsContainer.LayoutDirection = Components.LayoutDirection.Horizontal;
+            radioButtonsContainer.AutoSize = false;
+            radioButtonsContainer.Bounds = new Rectangle(0, 0, 0, 30); // Height to match controls
+            radioButtonsContainer.ChildPadding = 0;
+            radioButtonsContainer.ChildGap = 15;
+            radioButtonsContainer.ChildJustification = Components.ChildJustification.Left; // Left-justify radio buttons
+            radioButtonsContainer.PositionMode = Components.PositionMode.Relative;
+            viewControlsContainer.AddChild(radioButtonsContainer);
 
             // Create radio buttons for view modes
             const string radioGroup = "ViewMode";
@@ -138,9 +154,23 @@ namespace Keysharp.UI
                 }
             };
 
-            viewControlsContainer.AddChild(regularRadioButton);
-            viewControlsContainer.AddChild(fingerColorsRadioButton);
-            viewControlsContainer.AddChild(heatmapRadioButton);
+            radioButtonsContainer.AddChild(regularRadioButton);
+            radioButtonsContainer.AddChild(fingerColorsRadioButton);
+            radioButtonsContainer.AddChild(heatmapRadioButton);
+
+            // Create checkbox for showing disabled keys (right-justified)
+            float showDisabledWidth = FontManager.MeasureText(font, "Show Disabled", 14) + 16 + 8; // text + checkbox + spacing
+            showDisabledCheckbox = new Components.Checkbox(font, "Show Disabled", 14);
+            showDisabledCheckbox.Bounds = new Rectangle(0, 0, showDisabledWidth, buttonHeight);
+            showDisabledCheckbox.AutoSize = false;
+            showDisabledCheckbox.IsChecked = true; // Default: show disabled keys
+            showDisabledCheckbox.OnCheckedChanged = (isChecked) => {
+                keyboardView.ShowDisabledKeys = isChecked;
+            };
+            viewControlsContainer.AddChild(showDisabledCheckbox);
+
+            // Initially hide the checkbox if there are no disabled keys
+            UpdateShowDisabledCheckboxVisibility();
 
             // Create canvas to hold the keyboard view
             keyboardCanvas = new Components.Canvas("KeyboardCanvas");
@@ -152,6 +182,7 @@ namespace Keysharp.UI
             keyboardView = new Components.KeyboardLayoutView(font);
             keyboardView.Layout = layout;
             keyboardView.PositionMode = Components.PositionMode.Relative;
+            keyboardView.ShowDisabledKeys = true; // Default: show disabled keys
             keyboardView.OnSelectedKeyChanged = (key) => {
                 // Use the property getter to get current value
                 var currentSidePanel = SidePanel;
@@ -166,6 +197,9 @@ namespace Keysharp.UI
             tabContent.AddChild(titleLabel);
             tabContent.AddChild(viewControlsContainer);
             tabContent.AddChild(keyboardCanvas);
+            
+            // Initially hide the checkbox if there are no disabled keys
+            UpdateShowDisabledCheckboxVisibility();
             
             // Set keyboard view reference in side panel for HSV color controls
             if (sidePanel != null)
@@ -203,6 +237,7 @@ namespace Keysharp.UI
             if (viewControlsContainer != null)
             {
                 viewControlsContainer.Bounds = new Rectangle(0, 0, availableWidth, 30);
+                // Note: showDisabledCheckbox width is set in InitializeUI, no need to update here
             }
 
             // Set keyboard view initial size calculation (width/height will be calculated in ResolveBounds)
@@ -265,6 +300,16 @@ namespace Keysharp.UI
             keyboardView.UpdateFont(newFont);
             // Update font in title label (would need UpdateFont in Label component)
             // For now, just update the keyboard view which is most visible
+        }
+
+        public void UpdateShowDisabledCheckboxVisibility()
+        {
+            if (showDisabledCheckbox != null && layout != null)
+            {
+                // Check if any keys in the layout are disabled
+                bool hasDisabledKeys = layout.GetPhysicalKeys().Any(key => key.Disabled);
+                showDisabledCheckbox.IsVisible = hasDisabledKeys;
+            }
         }
 
         private void UpdateHeatmapButtonVisibility()

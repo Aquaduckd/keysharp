@@ -27,6 +27,7 @@ namespace Keysharp.Components
         private PhysicalKey? selectedKey;
         private Dictionary<PhysicalKey, Rectangle> keyRectangles = new Dictionary<PhysicalKey, Rectangle>();
         private KeyboardViewMode viewMode = KeyboardViewMode.Regular;
+        private bool showDisabledKeys = false; // Whether to show disabled keys (with outline) or hide them
         
         // Heatmap data (monogram counts per key)
         private Dictionary<string, long>? monogramCounts;
@@ -84,6 +85,16 @@ namespace Keysharp.Components
             {
                 viewMode = value;
                 keyRectangles.Clear(); // Clear cache to redraw with new mode
+            }
+        }
+
+        public bool ShowDisabledKeys
+        {
+            get => showDisabledKeys;
+            set
+            {
+                showDisabledKeys = value;
+                keyRectangles.Clear(); // Force redraw when show disabled setting changes
             }
         }
 
@@ -232,6 +243,12 @@ namespace Keysharp.Components
                 PhysicalKey? hoveredKey = null;
                 foreach (var key in layout.GetPhysicalKeys())
                 {
+                    // Skip disabled keys if we're not showing them
+                    if (key.Disabled && !showDisabledKeys)
+                    {
+                        continue;
+                    }
+
                     Rectangle keyRect = GetKeyRectangle(key);
                     if (mouseX >= keyRect.X && mouseX <= keyRect.X + keyRect.Width &&
                         mouseY >= keyRect.Y && mouseY <= keyRect.Y + keyRect.Height)
@@ -314,6 +331,12 @@ namespace Keysharp.Components
             // Draw each physical key
             foreach (var key in layout.GetPhysicalKeys())
             {
+                // Skip disabled keys if we're not showing them
+                if (key.Disabled && !showDisabledKeys)
+                {
+                    continue;
+                }
+
                 DrawKey(key);
             }
         }
@@ -325,6 +348,9 @@ namespace Keysharp.Components
             float y = keyRect.Y;
             float width = keyRect.Width;
             float height = keyRect.Height;
+
+            // Check if key is disabled
+            bool isDisabled = key.Disabled;
 
             // Determine key color based on view mode (don't change for selection/drag)
             bool isSelected = selectedKey == key;
@@ -348,8 +374,12 @@ namespace Keysharp.Components
                 keyColor = UITheme.SidePanelColor;
             }
 
-            // Draw key background
-            Raylib.DrawRectangleRec(keyRect, keyColor);
+            // Apply opacity to disabled keys
+            byte alpha = isDisabled ? (byte)77 : (byte)255; // 30% opacity for disabled keys
+            
+            // Draw key background (apply opacity for disabled keys)
+            Color backgroundColor = new Color(keyColor.R, keyColor.G, keyColor.B, alpha);
+            Raylib.DrawRectangleRec(keyRect, backgroundColor);
             
             // Draw key border - use different colors/thickness for selection and drag states
             Color borderColor = UITheme.BorderColor;
@@ -358,13 +388,13 @@ namespace Keysharp.Components
             if (isDragged && isDragging)
             {
                 // Dragged key: thicker blue border
-                borderColor = new Color(100, 149, 237, 255); // Cornflower blue
+                borderColor = new Color((byte)100, (byte)149, (byte)237, alpha); // Cornflower blue
                 borderWidth = 3.0f;
             }
             else if (isDragTarget)
             {
                 // Drop target: thicker green border
-                borderColor = new Color(144, 238, 144, 255); // Light green
+                borderColor = new Color((byte)144, (byte)238, (byte)144, alpha); // Light green
                 borderWidth = 3.0f;
             }
             else if (isSelected)
@@ -373,6 +403,8 @@ namespace Keysharp.Components
                 borderWidth = 3.0f;
             }
             
+            // Apply opacity to border color
+            borderColor = new Color(borderColor.R, borderColor.G, borderColor.B, alpha);
             Raylib.DrawRectangleLinesEx(keyRect, borderWidth, borderColor);
 
             // Draw key labels (primary and shift characters)
@@ -393,7 +425,8 @@ namespace Keysharp.Components
                         int primaryX = (int)(x + (width - primaryWidth) / 2);
                         int primaryY = (int)(y + height - fontSize - 4); // Bottom with padding
                         
-                        FontManager.DrawText(font, primary, primaryX, primaryY, fontSize, UITheme.TextColor);
+                        Color textColor = new Color(UITheme.TextColor.R, UITheme.TextColor.G, UITheme.TextColor.B, alpha);
+                        FontManager.DrawText(font, primary, primaryX, primaryY, fontSize, textColor);
                     }
                     
                     // Draw shift character (top-left, like standard keyboards)
@@ -403,7 +436,8 @@ namespace Keysharp.Components
                         int shiftX = (int)(x + 4); // Left edge with padding
                         int shiftY = (int)(y + 2); // Top with padding
                         
-                        FontManager.DrawText(font, shift, shiftX, shiftY, smallFontSize, UITheme.TextSecondaryColor);
+                        Color secondaryTextColor = new Color(UITheme.TextSecondaryColor.R, UITheme.TextSecondaryColor.G, UITheme.TextSecondaryColor.B, alpha);
+                        FontManager.DrawText(font, shift, shiftX, shiftY, smallFontSize, secondaryTextColor);
                     }
                 }
                 // Fallback: show identifier for keys without character mappings (like Caps, Tab, Backspace, etc.)
@@ -416,7 +450,8 @@ namespace Keysharp.Components
                     int textX = (int)(x + (width - textWidth) / 2);
                     int textY = (int)(y + (height - fontSize) / 2);
                     
-                    FontManager.DrawText(font, key.Identifier, textX, textY, fontSize, UITheme.TextColor);
+                    Color textColor = new Color(UITheme.TextColor.R, UITheme.TextColor.G, UITheme.TextColor.B, alpha);
+                    FontManager.DrawText(font, key.Identifier, textX, textY, fontSize, textColor);
                 }
             }
             else if (!string.IsNullOrEmpty(key.Identifier))
@@ -429,7 +464,8 @@ namespace Keysharp.Components
                 int textX = (int)(x + (width - textWidth) / 2);
                 int textY = (int)(y + (height - fontSize) / 2);
                 
-                FontManager.DrawText(font, key.Identifier, textX, textY, fontSize, UITheme.TextColor);
+                Color textColor = new Color(UITheme.TextColor.R, UITheme.TextColor.G, UITheme.TextColor.B, alpha);
+                FontManager.DrawText(font, key.Identifier, textX, textY, fontSize, textColor);
             }
         }
 
