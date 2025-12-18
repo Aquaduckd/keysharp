@@ -99,6 +99,14 @@ namespace Keysharp.Components
         }
 
         /// <summary>
+        /// Invalidates the cached rectangle for a specific key, forcing it to be recalculated on next access.
+        /// </summary>
+        public void InvalidateKeyCache(PhysicalKey key)
+        {
+            keyRectangles.Remove(key);
+        }
+
+        /// <summary>
         /// Sets monogram counts for heatmap view mode.
         /// Dictionary maps character strings to their usage counts.
         /// </summary>

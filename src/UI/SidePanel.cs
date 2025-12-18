@@ -13,9 +13,11 @@ namespace Keysharp.UI
         private Components.Label? identifierLabel;
         private Components.Label? identifierValue;
         private Components.Label? positionLabel;
-        private Components.Label? positionValue;
+        private Components.TextInput? positionXInput;
+        private Components.TextInput? positionYInput;
         private Components.Label? sizeLabel;
-        private Components.Label? sizeValue;
+        private Components.TextInput? sizeWidthInput;
+        private Components.TextInput? sizeHeightInput;
         private Components.Label? fingerLabel;
         private Components.Dropdown? fingerDropdown;
         private Components.Label? primaryCharacterLabel;
@@ -183,17 +185,117 @@ namespace Keysharp.UI
             identifierValue = identifierRow.value;
             keyInfoContainer.AddChild(identifierRow.container);
 
-            // Create position row
-            var positionRow = CreateInfoRow(font, "Position:", "(0.00U, 0.00U)");
-            positionLabel = positionRow.label;
-            positionValue = positionRow.value;
-            keyInfoContainer.AddChild(positionRow.container);
+            // Create position row with two inputs (X and Y)
+            positionLabel = new Components.Label(font, "Position:", 14);
+            positionLabel.AutoSize = false;
+            positionLabel.Bounds = new Rectangle(0, 0, 90, 18);
+            positionLabel.PositionMode = Components.PositionMode.Relative;
+            
+            var positionContainer = new Components.Container("PositionContainer");
+            positionContainer.AutoLayoutChildren = true;
+            positionContainer.LayoutDirection = Components.LayoutDirection.Horizontal;
+            positionContainer.AutoSize = false;
+            positionContainer.ChildPadding = 0;
+            positionContainer.ChildGap = 8;
+            positionContainer.PositionMode = Components.PositionMode.Relative;
+            
+            positionXInput = new Components.TextInput(font, "0.00", 14);
+            positionXInput.Bounds = new Rectangle(0, 0, 80, 24);
+            positionXInput.AutoSize = false;
+            positionXInput.EnableScrollIncrement = true; // Enable scroll wheel increment/decrement
+            positionXInput.OnTextChanged = (text) => {
+                if (!isUpdatingFromKey && selectedKey != null && float.TryParse(text, out float value))
+                {
+                    selectedKey.X = value;
+                    // Invalidate the cache for this key so it recalculates its rectangle
+                    keyboardView?.InvalidateKeyCache(selectedKey);
+                }
+            };
+            
+            positionYInput = new Components.TextInput(font, "0.00", 14);
+            positionYInput.Bounds = new Rectangle(0, 0, 80, 24);
+            positionYInput.AutoSize = false;
+            positionYInput.EnableScrollIncrement = true; // Enable scroll wheel increment/decrement
+            positionYInput.OnTextChanged = (text) => {
+                if (!isUpdatingFromKey && selectedKey != null && float.TryParse(text, out float value))
+                {
+                    selectedKey.Y = value;
+                    // Invalidate the cache for this key so it recalculates its rectangle
+                    keyboardView?.InvalidateKeyCache(selectedKey);
+                }
+            };
+            
+            positionContainer.AddChild(positionXInput);
+            positionContainer.AddChild(positionYInput);
+            
+            var positionRowContainer = new Components.Container("PositionRowContainer");
+            positionRowContainer.AutoLayoutChildren = true;
+            positionRowContainer.LayoutDirection = Components.LayoutDirection.Horizontal;
+            positionRowContainer.AutoSize = false;
+            positionRowContainer.Bounds = new Rectangle(0, 0, 0, 24);
+            positionRowContainer.ChildPadding = 0;
+            positionRowContainer.ChildGap = 8;
+            positionRowContainer.ChildJustification = Components.ChildJustification.Left;
+            positionRowContainer.PositionMode = Components.PositionMode.Relative;
+            positionRowContainer.AddChild(positionLabel);
+            positionRowContainer.AddChild(positionContainer);
+            keyInfoContainer.AddChild(positionRowContainer);
 
-            // Create size row
-            var sizeRow = CreateInfoRow(font, "Size:", "0.00U × 0.00U");
-            sizeLabel = sizeRow.label;
-            sizeValue = sizeRow.value;
-            keyInfoContainer.AddChild(sizeRow.container);
+            // Create size row with two inputs (Width and Height)
+            sizeLabel = new Components.Label(font, "Size:", 14);
+            sizeLabel.AutoSize = false;
+            sizeLabel.Bounds = new Rectangle(0, 0, 90, 18);
+            sizeLabel.PositionMode = Components.PositionMode.Relative;
+            
+            var sizeContainer = new Components.Container("SizeContainer");
+            sizeContainer.AutoLayoutChildren = true;
+            sizeContainer.LayoutDirection = Components.LayoutDirection.Horizontal;
+            sizeContainer.AutoSize = false;
+            sizeContainer.ChildPadding = 0;
+            sizeContainer.ChildGap = 8;
+            sizeContainer.PositionMode = Components.PositionMode.Relative;
+            
+            sizeWidthInput = new Components.TextInput(font, "1.00", 14);
+            sizeWidthInput.Bounds = new Rectangle(0, 0, 80, 24);
+            sizeWidthInput.AutoSize = false;
+            sizeWidthInput.EnableScrollIncrement = true; // Enable scroll wheel increment/decrement
+            sizeWidthInput.OnTextChanged = (text) => {
+                if (!isUpdatingFromKey && selectedKey != null && float.TryParse(text, out float value))
+                {
+                    selectedKey.Width = value;
+                    // Invalidate the cache for this key so it recalculates its rectangle
+                    keyboardView?.InvalidateKeyCache(selectedKey);
+                }
+            };
+            
+            sizeHeightInput = new Components.TextInput(font, "1.00", 14);
+            sizeHeightInput.Bounds = new Rectangle(0, 0, 80, 24);
+            sizeHeightInput.AutoSize = false;
+            sizeHeightInput.EnableScrollIncrement = true; // Enable scroll wheel increment/decrement
+            sizeHeightInput.OnTextChanged = (text) => {
+                if (!isUpdatingFromKey && selectedKey != null && float.TryParse(text, out float value))
+                {
+                    selectedKey.Height = value;
+                    // Invalidate the cache for this key so it recalculates its rectangle
+                    keyboardView?.InvalidateKeyCache(selectedKey);
+                }
+            };
+            
+            sizeContainer.AddChild(sizeWidthInput);
+            sizeContainer.AddChild(sizeHeightInput);
+            
+            var sizeRowContainer = new Components.Container("SizeRowContainer");
+            sizeRowContainer.AutoLayoutChildren = true;
+            sizeRowContainer.LayoutDirection = Components.LayoutDirection.Horizontal;
+            sizeRowContainer.AutoSize = false;
+            sizeRowContainer.Bounds = new Rectangle(0, 0, 0, 24);
+            sizeRowContainer.ChildPadding = 0;
+            sizeRowContainer.ChildGap = 8;
+            sizeRowContainer.ChildJustification = Components.ChildJustification.Left;
+            sizeRowContainer.PositionMode = Components.PositionMode.Relative;
+            sizeRowContainer.AddChild(sizeLabel);
+            sizeRowContainer.AddChild(sizeContainer);
+            keyInfoContainer.AddChild(sizeRowContainer);
 
             // Create finger row with dropdown
             var fingerRow = CreateInfoRowWithDropdown(font, "Finger:", GetFingerNames());
@@ -456,6 +558,11 @@ namespace Keysharp.UI
             hLabel.AutoSize = false;
             hInput = new Components.TextInput(Font, "", 14);
             hInput.Bounds = new Rectangle(0, 0, 50, 25);
+            hInput.InputConstraint = Components.InputType.Integer; // Constrain to integers
+            hInput.EnableScrollIncrement = true; // Enable scroll wheel increment/decrement
+            hInput.ScrollIncrementAmount = 10.0f; // Increment by 10 for HSV values
+            hInput.MinValue = 0.0f; // Hue range: 0-360
+            hInput.MaxValue = 360.0f;
             hInput.SetText(hDefault);
             hInput.OnTextChanged = (text) => UpdateHeatmapColors();
             
@@ -477,6 +584,11 @@ namespace Keysharp.UI
             sLabel.AutoSize = false;
             sInput = new Components.TextInput(Font, "", 14);
             sInput.Bounds = new Rectangle(0, 0, 50, 25);
+            sInput.InputConstraint = Components.InputType.Integer; // Constrain to integers
+            sInput.EnableScrollIncrement = true; // Enable scroll wheel increment/decrement
+            sInput.ScrollIncrementAmount = 10.0f; // Increment by 10 for HSV values
+            sInput.MinValue = 0.0f; // Saturation range: 0-100
+            sInput.MaxValue = 100.0f;
             sInput.SetText(sDefault);
             sInput.OnTextChanged = (text) => UpdateHeatmapColors();
             
@@ -498,6 +610,11 @@ namespace Keysharp.UI
             vLabel.AutoSize = false;
             vInput = new Components.TextInput(Font, "", 14);
             vInput.Bounds = new Rectangle(0, 0, 50, 25);
+            vInput.InputConstraint = Components.InputType.Integer; // Constrain to integers
+            vInput.EnableScrollIncrement = true; // Enable scroll wheel increment/decrement
+            vInput.ScrollIncrementAmount = 10.0f; // Increment by 10 for HSV values
+            vInput.MinValue = 0.0f; // Value/Brightness range: 0-100
+            vInput.MaxValue = 100.0f;
             vInput.SetText(vDefault);
             vInput.OnTextChanged = (text) => UpdateHeatmapColors();
             
@@ -638,23 +755,31 @@ namespace Keysharp.UI
                 }
             }
 
-            if (positionLabel != null && positionValue != null)
+            if (positionLabel != null && positionXInput != null && positionYInput != null)
             {
                 positionLabel.IsVisible = hasKey;
-                positionValue.IsVisible = hasKey;
+                positionXInput.IsVisible = hasKey;
+                positionYInput.IsVisible = hasKey;
                 if (hasKey && selectedKey != null)
                 {
-                    positionValue.SetText($"({selectedKey.X:F2}U, {selectedKey.Y:F2}U)");
+                    isUpdatingFromKey = true;
+                    positionXInput.SetText(selectedKey.X.ToString("F2"));
+                    positionYInput.SetText(selectedKey.Y.ToString("F2"));
+                    isUpdatingFromKey = false;
                 }
             }
 
-            if (sizeLabel != null && sizeValue != null)
+            if (sizeLabel != null && sizeWidthInput != null && sizeHeightInput != null)
             {
                 sizeLabel.IsVisible = hasKey;
-                sizeValue.IsVisible = hasKey;
+                sizeWidthInput.IsVisible = hasKey;
+                sizeHeightInput.IsVisible = hasKey;
                 if (hasKey && selectedKey != null)
                 {
-                    sizeValue.SetText($"{selectedKey.Width:F2}U × {selectedKey.Height:F2}U");
+                    isUpdatingFromKey = true;
+                    sizeWidthInput.SetText(selectedKey.Width.ToString("F2"));
+                    sizeHeightInput.SetText(selectedKey.Height.ToString("F2"));
+                    isUpdatingFromKey = false;
                 }
             }
 
@@ -796,16 +921,22 @@ namespace Keysharp.UI
                     identifierValue.SetSize(valueWidth, 18);
                 }
 
-                if (positionLabel != null && positionValue != null)
+                if (positionLabel != null && positionXInput != null && positionYInput != null)
                 {
                     positionLabel.SetSize(labelWidth, 18);
-                    positionValue.SetSize(valueWidth, 18);
+                    // Position inputs share the available width (half each minus gap)
+                    float inputWidth = (valueWidth - 8) / 2; // 8 is gap between inputs
+                    positionXInput.SetSize(inputWidth, 24);
+                    positionYInput.SetSize(inputWidth, 24);
                 }
 
-                if (sizeLabel != null && sizeValue != null)
+                if (sizeLabel != null && sizeWidthInput != null && sizeHeightInput != null)
                 {
                     sizeLabel.SetSize(labelWidth, 18);
-                    sizeValue.SetSize(valueWidth, 18);
+                    // Size inputs share the available width (half each minus gap)
+                    float inputWidth = (valueWidth - 8) / 2; // 8 is gap between inputs
+                    sizeWidthInput.SetSize(inputWidth, 24);
+                    sizeHeightInput.SetSize(inputWidth, 24);
                 }
 
                 if (fingerLabel != null && fingerDropdown != null)

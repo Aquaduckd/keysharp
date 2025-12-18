@@ -5,6 +5,13 @@ using Keysharp.UI;
 
 namespace Keysharp.Components
 {
+    public enum InputType
+    {
+        Any,        // Allow any string (default)
+        Integer,    // Only allow integer values
+        Decimal     // Only allow decimal/float values
+    }
+
     public class TextInput : UIElement
     {
         private Font font;
@@ -16,6 +23,11 @@ namespace Keysharp.Components
         public bool IsFocused { get; private set; }
         public Action<string>? OnTextChanged { get; set; }
         public bool IsInvalid { get; set; } = false;
+        public InputType InputConstraint { get; set; } = InputType.Any; // Constraint on input type
+        public bool EnableScrollIncrement { get; set; } = false; // Enable scroll wheel increment/decrement for numeric values
+        public float ScrollIncrementAmount { get; set; } = 0.25f; // Amount to increment/decrement when scrolling
+        public float? MinValue { get; set; } = null; // Minimum allowed value (null = no minimum)
+        public float? MaxValue { get; set; } = null; // Maximum allowed value (null = no maximum)
         private bool backspaceProcessedThisFrame = false;
         
         // Cursor and selection
@@ -57,7 +69,83 @@ namespace Keysharp.Components
             this.Text = text;
             cursorPosition = text.Length;
             ClearSelection();
+            ValidateInput();
             OnTextChanged?.Invoke(text);
+        }
+        
+        /// <summary>
+        /// Checks if a character is valid for the current input constraint.
+        /// </summary>
+        private bool IsValidChar(char c)
+        {
+            // Get the text that would exist after inserting this character
+            // (accounting for selection that will be deleted)
+            string testText;
+            int testPosition;
+            if (HasSelection())
+            {
+                int start = GetSelectionStart();
+                int end = GetSelectionEnd();
+                testText = Text.Substring(0, start) + Text.Substring(end);
+                testPosition = start;
+            }
+            else
+            {
+                testText = Text;
+                testPosition = cursorPosition;
+            }
+            
+            switch (InputConstraint)
+            {
+                case InputType.Integer:
+                    // Allow digits and negative sign (only at the start)
+                    if (char.IsDigit(c))
+                        return true;
+                    if (c == '-' && testPosition == 0 && !testText.Contains("-"))
+                        return true;
+                    return false;
+                    
+                case InputType.Decimal:
+                    // Allow digits, negative sign (only at start), and decimal point (only one)
+                    if (char.IsDigit(c))
+                        return true;
+                    if (c == '-' && testPosition == 0 && !testText.Contains("-"))
+                        return true;
+                    if (c == '.' && !testText.Contains("."))
+                        return true;
+                    return false;
+                    
+                case InputType.Any:
+                default:
+                    return true;
+            }
+        }
+        
+        /// <summary>
+        /// Validates the current text and sets IsInvalid accordingly.
+        /// </summary>
+        private void ValidateInput()
+        {
+            if (InputConstraint == InputType.Any || string.IsNullOrEmpty(Text))
+            {
+                IsInvalid = false;
+                return;
+            }
+            
+            switch (InputConstraint)
+            {
+                case InputType.Integer:
+                    IsInvalid = !int.TryParse(Text, out _);
+                    break;
+                    
+                case InputType.Decimal:
+                    IsInvalid = !float.TryParse(Text, out _) && !double.TryParse(Text, out _);
+                    break;
+                    
+                default:
+                    IsInvalid = false;
+                    break;
+            }
         }
         
         private void ClearSelection()
@@ -92,6 +180,7 @@ namespace Keysharp.Components
             Text = Text.Substring(0, start) + Text.Substring(end);
             cursorPosition = start;
             ClearSelection();
+            ValidateInput();
             OnTextChanged?.Invoke(Text);
         }
         
@@ -230,12 +319,53 @@ namespace Keysharp.Components
 
             int mouseX = Raylib.GetMouseX();
             int mouseY = Raylib.GetMouseY();
+            bool isHovered = IsHovering(mouseX, mouseY);
+
+            // Handle scroll wheel increment/decrement (when enabled and hovered)
+            if (EnableScrollIncrement && isHovered)
+            {
+                float wheelMove = Raylib.GetMouseWheelMove();
+                if (wheelMove != 0)
+                {
+                    // Try to parse the current text as a float
+                    if (float.TryParse(Text, out float currentValue))
+                    {
+                        // Increment or decrement by ScrollIncrementAmount
+                        float newValue = currentValue + (wheelMove * ScrollIncrementAmount);
+                        
+                        // Clamp to min/max values if specified
+                        if (MinValue.HasValue)
+                        {
+                            newValue = Math.Max(newValue, MinValue.Value);
+                        }
+                        if (MaxValue.HasValue)
+                        {
+                            newValue = Math.Min(newValue, MaxValue.Value);
+                        }
+                        
+                        // Format based on input constraint
+                        string newText;
+                        if (InputConstraint == InputType.Integer)
+                        {
+                            // For integers, format as integer (no decimals)
+                            newText = ((int)newValue).ToString();
+                        }
+                        else
+                        {
+                            // For decimals or any, format with 2 decimal places
+                            newText = newValue.ToString("F2");
+                        }
+                        
+                        SetText(newText);
+                    }
+                }
+            }
 
             // Handle focus and mouse selection
             if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT))
             {
                 bool wasFocused = IsFocused;
-                IsFocused = IsHovering(mouseX, mouseY);
+                IsFocused = isHovered;
                 
                 if (IsFocused)
                 {
@@ -470,14 +600,21 @@ namespace Keysharp.Components
                         // Only accept printable characters
                         if (key >= 32 && key < 127)
                         {
-                            if (HasSelection())
-                            {
-                                DeleteSelection();
-                            }
+                            char c = (char)key;
                             
-                            Text = Text.Insert(cursorPosition, ((char)key).ToString());
-                            cursorPosition++;
-                            OnTextChanged?.Invoke(Text);
+                            // Check if character is valid for the input constraint
+                            if (IsValidChar(c))
+                            {
+                                if (HasSelection())
+                                {
+                                    DeleteSelection();
+                                }
+                                
+                                Text = Text.Insert(cursorPosition, c.ToString());
+                                cursorPosition++;
+                                ValidateInput();
+                                OnTextChanged?.Invoke(Text);
+                            }
                         }
                         key = Raylib.GetCharPressed();
                     }
@@ -531,6 +668,7 @@ namespace Keysharp.Components
                     if (HasSelection())
                     {
                         DeleteSelection();
+                        ValidateInput();
                     }
                     else if (ctrlDownNow && cursorPosition > 0)
                     {
@@ -543,6 +681,7 @@ namespace Keysharp.Components
                             
                             Text = Text.Substring(0, deleteStart) + Text.Substring(cursorPosition);
                             cursorPosition = newCursorPos;
+                            ValidateInput();
                             OnTextChanged?.Invoke(Text);
                         }
                     }
@@ -551,6 +690,7 @@ namespace Keysharp.Components
                         // Regular backspace
                         Text = Text.Substring(0, cursorPosition - 1) + Text.Substring(cursorPosition);
                         cursorPosition--;
+                        ValidateInput();
                         OnTextChanged?.Invoke(Text);
                     }
                 }
