@@ -25,6 +25,20 @@ namespace Keysharp.UI
         private Keysharp.Core.PhysicalKey? selectedKey;
         private Core.Layout? layout; // Reference to layout for rebuilding mappings
         private bool isUpdatingFromKey = false; // Flag to prevent circular updates
+        
+        // HSV color controls for heatmap
+        private Components.Container? colorControlsContainer;
+        private Components.Label? colorControlsHeaderLabel;
+        private Components.TextInput? lowHInput;
+        private Components.TextInput? lowSInput;
+        private Components.TextInput? lowVInput;
+        private Components.TextInput? midHInput;
+        private Components.TextInput? midSInput;
+        private Components.TextInput? midVInput;
+        private Components.TextInput? highHInput;
+        private Components.TextInput? highSInput;
+        private Components.TextInput? highVInput;
+        private Components.KeyboardLayoutView? keyboardView; // Reference to keyboard view for updating heatmap colors
 
         public SidePanel(Font font) : base(font, "SidePanel")
         {
@@ -33,7 +47,7 @@ namespace Keysharp.UI
             keyInfoContainer.AutoLayoutChildren = true;
             keyInfoContainer.LayoutDirection = Components.LayoutDirection.Vertical;
             keyInfoContainer.AutoSize = true;
-            keyInfoContainer.ChildPadding = 15;
+            keyInfoContainer.ChildPadding = 0; // No padding, outer container handles it
             keyInfoContainer.ChildGap = 12;
             keyInfoContainer.PositionMode = Components.PositionMode.Relative;
             AddChild(keyInfoContainer);
@@ -111,6 +125,32 @@ namespace Keysharp.UI
                 }
             };
             keyInfoContainer.AddChild(shiftCharacterRow.container);
+
+            // Create color controls container for HSV inputs
+            colorControlsContainer = new Components.Container("ColorControlsContainer");
+            colorControlsContainer.AutoLayoutChildren = true;
+            colorControlsContainer.LayoutDirection = Components.LayoutDirection.Vertical;
+            colorControlsContainer.AutoSize = false;
+            colorControlsContainer.Bounds = new Rectangle(0, 0, 0, 135); // Height for header + 3 rows
+            colorControlsContainer.ChildPadding = 0; // No padding, outer container handles it
+            colorControlsContainer.ChildGap = 5;
+            colorControlsContainer.PositionMode = Components.PositionMode.Relative;
+            AddChild(colorControlsContainer);
+            
+            // Create header label
+            colorControlsHeaderLabel = new Components.Label(Font, "Heatmap Colors", 16);
+            colorControlsHeaderLabel.AutoSize = false;
+            colorControlsHeaderLabel.Bounds = new Rectangle(0, 0, 0, 24);
+            colorControlsHeaderLabel.PositionMode = Components.PositionMode.Relative;
+            colorControlsContainer.AddChild(colorControlsHeaderLabel);
+            
+            // Create three rows: Low, Mid, High, each with H, S, V inputs
+            CreateColorInputRow("Low:", out lowHInput, out lowSInput, out lowVInput, "210", "15", "30");
+            CreateColorInputRow("Mid:", out midHInput, out midSInput, out midVInput, "200", "70", "60");
+            CreateColorInputRow("High:", out highHInput, out highSInput, out highVInput, "130", "60", "90");
+            
+            // Initially hide the container (will be shown when heatmap mode is selected)
+            colorControlsContainer.IsVisible = false;
 
             // Initially show placeholder, hide info rows
             UpdateKeyInfo();
@@ -244,9 +284,149 @@ namespace Keysharp.UI
             };
         }
 
+        private void CreateColorInputRow(string labelText, out Components.TextInput hInput, out Components.TextInput sInput, out Components.TextInput vInput, string hDefault, string sDefault, string vDefault)
+        {
+            var rowContainer = new Components.Container($"ColorInputRow_{labelText}");
+            rowContainer.AutoLayoutChildren = true;
+            rowContainer.LayoutDirection = Components.LayoutDirection.Horizontal;
+            rowContainer.AutoSize = false;
+            rowContainer.Bounds = new Rectangle(0, 0, 0, 25);
+            rowContainer.ChildPadding = 0;
+            rowContainer.ChildGap = 8;
+            rowContainer.PositionMode = Components.PositionMode.Relative;
+            
+            // Label for the row (Low/Mid/High)
+            var label = new Components.Label(Font, labelText, 14);
+            label.Bounds = new Rectangle(0, 0, 50, 25);
+            label.AutoSize = false;
+            rowContainer.AddChild(label);
+            
+            // H input with label
+            var hLabel = new Components.Label(Font, "H:", 14);
+            hLabel.Bounds = new Rectangle(0, 0, 20, 25);
+            hLabel.AutoSize = false;
+            hInput = new Components.TextInput(Font, "", 14);
+            hInput.Bounds = new Rectangle(0, 0, 50, 25);
+            hInput.SetText(hDefault);
+            hInput.OnTextChanged = (text) => UpdateHeatmapColors();
+            
+            var hContainer = new Components.Container($"HContainer_{labelText}");
+            hContainer.AutoLayoutChildren = true;
+            hContainer.LayoutDirection = Components.LayoutDirection.Horizontal;
+            hContainer.AutoSize = false;
+            hContainer.Bounds = new Rectangle(0, 0, 75, 25);
+            hContainer.ChildPadding = 0;
+            hContainer.ChildGap = 5;
+            hContainer.PositionMode = Components.PositionMode.Relative;
+            hContainer.AddChild(hLabel);
+            hContainer.AddChild(hInput);
+            rowContainer.AddChild(hContainer);
+            
+            // S input with label
+            var sLabel = new Components.Label(Font, "S:", 14);
+            sLabel.Bounds = new Rectangle(0, 0, 20, 25);
+            sLabel.AutoSize = false;
+            sInput = new Components.TextInput(Font, "", 14);
+            sInput.Bounds = new Rectangle(0, 0, 50, 25);
+            sInput.SetText(sDefault);
+            sInput.OnTextChanged = (text) => UpdateHeatmapColors();
+            
+            var sContainer = new Components.Container($"SContainer_{labelText}");
+            sContainer.AutoLayoutChildren = true;
+            sContainer.LayoutDirection = Components.LayoutDirection.Horizontal;
+            sContainer.AutoSize = false;
+            sContainer.Bounds = new Rectangle(0, 0, 75, 25);
+            sContainer.ChildPadding = 0;
+            sContainer.ChildGap = 5;
+            sContainer.PositionMode = Components.PositionMode.Relative;
+            sContainer.AddChild(sLabel);
+            sContainer.AddChild(sInput);
+            rowContainer.AddChild(sContainer);
+            
+            // V input with label
+            var vLabel = new Components.Label(Font, "V:", 14);
+            vLabel.Bounds = new Rectangle(0, 0, 20, 25);
+            vLabel.AutoSize = false;
+            vInput = new Components.TextInput(Font, "", 14);
+            vInput.Bounds = new Rectangle(0, 0, 50, 25);
+            vInput.SetText(vDefault);
+            vInput.OnTextChanged = (text) => UpdateHeatmapColors();
+            
+            var vContainer = new Components.Container($"VContainer_{labelText}");
+            vContainer.AutoLayoutChildren = true;
+            vContainer.LayoutDirection = Components.LayoutDirection.Horizontal;
+            vContainer.AutoSize = false;
+            vContainer.Bounds = new Rectangle(0, 0, 75, 25);
+            vContainer.ChildPadding = 0;
+            vContainer.ChildGap = 5;
+            vContainer.PositionMode = Components.PositionMode.Relative;
+            vContainer.AddChild(vLabel);
+            vContainer.AddChild(vInput);
+            rowContainer.AddChild(vContainer);
+            
+            colorControlsContainer!.AddChild(rowContainer);
+        }
+
+        private void UpdateHeatmapColors()
+        {
+            // Parse HSV values and update keyboard view
+            if (keyboardView == null || lowHInput == null || lowSInput == null || lowVInput == null ||
+                midHInput == null || midSInput == null || midVInput == null ||
+                highHInput == null || highSInput == null || highVInput == null)
+                return;
+            
+            try
+            {
+                float lowH = float.Parse(lowHInput.Text);
+                float lowS = float.Parse(lowSInput.Text) / 100f; // Convert percentage to 0-1
+                float lowV = float.Parse(lowVInput.Text) / 100f;
+                
+                float midH = float.Parse(midHInput.Text);
+                float midS = float.Parse(midSInput.Text) / 100f;
+                float midV = float.Parse(midVInput.Text) / 100f;
+                
+                float highH = float.Parse(highHInput.Text);
+                float highS = float.Parse(highSInput.Text) / 100f;
+                float highV = float.Parse(highVInput.Text) / 100f;
+                
+                keyboardView.SetHeatmapColors(lowH, lowS, lowV, midH, midS, midV, highH, highS, highV);
+            }
+            catch
+            {
+                // Invalid input, ignore for now
+            }
+        }
+
         public void SetLayout(Core.Layout? layout)
         {
             this.layout = layout;
+        }
+        
+        public void SetKeyboardView(Components.KeyboardLayoutView? keyboardView)
+        {
+            this.keyboardView = keyboardView;
+            // Initialize heatmap colors when keyboard view is set
+            UpdateHeatmapColors();
+            // Update visibility based on current view mode
+            UpdateColorControlsVisibility();
+        }
+        
+        public void SetViewMode(Components.KeyboardViewMode viewMode)
+        {
+            UpdateColorControlsVisibility();
+        }
+        
+        private void UpdateColorControlsVisibility()
+        {
+            if (colorControlsContainer != null && keyboardView != null)
+            {
+                // Show color controls only when heatmap mode is selected
+                colorControlsContainer.IsVisible = keyboardView.ViewMode == Components.KeyboardViewMode.Heatmap;
+            }
+            else if (colorControlsContainer != null)
+            {
+                colorControlsContainer.IsVisible = false;
+            }
         }
 
         public void SetSelectedKey(Keysharp.Core.PhysicalKey? key)
@@ -363,8 +543,8 @@ namespace Keysharp.UI
             // Set child sizes before ResolveBounds() runs (this is the correct place, not Update())
             if (keyInfoContainer != null && Bounds.Width > 0 && Bounds.Height > 0)
             {
-                // Set container size (preserve position - it will be resolved by ResolveBounds)
-                keyInfoContainer.SetSize(Bounds.Width, Bounds.Height);
+                // Set container width (height will be auto-calculated based on content)
+                keyInfoContainer.SetSize(Bounds.Width, 0); // Height will be calculated by auto-size
                 keyInfoContainer.RelativePosition = new System.Numerics.Vector2(15, 15);
                 
                 // Set label widths to fill available space (accounting for container padding)
@@ -419,6 +599,47 @@ namespace Keysharp.UI
                     shiftCharacterLabel.SetSize(labelWidth, 18);
                     shiftCharacterInput.SetSize(valueWidth, 24);
                 }
+            }
+            
+            // Set color controls container size (position will be set after ResolveBounds)
+            if (colorControlsContainer != null && Bounds.Width > 0 && Bounds.Height > 0)
+            {
+                // Container width should account for padding (15px on each side)
+                float availableWidth = Bounds.Width - 30;
+                colorControlsContainer.SetSize(availableWidth, 135); // Header + 3 rows
+                
+                // Set header label width
+                if (colorControlsHeaderLabel != null)
+                {
+                    colorControlsHeaderLabel.SetSize(availableWidth, 24);
+                }
+                
+                // Set row container widths to fit within available width
+                // Each row has: label (50) + gap (8) + H (75) + gap (8) + S (75) + gap (8) + V (75) = 299px
+                // But we need to fit in availableWidth, so we'll scale down proportionally if needed
+                // For now, let's use availableWidth for row containers
+                foreach (var child in colorControlsContainer.Children)
+                {
+                    if (child is Components.Container rowContainer && rowContainer.Name.StartsWith("ColorInputRow_"))
+                    {
+                        rowContainer.SetSize(availableWidth, 25);
+                    }
+                }
+            }
+        }
+        
+        public override void ResolveBounds()
+        {
+            base.ResolveBounds();
+            
+            // Position color controls container directly below keyInfoContainer after bounds are resolved
+            if (colorControlsContainer != null && keyInfoContainer != null)
+            {
+                // keyInfoContainer starts at y=15, add its height, then add a small gap (15px)
+                float colorControlsY = 15 + keyInfoContainer.Bounds.Height + 15;
+                colorControlsContainer.RelativePosition = new System.Numerics.Vector2(15, colorControlsY);
+                // Need to resolve bounds again for colorControlsContainer since we changed its position
+                colorControlsContainer.ResolveBounds();
             }
         }
 

@@ -30,6 +30,12 @@ namespace Keysharp.Components
         
         // Heatmap data (monogram counts per key)
         private Dictionary<string, long>? monogramCounts;
+        private float cachedNormalizationBase = 1.0f; // Cached normalization base for heatmap
+        
+        // HSV color values for heatmap (defaults)
+        private float lowH = 210f, lowS = 0.15f, lowV = 0.30f;
+        private float midH = 200f, midS = 0.70f, midV = 0.60f;
+        private float highH = 130f, highS = 0.60f, highV = 0.90f;
         
         // Drag and drop state
         private PhysicalKey? draggedKey;
@@ -88,10 +94,56 @@ namespace Keysharp.Components
         public void SetMonogramCounts(Dictionary<string, long>? counts)
         {
             monogramCounts = counts;
+            UpdateNormalizationBase(); // Recalculate normalization base when counts change
             if (viewMode == KeyboardViewMode.Heatmap)
             {
                 keyRectangles.Clear(); // Force redraw
             }
+        }
+
+        /// <summary>
+        /// Sets HSV color values for the heatmap gradient.
+        /// </summary>
+        public void SetHeatmapColors(float lowH, float lowS, float lowV, 
+                                     float midH, float midS, float midV, 
+                                     float highH, float highS, float highV)
+        {
+            this.lowH = lowH;
+            this.lowS = lowS;
+            this.lowV = lowV;
+            this.midH = midH;
+            this.midS = midS;
+            this.midV = midV;
+            this.highH = highH;
+            this.highS = highS;
+            this.highV = highV;
+            
+            if (viewMode == KeyboardViewMode.Heatmap)
+            {
+                keyRectangles.Clear(); // Force redraw with new colors
+            }
+        }
+
+        /// <summary>
+        /// Updates the cached normalization base using 95th percentile of all monogram counts.
+        /// This avoids recalculating for every key during rendering.
+        /// </summary>
+        private void UpdateNormalizationBase()
+        {
+            if (monogramCounts == null || monogramCounts.Count == 0)
+            {
+                cachedNormalizationBase = 1.0f;
+                return;
+            }
+
+            // Collect all counts and find the 95th percentile
+            var allCounts = new List<long>(monogramCounts.Values);
+            allCounts.Sort();
+            int percentileIndex = (int)(allCounts.Count * 0.95f);
+            long percentile95 = allCounts[Math.Min(percentileIndex, allCounts.Count - 1)];
+            
+            // Cache the square root of the percentile for faster lookup
+            cachedNormalizationBase = (float)Math.Sqrt(percentile95 > 0 ? percentile95 : 1);
         }
 
         public KeyboardLayoutView(Font font) : base("KeyboardLayoutView")
@@ -438,49 +490,85 @@ namespace Keysharp.Components
                 return UITheme.SidePanelColor;
             }
 
-            // Calculate heatmap color (green = low usage, yellow = medium, red = high)
-            // Find max count for normalization
-            long maxCount = 0;
-            foreach (var count in monogramCounts.Values)
-            {
-                if (count > maxCount) maxCount = count;
-            }
+            // Calculate heatmap color (cool colors = low usage, warm colors = high usage)
+            // Use percentile-based normalization (95th percentile) to avoid outliers dominating
+            // Apply square root scaling for better visual distribution (more perceptually uniform)
+            float scaledCount = (float)Math.Sqrt(totalCount);
+            
+            // Normalize to 0-1 range using cached normalization base
+            // Clamp at 1.0 since some keys may exceed 95th percentile
+            float normalized = Math.Min(1.0f, scaledCount / cachedNormalizationBase);
 
-            if (maxCount == 0)
-            {
-                return UITheme.SidePanelColor;
-            }
-
-            // Normalize to 0-1 range
-            float normalized = (float)totalCount / maxCount;
-
-            // Interpolate from green (low) -> yellow (medium) -> red (high)
-            Color lowColor = new Color((byte)100, (byte)200, (byte)100, (byte)255);   // Green
-            Color midColor = new Color((byte)200, (byte)200, (byte)100, (byte)255);   // Yellow
-            Color highColor = new Color((byte)200, (byte)100, (byte)100, (byte)255);  // Red
-
+            // Interpolate HSV values, then convert to RGB
+            float h, s, v;
+            
             if (normalized < 0.5f)
             {
-                // Interpolate between green and yellow
+                // Interpolate between low and mid HSV values
                 float t = normalized * 2.0f;
-                return new Color(
-                    (byte)(lowColor.R + (midColor.R - lowColor.R) * t),
-                    (byte)(lowColor.G + (midColor.G - lowColor.G) * t),
-                    (byte)(lowColor.B + (midColor.B - lowColor.B) * t),
-                    (byte)255
-                );
+                h = lowH + (midH - lowH) * t;
+                s = lowS + (midS - lowS) * t;
+                v = lowV + (midV - lowV) * t;
             }
             else
             {
-                // Interpolate between yellow and red
+                // Interpolate between mid and high HSV values
                 float t = (normalized - 0.5f) * 2.0f;
-                return new Color(
-                    (byte)(midColor.R + (highColor.R - midColor.R) * t),
-                    (byte)(midColor.G + (highColor.G - midColor.G) * t),
-                    (byte)(midColor.B + (highColor.B - midColor.B) * t),
-                    (byte)255
-                );
+                h = midH + (highH - midH) * t;
+                s = midS + (highS - midS) * t;
+                v = midV + (highV - midV) * t;
             }
+            
+            // Convert HSV to RGB
+            return HsvToRgb(h, s, v);
+        }
+
+        /// <summary>
+        /// Converts HSV color values to RGB Color.
+        /// H is in degrees (0-360), S and V are 0-1.
+        /// </summary>
+        private Color HsvToRgb(float h, float s, float v)
+        {
+            h = h % 360f;
+            if (h < 0) h += 360f;
+            
+            float c = v * s;
+            float x = c * (1 - Math.Abs((h / 60f) % 2 - 1));
+            float m = v - c;
+            
+            float r = 0, g = 0, b = 0;
+            
+            if (h < 60)
+            {
+                r = c; g = x; b = 0;
+            }
+            else if (h < 120)
+            {
+                r = x; g = c; b = 0;
+            }
+            else if (h < 180)
+            {
+                r = 0; g = c; b = x;
+            }
+            else if (h < 240)
+            {
+                r = 0; g = x; b = c;
+            }
+            else if (h < 300)
+            {
+                r = x; g = 0; b = c;
+            }
+            else
+            {
+                r = c; g = 0; b = x;
+            }
+            
+            return new Color(
+                (byte)((r + m) * 255),
+                (byte)((g + m) * 255),
+                (byte)((b + m) * 255),
+                (byte)255
+            );
         }
     }
 }

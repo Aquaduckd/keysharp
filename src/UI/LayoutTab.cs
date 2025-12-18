@@ -29,6 +29,13 @@ namespace Keysharp.UI
             set
             {
                 sidePanel = value;
+                // Set keyboard view reference in side panel for HSV color controls
+                if (sidePanel != null && keyboardView != null)
+                {
+                    sidePanel.SetKeyboardView(keyboardView);
+                    // Also notify of current view mode
+                    sidePanel.SetViewMode(keyboardView.ViewMode);
+                }
             }
         }
 
@@ -99,6 +106,8 @@ namespace Keysharp.UI
                 if (selected)
                 {
                     keyboardView.ViewMode = Components.KeyboardViewMode.Regular;
+                    // Notify side panel of view mode change
+                    sidePanel?.SetViewMode(Components.KeyboardViewMode.Regular);
                 }
             };
 
@@ -110,6 +119,8 @@ namespace Keysharp.UI
                 if (selected)
                 {
                     keyboardView.ViewMode = Components.KeyboardViewMode.FingerColors;
+                    // Notify side panel of view mode change
+                    sidePanel?.SetViewMode(Components.KeyboardViewMode.FingerColors);
                 }
             };
 
@@ -122,6 +133,8 @@ namespace Keysharp.UI
                 {
                     keyboardView.ViewMode = Components.KeyboardViewMode.Heatmap;
                     UpdateHeatmapData(); // Update heatmap data when selected
+                    // Notify side panel of view mode change
+                    sidePanel?.SetViewMode(Components.KeyboardViewMode.Heatmap);
                 }
             };
 
@@ -153,6 +166,12 @@ namespace Keysharp.UI
             tabContent.AddChild(titleLabel);
             tabContent.AddChild(viewControlsContainer);
             tabContent.AddChild(keyboardCanvas);
+            
+            // Set keyboard view reference in side panel for HSV color controls
+            if (sidePanel != null)
+            {
+                sidePanel.SetKeyboardView(keyboardView);
+            }
             
             // Initially hide heatmap button (will be shown when corpus is loaded)
             UpdateHeatmapButtonVisibility();
