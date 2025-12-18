@@ -12,6 +12,7 @@ namespace Keysharp.UI
         private Components.Label? titleLabel;
         private Components.Label? identifierLabel;
         private Components.TextInput? identifierInput;
+        private Components.Container? identifierRowContainer;
         private Components.Label? positionLabel;
         private Components.TextInput? positionXInput;
         private Components.TextInput? positionYInput;
@@ -22,8 +23,10 @@ namespace Keysharp.UI
         private Components.Dropdown? fingerDropdown;
         private Components.Label? primaryCharacterLabel;
         private Components.TextInput? primaryCharacterInput;
+        private Components.Container? primaryCharacterRowContainer;
         private Components.Label? shiftCharacterLabel;
         private Components.TextInput? shiftCharacterInput;
+        private Components.Container? shiftCharacterRowContainer;
         private Components.Label? disabledLabel;
         private Components.Checkbox? disabledCheckbox;
         private Components.Button? deleteKeyButton;
@@ -184,6 +187,7 @@ namespace Keysharp.UI
             var identifierRow = CreateInfoRowWithInput(font, "Identifier:");
             identifierLabel = identifierRow.label;
             identifierInput = identifierRow.input;
+            identifierRowContainer = identifierRow.container;
             identifierInput.OnTextChanged = (text) => {
                 if (!isUpdatingFromKey && selectedKeys.Count == 1)
                 {
@@ -192,7 +196,7 @@ namespace Keysharp.UI
                     key.Identifier = string.IsNullOrEmpty(text) ? null : text;
                 }
             };
-            keyInfoContainer.AddChild(identifierRow.container);
+            keyInfoContainer.AddChild(identifierRowContainer);
 
             // Create position row with two inputs (X and Y)
             positionLabel = new Components.Label(font, "Position:", 14);
@@ -389,6 +393,7 @@ namespace Keysharp.UI
             var primaryCharacterRow = CreateInfoRowWithInput(font, "Primary:");
             primaryCharacterLabel = primaryCharacterRow.label;
             primaryCharacterInput = primaryCharacterRow.input;
+            primaryCharacterRowContainer = primaryCharacterRow.container;
             primaryCharacterInput.OnTextChanged = (text) => {
                 if (!isUpdatingFromKey && selectedKeys.Count == 1)
                 {
@@ -398,12 +403,13 @@ namespace Keysharp.UI
                     layout?.RebuildMappings();
                 }
             };
-            keyInfoContainer.AddChild(primaryCharacterRow.container);
+            keyInfoContainer.AddChild(primaryCharacterRowContainer);
 
             // Create shift character row (with editable text input)
             var shiftCharacterRow = CreateInfoRowWithInput(font, "Shift:");
             shiftCharacterLabel = shiftCharacterRow.label;
             shiftCharacterInput = shiftCharacterRow.input;
+            shiftCharacterRowContainer = shiftCharacterRow.container;
             shiftCharacterInput.OnTextChanged = (text) => {
                 if (!isUpdatingFromKey && selectedKeys.Count == 1)
                 {
@@ -413,7 +419,7 @@ namespace Keysharp.UI
                     layout?.RebuildMappings();
                 }
             };
-            keyInfoContainer.AddChild(shiftCharacterRow.container);
+            keyInfoContainer.AddChild(shiftCharacterRowContainer);
 
             // Create disabled row with checkbox
             var disabledRow = CreateInfoRowWithCheckbox(font, "Disabled:");
@@ -871,12 +877,11 @@ namespace Keysharp.UI
                 titleLabel.IsVisible = hasKey;
             }
 
-            // Hide identifier field when multiple keys are selected
-            if (identifierLabel != null && identifierInput != null)
+            // Hide identifier field container when multiple keys are selected
+            if (identifierRowContainer != null)
             {
-                identifierLabel.IsVisible = hasKey && !isMultiSelect;
-                identifierInput.IsVisible = hasKey && !isMultiSelect;
-                if (hasKey && !isMultiSelect && topLeftKey != null)
+                identifierRowContainer.IsVisible = hasKey && !isMultiSelect;
+                if (hasKey && !isMultiSelect && topLeftKey != null && identifierInput != null)
                 {
                     isUpdatingFromKey = true;
                     identifierInput.SetText(topLeftKey.Identifier ?? "");
@@ -928,12 +933,11 @@ namespace Keysharp.UI
                 }
             }
 
-            // Primary/Shift characters: only visible for single selection
-            if (primaryCharacterLabel != null && primaryCharacterInput != null)
+            // Primary/Shift characters: hide containers for multi-selection
+            if (primaryCharacterRowContainer != null)
             {
-                primaryCharacterLabel.IsVisible = hasKey && !isMultiSelect;
-                primaryCharacterInput.IsVisible = hasKey && !isMultiSelect;
-                if (hasKey && !isMultiSelect && topLeftKey != null)
+                primaryCharacterRowContainer.IsVisible = hasKey && !isMultiSelect;
+                if (hasKey && !isMultiSelect && topLeftKey != null && primaryCharacterInput != null)
                 {
                     isUpdatingFromKey = true;
                     primaryCharacterInput.SetText(topLeftKey.PrimaryCharacter ?? "");
@@ -941,11 +945,10 @@ namespace Keysharp.UI
                 }
             }
 
-            if (shiftCharacterLabel != null && shiftCharacterInput != null)
+            if (shiftCharacterRowContainer != null)
             {
-                shiftCharacterLabel.IsVisible = hasKey && !isMultiSelect;
-                shiftCharacterInput.IsVisible = hasKey && !isMultiSelect;
-                if (hasKey && !isMultiSelect && topLeftKey != null)
+                shiftCharacterRowContainer.IsVisible = hasKey && !isMultiSelect;
+                if (hasKey && !isMultiSelect && topLeftKey != null && shiftCharacterInput != null)
                 {
                     isUpdatingFromKey = true;
                     shiftCharacterInput.SetText(topLeftKey.ShiftCharacter ?? "");
