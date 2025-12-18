@@ -336,7 +336,7 @@ namespace Keysharp.Components
             if (layout == null || Bounds.Width <= 0 || Bounds.Height <= 0)
                 return;
 
-            // Draw each physical key
+            // First pass: Draw unselected keys
             foreach (var key in layout.GetPhysicalKeys())
             {
                 // Skip disabled keys if we're not showing them
@@ -345,7 +345,23 @@ namespace Keysharp.Components
                     continue;
                 }
 
+                // Skip selected key in first pass (will draw it in second pass)
+                if (selectedKey == key)
+                {
+                    continue;
+                }
+
                 DrawKey(key);
+            }
+
+            // Second pass: Draw selected key on top
+            if (selectedKey != null)
+            {
+                // Check if selected key should be drawn (not disabled or show disabled is enabled)
+                if (!selectedKey.Disabled || showDisabledKeys)
+                {
+                    DrawKey(selectedKey);
+                }
             }
         }
 

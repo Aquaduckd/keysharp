@@ -258,10 +258,15 @@ namespace Keysharp.UI
             sizeWidthInput = new Components.TextInput(font, "1.00", 14);
             sizeWidthInput.Bounds = new Rectangle(0, 0, 80, 24);
             sizeWidthInput.AutoSize = false;
+            sizeWidthInput.InputConstraint = Components.InputType.Decimal; // Constrain to decimal values
             sizeWidthInput.EnableScrollIncrement = true; // Enable scroll wheel increment/decrement
+            sizeWidthInput.ScrollIncrementAmount = 0.25f; // Increment by 0.25 for size values
+            sizeWidthInput.MinValue = 0.25f; // Minimum size to keep keys clickable (0.25U)
             sizeWidthInput.OnTextChanged = (text) => {
                 if (!isUpdatingFromKey && selectedKey != null && float.TryParse(text, out float value))
                 {
+                    // Clamp to minimum value
+                    value = System.Math.Max(value, 0.25f);
                     selectedKey.Width = value;
                     // Invalidate the cache for this key so it recalculates its rectangle
                     keyboardView?.InvalidateKeyCache(selectedKey);
@@ -271,10 +276,15 @@ namespace Keysharp.UI
             sizeHeightInput = new Components.TextInput(font, "1.00", 14);
             sizeHeightInput.Bounds = new Rectangle(0, 0, 80, 24);
             sizeHeightInput.AutoSize = false;
+            sizeHeightInput.InputConstraint = Components.InputType.Decimal; // Constrain to decimal values
             sizeHeightInput.EnableScrollIncrement = true; // Enable scroll wheel increment/decrement
+            sizeHeightInput.ScrollIncrementAmount = 0.25f; // Increment by 0.25 for size values
+            sizeHeightInput.MinValue = 0.25f; // Minimum size to keep keys clickable (0.25U)
             sizeHeightInput.OnTextChanged = (text) => {
                 if (!isUpdatingFromKey && selectedKey != null && float.TryParse(text, out float value))
                 {
+                    // Clamp to minimum value
+                    value = System.Math.Max(value, 0.25f);
                     selectedKey.Height = value;
                     // Invalidate the cache for this key so it recalculates its rectangle
                     keyboardView?.InvalidateKeyCache(selectedKey);
