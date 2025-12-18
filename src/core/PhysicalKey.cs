@@ -36,6 +36,16 @@ namespace Keysharp.Core
         /// </summary>
         public string? Identifier { get; set; }
 
+        /// <summary>
+        /// The primary (base/unshifted) character produced by this key (e.g., "a", "1", ";").
+        /// </summary>
+        public string? PrimaryCharacter { get; set; }
+
+        /// <summary>
+        /// The shift character produced by this key when Shift is held (e.g., "A", "!", ":").
+        /// </summary>
+        public string? ShiftCharacter { get; set; }
+
         public PhysicalKey(float x, float y, float width, float height, Finger finger, string? identifier = null)
         {
             X = x;

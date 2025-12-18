@@ -12,6 +12,7 @@ namespace Keysharp.UI
         private Components.KeyboardLayoutView keyboardView;
         private Layout layout;
         private SidePanel? sidePanel;
+        private Font font;
 
         public Components.TabContent TabContent => tabContent;
 
@@ -26,6 +27,7 @@ namespace Keysharp.UI
 
         public LayoutTab(Font font)
         {
+            this.font = font;
             // Create the standard 60% QWERTY layout
             layout = Layout.CreateStandard60PercentQwerty();
 
@@ -59,6 +61,7 @@ namespace Keysharp.UI
                 var currentSidePanel = SidePanel;
                 if (currentSidePanel != null)
                 {
+                    currentSidePanel.SetLayout(layout); // Set layout reference for rebuilding mappings
                     currentSidePanel.SetSelectedKey(key);
                 }
             };
@@ -129,6 +132,15 @@ namespace Keysharp.UI
         public void SetVisible(bool visible)
         {
             tabContent.IsVisible = visible;
+        }
+
+        public void UpdateFont(Font newFont)
+        {
+            font = newFont;
+            // Update font in keyboard view
+            keyboardView.UpdateFont(newFont);
+            // Update font in title label (would need UpdateFont in Label component)
+            // For now, just update the keyboard view which is most visible
         }
     }
 }

@@ -140,9 +140,30 @@ namespace Keysharp.Core
         }
 
         /// <summary>
+        /// Gets all string mappings that contain a specific physical key (anywhere in the sequence).
+        /// This includes both primary mappings and modifier-based mappings (e.g., Shift+key).
+        /// </summary>
+        /// <param name="physicalKey">The physical key to search for</param>
+        /// <returns>A dictionary mapping strings to their key sequences</returns>
+        private Dictionary<string, List<PhysicalKey>> GetAllMappingsContainingKey(PhysicalKey physicalKey)
+        {
+            var result = new Dictionary<string, List<PhysicalKey>>();
+            
+            foreach (var kvp in _stringToKeys)
+            {
+                // Check if this mapping contains the physical key anywhere in the sequence
+                if (kvp.Value.Contains(physicalKey))
+                {
+                    result[kvp.Key] = new List<PhysicalKey>(kvp.Value);
+                }
+            }
+            
+            return result;
+        }
+
+        /// <summary>
         /// Swaps the character mappings between two physical keys.
-        /// All string mappings that use key1 as their primary key will now use key2, and vice versa.
-        /// This also updates any modifier-based mappings (e.g., uppercase letters using Shift).
+        /// This swaps both the primary and shift characters, and the key identifiers.
         /// </summary>
         /// <param name="key1">The first physical key</param>
         /// <param name="key2">The second physical key</param>
@@ -151,58 +172,68 @@ namespace Keysharp.Core
             if (key1 == null || key2 == null)
                 throw new ArgumentNullException();
 
-            // Get all mappings for both keys
-            var mappings1 = GetMappingsForPhysicalKey(key1);
-            var mappings2 = GetMappingsForPhysicalKey(key2);
+            // Swap primary characters
+            string? tempPrimary = key1.PrimaryCharacter;
+            key1.PrimaryCharacter = key2.PrimaryCharacter;
+            key2.PrimaryCharacter = tempPrimary;
 
-            // Store original key sequences temporarily
-            var tempMappings = new Dictionary<string, List<PhysicalKey>>();
+            // Swap shift characters
+            string? tempShift = key1.ShiftCharacter;
+            key1.ShiftCharacter = key2.ShiftCharacter;
+            key2.ShiftCharacter = tempShift;
 
-            // Remove original mappings
-            foreach (var str in mappings1.Keys)
-            {
-                tempMappings[str] = new List<PhysicalKey>(_stringToKeys[str]);
-                _stringToKeys.Remove(str);
-            }
-            foreach (var str in mappings2.Keys)
-            {
-                tempMappings[str] = new List<PhysicalKey>(_stringToKeys[str]);
-                _stringToKeys.Remove(str);
-            }
-
-            // Create new mappings with swapped keys
-            // For mappings that used key1, replace key1 with key2 in the sequence
-            foreach (var kvp in mappings1)
-            {
-                var newSequence = new List<PhysicalKey>();
-                foreach (var key in kvp.Value)
-                {
-                    if (key == key1)
-                        newSequence.Add(key2);
-                    else
-                        newSequence.Add(key);
-                }
-                _stringToKeys[kvp.Key] = newSequence;
-            }
-
-            // For mappings that used key2, replace key2 with key1 in the sequence
-            foreach (var kvp in mappings2)
-            {
-                var newSequence = new List<PhysicalKey>();
-                foreach (var key in kvp.Value)
-                {
-                    if (key == key2)
-                        newSequence.Add(key1);
-                    else
-                        newSequence.Add(key);
-                }
-                _stringToKeys[kvp.Key] = newSequence;
-            }
-
-            // Also swap the key identifiers so the display updates
+            // Swap identifiers
             string? tempIdentifier = key1.Identifier;
             key1.Identifier = key2.Identifier;
             key2.Identifier = tempIdentifier;
+
+            // Rebuild the dictionary from the keys
+            RebuildMappings();
+        }
+
+        /// <summary>
+        /// Rebuilds the string-to-keys mapping dictionary from the physical keys' PrimaryCharacter and ShiftCharacter properties.
+        /// </summary>
+        public void RebuildMappings()
+        {
+            _stringToKeys.Clear();
+
+            // Find LShift key for shift mappings
+            PhysicalKey? lShiftKey = null;
+            foreach (var key in _physicalKeys)
+            {
+                if (key.Identifier == "LShift")
+                {
+                    lShiftKey = key;
+                    break;
+                }
+            }
+
+            // Build mappings from keys
+            foreach (var key in _physicalKeys)
+            {
+                // Add primary character mapping
+                if (!string.IsNullOrEmpty(key.PrimaryCharacter))
+                {
+                    _stringToKeys[key.PrimaryCharacter] = new List<PhysicalKey> { key };
+                }
+
+                // Add shift character mapping (if LShift exists)
+                if (!string.IsNullOrEmpty(key.ShiftCharacter) && lShiftKey != null)
+                {
+                    _stringToKeys[key.ShiftCharacter] = new List<PhysicalKey> { lShiftKey, key };
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the primary character (base/unshifted) and shift character for a physical key.
+        /// </summary>
+        /// <param name="physicalKey">The physical key to look up</param>
+        /// <returns>A tuple containing (primary character, shift character), where either can be null if not mapped</returns>
+        public (string? primary, string? shift) GetCharactersForKey(PhysicalKey physicalKey)
+        {
+            return (physicalKey.PrimaryCharacter, physicalKey.ShiftCharacter);
         }
 
         /// <summary>
@@ -363,84 +394,98 @@ namespace Keysharp.Core
                 layout.AddPhysicalKey(key);
             }
 
-            // Map characters to their physical keys
-            // Uppercase letters (using Shift modifier)
+            // Set primary and shift characters on letter keys
             foreach (char c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
             {
+                string upper = c.ToString();
                 string lower = c.ToString().ToLowerInvariant();
-                if (keys.ContainsKey(lower))
+                if (keys.ContainsKey(upper))
                 {
-                    layout.AddMapping(c.ToString(), new List<PhysicalKey> { keys["LShift"], keys[lower] });
-                }
-            }
-
-            // Lowercase letters
-            foreach (char c in "abcdefghijklmnopqrstuvwxyz")
-            {
-                if (keys.ContainsKey(c.ToString()))
-                {
-                    layout.AddMapping(c.ToString(), new List<PhysicalKey> { keys[c.ToString()] });
+                    keys[upper].PrimaryCharacter = lower;
+                    keys[upper].ShiftCharacter = upper;
                 }
             }
 
             // Numbers and symbols (top row)
-            var numberSymbols = new Dictionary<string, string>
+            var numberSymbols = new Dictionary<string, (string primary, string shift)>
             {
-                ["1"] = "1", ["2"] = "2", ["3"] = "3", ["4"] = "4", ["5"] = "5",
-                ["6"] = "6", ["7"] = "7", ["8"] = "8", ["9"] = "9", ["0"] = "0",
-                ["-"] = "-", ["="] = "="
+                ["1"] = ("1", "!"),
+                ["2"] = ("2", "@"),
+                ["3"] = ("3", "#"),
+                ["4"] = ("4", "$"),
+                ["5"] = ("5", "%"),
+                ["6"] = ("6", "^"),
+                ["7"] = ("7", "&"),
+                ["8"] = ("8", "*"),
+                ["9"] = ("9", "("),
+                ["0"] = ("0", ")"),
+                ["-"] = ("-", "_"),
+                ["="] = ("=", "+")
             };
             foreach (var kvp in numberSymbols)
             {
-                if (keys.ContainsKey(kvp.Value))
+                if (keys.ContainsKey(kvp.Key))
                 {
-                    layout.AddMapping(kvp.Key, new List<PhysicalKey> { keys[kvp.Value] });
+                    keys[kvp.Key].PrimaryCharacter = kvp.Value.primary;
+                    keys[kvp.Key].ShiftCharacter = kvp.Value.shift;
                 }
             }
 
-            // Shifted number row symbols (typically: ! @ # $ % ^ & * ( ) _ +)
-            var shiftedSymbols = new Dictionary<string, List<PhysicalKey>>
+            // Punctuation and special characters
+            if (keys.ContainsKey(";"))
             {
-                ["!"] = new List<PhysicalKey> { keys["LShift"], keys["1"] },
-                ["@"] = new List<PhysicalKey> { keys["LShift"], keys["2"] },
-                ["#"] = new List<PhysicalKey> { keys["LShift"], keys["3"] },
-                ["$"] = new List<PhysicalKey> { keys["LShift"], keys["4"] },
-                ["%"] = new List<PhysicalKey> { keys["LShift"], keys["5"] },
-                ["^"] = new List<PhysicalKey> { keys["LShift"], keys["6"] },
-                ["&"] = new List<PhysicalKey> { keys["LShift"], keys["7"] },
-                ["*"] = new List<PhysicalKey> { keys["LShift"], keys["8"] },
-                ["("] = new List<PhysicalKey> { keys["LShift"], keys["9"] },
-                [")"] = new List<PhysicalKey> { keys["LShift"], keys["0"] },
-                ["_"] = new List<PhysicalKey> { keys["LShift"], keys["-"] },
-                ["+"] = new List<PhysicalKey> { keys["LShift"], keys["="] }
-            };
-            foreach (var kvp in shiftedSymbols)
+                keys[";"].PrimaryCharacter = ";";
+                keys[";"].ShiftCharacter = ":";
+            }
+            if (keys.ContainsKey("'"))
             {
-                layout.AddMapping(kvp.Key, kvp.Value);
+                keys["'"].PrimaryCharacter = "'";
+                keys["'"].ShiftCharacter = "\"";
+            }
+            if (keys.ContainsKey(","))
+            {
+                keys[","].PrimaryCharacter = ",";
+                keys[","].ShiftCharacter = "<";
+            }
+            if (keys.ContainsKey("."))
+            {
+                keys["."].PrimaryCharacter = ".";
+                keys["."].ShiftCharacter = ">";
+            }
+            if (keys.ContainsKey("/"))
+            {
+                keys["/"].PrimaryCharacter = "/";
+                keys["/"].ShiftCharacter = "?";
+            }
+            if (keys.ContainsKey("["))
+            {
+                keys["["].PrimaryCharacter = "[";
+                keys["["].ShiftCharacter = "{";
+            }
+            if (keys.ContainsKey("]"))
+            {
+                keys["]"].PrimaryCharacter = "]";
+                keys["]"].ShiftCharacter = "}";
+            }
+            if (keys.ContainsKey("\\"))
+            {
+                keys["\\"].PrimaryCharacter = "\\";
+                keys["\\"].ShiftCharacter = "|";
+            }
+            if (keys.ContainsKey("`"))
+            {
+                keys["`"].PrimaryCharacter = "`";
+                keys["`"].ShiftCharacter = "~";
             }
 
-            // Punctuation and special characters
-            layout.AddMapping(";", new List<PhysicalKey> { keys[";"] });
-            layout.AddMapping(":", new List<PhysicalKey> { keys["LShift"], keys[";"] });
-            layout.AddMapping("'", new List<PhysicalKey> { keys["'"] });
-            layout.AddMapping("\"", new List<PhysicalKey> { keys["LShift"], keys["'"] });
-            layout.AddMapping(",", new List<PhysicalKey> { keys[","] });
-            layout.AddMapping("<", new List<PhysicalKey> { keys["LShift"], keys[","] });
-            layout.AddMapping(".", new List<PhysicalKey> { keys["."] });
-            layout.AddMapping(">", new List<PhysicalKey> { keys["LShift"], keys["."] });
-            layout.AddMapping("/", new List<PhysicalKey> { keys["/"] });
-            layout.AddMapping("?", new List<PhysicalKey> { keys["LShift"], keys["/"] });
-            layout.AddMapping("[", new List<PhysicalKey> { keys["["] });
-            layout.AddMapping("{", new List<PhysicalKey> { keys["LShift"], keys["["] });
-            layout.AddMapping("]", new List<PhysicalKey> { keys["]"] });
-            layout.AddMapping("}", new List<PhysicalKey> { keys["LShift"], keys["]"] });
-            layout.AddMapping("\\", new List<PhysicalKey> { keys["\\"] });
-            layout.AddMapping("|", new List<PhysicalKey> { keys["LShift"], keys["\\"] });
-            layout.AddMapping("`", new List<PhysicalKey> { keys["`"] });
-            layout.AddMapping("~", new List<PhysicalKey> { keys["LShift"], keys["`"] });
-
             // Space
-            layout.AddMapping(" ", new List<PhysicalKey> { keys["Space"] });
+            if (keys.ContainsKey("Space"))
+            {
+                keys["Space"].PrimaryCharacter = " ";
+            }
+
+            // Rebuild the mapping dictionary from the keys
+            layout.RebuildMappings();
 
             return layout;
         }

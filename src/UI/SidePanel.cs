@@ -1,4 +1,5 @@
 using Raylib_cs;
+using System.Collections.Generic;
 using Keysharp.Components;
 using Keysharp.Core;
 
@@ -15,9 +16,15 @@ namespace Keysharp.UI
         private Components.Label? sizeLabel;
         private Components.Label? sizeValue;
         private Components.Label? fingerLabel;
-        private Components.Label? fingerValue;
+        private Components.Dropdown? fingerDropdown;
+        private Components.Label? primaryCharacterLabel;
+        private Components.TextInput? primaryCharacterInput;
+        private Components.Label? shiftCharacterLabel;
+        private Components.TextInput? shiftCharacterInput;
         private Components.Label? placeholderLabel;
         private Keysharp.Core.PhysicalKey? selectedKey;
+        private Core.Layout? layout; // Reference to layout for rebuilding mappings
+        private bool isUpdatingFromKey = false; // Flag to prevent circular updates
 
         public SidePanel(Font font) : base(font, "SidePanel")
         {
@@ -63,11 +70,47 @@ namespace Keysharp.UI
             sizeValue = sizeRow.value;
             keyInfoContainer.AddChild(sizeRow.container);
 
-            // Create finger row
-            var fingerRow = CreateInfoRow(font, "Finger:", "None");
+            // Create finger row with dropdown
+            var fingerRow = CreateInfoRowWithDropdown(font, "Finger:", GetFingerNames());
             fingerLabel = fingerRow.label;
-            fingerValue = fingerRow.value;
+            fingerDropdown = fingerRow.dropdown;
+            fingerDropdown.OnSelectionChanged = (selectedItem) => {
+                if (!isUpdatingFromKey && selectedKey != null)
+                {
+                    int index = fingerDropdown.SelectedIndex;
+                    if (index >= 0 && index < GetFingerNames().Count)
+                    {
+                        selectedKey.Finger = GetFingerFromIndex(index);
+                    }
+                }
+            };
             keyInfoContainer.AddChild(fingerRow.container);
+
+            // Create primary character row (with editable text input)
+            var primaryCharacterRow = CreateInfoRowWithInput(font, "Primary:");
+            primaryCharacterLabel = primaryCharacterRow.label;
+            primaryCharacterInput = primaryCharacterRow.input;
+            primaryCharacterInput.OnTextChanged = (text) => {
+                if (!isUpdatingFromKey && selectedKey != null)
+                {
+                    selectedKey.PrimaryCharacter = string.IsNullOrEmpty(text) ? null : text;
+                    layout?.RebuildMappings();
+                }
+            };
+            keyInfoContainer.AddChild(primaryCharacterRow.container);
+
+            // Create shift character row (with editable text input)
+            var shiftCharacterRow = CreateInfoRowWithInput(font, "Shift:");
+            shiftCharacterLabel = shiftCharacterRow.label;
+            shiftCharacterInput = shiftCharacterRow.input;
+            shiftCharacterInput.OnTextChanged = (text) => {
+                if (!isUpdatingFromKey && selectedKey != null)
+                {
+                    selectedKey.ShiftCharacter = string.IsNullOrEmpty(text) ? null : text;
+                    layout?.RebuildMappings();
+                }
+            };
+            keyInfoContainer.AddChild(shiftCharacterRow.container);
 
             // Initially show placeholder, hide info rows
             UpdateKeyInfo();
@@ -96,6 +139,114 @@ namespace Keysharp.UI
             row.AddChild(value);
 
             return (row, label, value);
+        }
+
+        private (Components.Container container, Components.Label label, Components.TextInput input) CreateInfoRowWithInput(Font font, string labelText)
+        {
+            var row = new Components.Container($"InfoRow_{labelText}");
+            row.AutoLayoutChildren = true;
+            row.LayoutDirection = Components.LayoutDirection.Horizontal;
+            row.AutoSize = true;
+            row.ChildPadding = 0;
+            row.ChildGap = 8;
+            row.PositionMode = Components.PositionMode.Relative;
+
+            var label = new Components.Label(font, labelText, 14);
+            label.AutoSize = false;
+            label.Bounds = new Rectangle(0, 0, 0, 18);
+            label.PositionMode = Components.PositionMode.Relative;
+            row.AddChild(label);
+
+            var input = new Components.TextInput(font, "", 14);
+            input.AutoSize = false;
+            input.Bounds = new Rectangle(0, 0, 0, 24); // Slightly taller for text input
+            input.PositionMode = Components.PositionMode.Relative;
+            row.AddChild(input);
+
+            return (row, label, input);
+        }
+
+        private (Components.Container container, Components.Label label, Components.Dropdown dropdown) CreateInfoRowWithDropdown(Font font, string labelText, List<string> options)
+        {
+            var row = new Components.Container($"InfoRow_{labelText}");
+            row.AutoLayoutChildren = true;
+            row.LayoutDirection = Components.LayoutDirection.Horizontal;
+            row.AutoSize = true;
+            row.ChildPadding = 0;
+            row.ChildGap = 8;
+            row.PositionMode = Components.PositionMode.Relative;
+
+            var label = new Components.Label(font, labelText, 14);
+            label.AutoSize = false;
+            label.Bounds = new Rectangle(0, 0, 0, 18);
+            label.PositionMode = Components.PositionMode.Relative;
+            row.AddChild(label);
+
+            var dropdown = new Components.Dropdown(font, options, 14);
+            dropdown.AutoSize = false;
+            dropdown.Bounds = new Rectangle(0, 0, 0, 35); // Standard dropdown height
+            dropdown.PositionMode = Components.PositionMode.Relative;
+            row.AddChild(dropdown);
+
+            return (row, label, dropdown);
+        }
+
+        private List<string> GetFingerNames()
+        {
+            return new List<string>
+            {
+                "Left Pinky",
+                "Left Ring",
+                "Left Middle",
+                "Left Index",
+                "Left Thumb",
+                "Right Thumb",
+                "Right Index",
+                "Right Middle",
+                "Right Ring",
+                "Right Pinky"
+            };
+        }
+
+        private Finger GetFingerFromIndex(int index)
+        {
+            return index switch
+            {
+                0 => Finger.LeftPinky,
+                1 => Finger.LeftRing,
+                2 => Finger.LeftMiddle,
+                3 => Finger.LeftIndex,
+                4 => Finger.LeftThumb,
+                5 => Finger.RightThumb,
+                6 => Finger.RightIndex,
+                7 => Finger.RightMiddle,
+                8 => Finger.RightRing,
+                9 => Finger.RightPinky,
+                _ => Finger.LeftPinky
+            };
+        }
+
+        private int GetIndexFromFinger(Finger finger)
+        {
+            return finger switch
+            {
+                Finger.LeftPinky => 0,
+                Finger.LeftRing => 1,
+                Finger.LeftMiddle => 2,
+                Finger.LeftIndex => 3,
+                Finger.LeftThumb => 4,
+                Finger.RightThumb => 5,
+                Finger.RightIndex => 6,
+                Finger.RightMiddle => 7,
+                Finger.RightRing => 8,
+                Finger.RightPinky => 9,
+                _ => 0
+            };
+        }
+
+        public void SetLayout(Core.Layout? layout)
+        {
+            this.layout = layout;
         }
 
         public void SetSelectedKey(Keysharp.Core.PhysicalKey? key)
@@ -149,13 +300,40 @@ namespace Keysharp.UI
                 }
             }
 
-            if (fingerLabel != null && fingerValue != null)
+            if (fingerLabel != null && fingerDropdown != null)
             {
                 fingerLabel.IsVisible = hasKey;
-                fingerValue.IsVisible = hasKey;
+                fingerDropdown.IsVisible = hasKey;
                 if (hasKey && selectedKey != null)
                 {
-                    fingerValue.SetText(GetFingerName(selectedKey.Finger));
+                    isUpdatingFromKey = true;
+                    int fingerIndex = GetIndexFromFinger(selectedKey.Finger);
+                    fingerDropdown.SetSelectedIndex(fingerIndex, triggerCallback: false);
+                    isUpdatingFromKey = false;
+                }
+            }
+
+            if (primaryCharacterLabel != null && primaryCharacterInput != null)
+            {
+                primaryCharacterLabel.IsVisible = hasKey;
+                primaryCharacterInput.IsVisible = hasKey;
+                if (hasKey && selectedKey != null)
+                {
+                    isUpdatingFromKey = true;
+                    primaryCharacterInput.SetText(selectedKey.PrimaryCharacter ?? "");
+                    isUpdatingFromKey = false;
+                }
+            }
+
+            if (shiftCharacterLabel != null && shiftCharacterInput != null)
+            {
+                shiftCharacterLabel.IsVisible = hasKey;
+                shiftCharacterInput.IsVisible = hasKey;
+                if (hasKey && selectedKey != null)
+                {
+                    isUpdatingFromKey = true;
+                    shiftCharacterInput.SetText(selectedKey.ShiftCharacter ?? "");
+                    isUpdatingFromKey = false;
                 }
             }
         }
@@ -224,10 +402,22 @@ namespace Keysharp.UI
                     sizeValue.SetSize(valueWidth, 18);
                 }
 
-                if (fingerLabel != null && fingerValue != null)
+                if (fingerLabel != null && fingerDropdown != null)
                 {
                     fingerLabel.SetSize(labelWidth, 18);
-                    fingerValue.SetSize(valueWidth, 18);
+                    fingerDropdown.SetSize(valueWidth, 35);
+                }
+
+                if (primaryCharacterLabel != null && primaryCharacterInput != null)
+                {
+                    primaryCharacterLabel.SetSize(labelWidth, 18);
+                    primaryCharacterInput.SetSize(valueWidth, 24);
+                }
+
+                if (shiftCharacterLabel != null && shiftCharacterInput != null)
+                {
+                    shiftCharacterLabel.SetSize(labelWidth, 18);
+                    shiftCharacterInput.SetSize(valueWidth, 24);
                 }
             }
         }
@@ -236,6 +426,15 @@ namespace Keysharp.UI
         {
             base.Update();
             // No bounds setting here - that's done in PrepareResolveBounds()
+        }
+
+        public override void UpdateFont(Font newFont)
+        {
+            base.UpdateFont(newFont);
+            // Update fonts in child components that use fonts
+            // Note: Components store their own font references, so we'd need to update them individually
+            // For now, this is a limitation - components will need to be recreated to use new fonts
+            // This is acceptable for a debug feature
         }
 
         protected override void DrawPanelContent(Rectangle bounds)
@@ -257,6 +456,15 @@ namespace Keysharp.UI
                 new System.Numerics.Vector2(bounds.X, bounds.Y + bounds.Height),
                 new System.Numerics.Vector2(bounds.X + bounds.Width, bounds.Y + bounds.Height),
                 1, UITheme.BorderColor); // Bottom
+        }
+
+        public void DrawDropdowns()
+        {
+            // Draw dropdown lists on top of everything
+            if (fingerDropdown != null)
+            {
+                fingerDropdown.DrawDropdown();
+            }
         }
     }
 }

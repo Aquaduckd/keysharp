@@ -56,6 +56,13 @@ namespace Keysharp.UI
         public Components.Dropdown? NgramSizeDropdown => ngramSizeDropdown;
         public RegexHelpScreen? RegexHelpScreen => regexHelpScreen;
 
+        public void UpdateFont(Font newFont)
+        {
+            font = newFont;
+            // Update fonts in key UI components (would need UpdateFont methods in components)
+            // For now, just update the font reference - some components may need recreation
+        }
+
         public CorpusTab(Font font)
         {
             this.font = font;

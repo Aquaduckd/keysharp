@@ -9,8 +9,17 @@ namespace Keysharp.UI
 
         public Components.TabContent TabContent => tabContent;
 
+        private Font font;
+
+        public void UpdateFont(Font newFont)
+        {
+            font = newFont;
+            // Update fonts in components (would need UpdateFont methods)
+        }
+
         public SettingsTab(Font font)
         {
+            this.font = font;
             tabContent = new Components.TabContent(font, "Settings", "Application settings and preferences");
             tabContent.PositionMode = Components.PositionMode.Relative;
         }

@@ -5,7 +5,7 @@ namespace Keysharp.UI
 {
     public abstract class Panel : Components.UIElement
     {
-        protected Font Font { get; }
+        protected Font Font { get; private set; }
 
         protected Panel(Font font, string name) : base(name)
         {
@@ -29,6 +29,12 @@ namespace Keysharp.UI
         public virtual void UpdateBounds(Rectangle bounds)
         {
             Bounds = bounds;
+        }
+
+        // Update font (for debug font cycling)
+        public virtual void UpdateFont(Font newFont)
+        {
+            Font = newFont;
         }
     }
 }

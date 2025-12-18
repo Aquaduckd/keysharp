@@ -94,6 +94,7 @@ namespace Keysharp.UI
             // Draw dropdowns on top (menu bar and panel dropdowns)
             menuBar.DrawDropdowns();
             mainPanel.DrawDropdowns();
+            sidePanel.DrawDropdowns();
             
             // Draw help screen on top of everything
             mainPanel.DrawHelpScreen();

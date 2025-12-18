@@ -145,14 +145,14 @@ namespace Keysharp.Components
                     // This prevents elements from appearing at (0, 0) when parent bounds are invalid
                 }
                 else
-                {
-                    Bounds = new Rectangle(
-                        Parent.Bounds.X + RelativePosition.X,
-                        Parent.Bounds.Y + RelativePosition.Y,
-                        Bounds.Width,
-                        Bounds.Height
-                    );
-                }
+            {
+                Bounds = new Rectangle(
+                    Parent.Bounds.X + RelativePosition.X,
+                    Parent.Bounds.Y + RelativePosition.Y,
+                    Bounds.Width,
+                    Bounds.Height
+                );
+            }
             }
 
             // Step 3: Resolve children bounds (they can now use our resolved bounds)

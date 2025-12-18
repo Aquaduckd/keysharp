@@ -253,6 +253,20 @@ namespace Keysharp.UI
 
 
 
+        public override void UpdateFont(Font newFont)
+        {
+            base.UpdateFont(newFont);
+            // Update fonts in tabs
+            layoutTab?.UpdateFont(newFont);
+            corpusTab?.UpdateFont(newFont);
+            settingsTab?.UpdateFont(newFont);
+            // Update fonts in tab elements
+            foreach (var tabElement in tabElements)
+            {
+                tabElement.UpdateFont(newFont);
+            }
+        }
+
         public void DrawDropdowns()
         {
             // Draw dropdown lists on top of everything

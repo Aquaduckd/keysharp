@@ -12,6 +12,11 @@ namespace Keysharp.Components
         private const int TabPadding = 15;
         private const int TabHeight = 35;
 
+        public void UpdateFont(Font newFont)
+        {
+            font = newFont;
+        }
+
         public Tab(Font font, string tabName) : base($"Tab_{tabName}")
         {
             this.font = font;

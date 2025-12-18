@@ -64,6 +64,11 @@ namespace Keysharp.Components
             IsHoverable = true;
         }
 
+        public void UpdateFont(Font newFont)
+        {
+            font = newFont;
+        }
+
         public override void ResolveBounds()
         {
             // Store old bounds BEFORE base.ResolveBounds() updates them via relative positioning
@@ -262,9 +267,53 @@ namespace Keysharp.Components
             float borderWidth = (isSelected || isDragTarget) ? 2.0f : 1.0f;
             Raylib.DrawRectangleLinesEx(keyRect, borderWidth, UITheme.BorderColor);
 
-            // Draw key label if available
-            if (!string.IsNullOrEmpty(key.Identifier))
+            // Draw key labels (primary and shift characters)
+            if (layout != null)
             {
+                var (primary, shift) = layout.GetCharactersForKey(key);
+                
+                // If we have character mappings, show them
+                if (!string.IsNullOrEmpty(primary) || !string.IsNullOrEmpty(shift))
+                {
+                    int fontSize = 16; // Increased from 12 to 16 for primary characters
+                    int smallFontSize = 10;
+                    
+                    // Draw primary character (bottom-center, like standard keyboards)
+                    if (!string.IsNullOrEmpty(primary))
+                    {
+                        float primaryWidth = FontManager.MeasureText(font, primary, fontSize);
+                        int primaryX = (int)(x + (width - primaryWidth) / 2);
+                        int primaryY = (int)(y + height - fontSize - 4); // Bottom with padding
+                        
+                        FontManager.DrawText(font, primary, primaryX, primaryY, fontSize, UITheme.TextColor);
+                    }
+                    
+                    // Draw shift character (top-left, like standard keyboards)
+                    if (!string.IsNullOrEmpty(shift))
+                    {
+                        float shiftWidth = FontManager.MeasureText(font, shift, smallFontSize);
+                        int shiftX = (int)(x + 4); // Left edge with padding
+                        int shiftY = (int)(y + 2); // Top with padding
+                        
+                        FontManager.DrawText(font, shift, shiftX, shiftY, smallFontSize, UITheme.TextSecondaryColor);
+                    }
+                }
+                // Fallback: show identifier for keys without character mappings (like Caps, Tab, Backspace, etc.)
+                else if (!string.IsNullOrEmpty(key.Identifier))
+                {
+                    int fontSize = 12;
+                    float textWidth = FontManager.MeasureText(font, key.Identifier, fontSize);
+                    
+                    // Center the text in the key
+                    int textX = (int)(x + (width - textWidth) / 2);
+                    int textY = (int)(y + (height - fontSize) / 2);
+                    
+                    FontManager.DrawText(font, key.Identifier, textX, textY, fontSize, UITheme.TextColor);
+                }
+            }
+            else if (!string.IsNullOrEmpty(key.Identifier))
+            {
+                // Fallback: draw identifier if layout not available
                 int fontSize = 14;
                 float textWidth = FontManager.MeasureText(font, key.Identifier, fontSize);
                 

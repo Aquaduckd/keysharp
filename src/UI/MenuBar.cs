@@ -10,6 +10,16 @@ namespace Keysharp.UI
         private const int MenuBarHeight = 30;
 
         private Font font;
+
+        public void UpdateFont(Font newFont)
+        {
+            font = newFont;
+            // Update fonts in all menu elements
+            foreach (var menu in menuElements)
+            {
+                menu.UpdateFont(newFont);
+            }
+        }
         private MainPanel? mainPanel;
         private List<Menu> menuElements = new List<Menu>();
         private Container menusContainer;

@@ -12,6 +12,11 @@ namespace Keysharp.UI
         private Font font;
         private int fontSize;
 
+        public void UpdateFont(Font newFont)
+        {
+            font = newFont;
+        }
+
         public MenuItem(Font font, string text, int fontSize = 14) : base($"MenuItem_{text}")
         {
             this.font = font;

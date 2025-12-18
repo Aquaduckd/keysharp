@@ -71,6 +71,20 @@ namespace Keysharp.Components
             }
         }
 
+        public void SetSelectedIndex(int index, bool triggerCallback = true)
+        {
+            if (index >= 0 && index < items.Count)
+            {
+                selectedIndex = index;
+                if (triggerCallback)
+                {
+                    OnSelectionChanged?.Invoke(items[index]);
+                }
+            }
+        }
+
+        public int SelectedIndex => selectedIndex;
+
         public void SetBounds(Rectangle bounds)
         {
             this.Bounds = bounds;

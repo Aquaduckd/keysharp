@@ -15,6 +15,12 @@ namespace Keysharp.UI
         private const int DropdownPadding = 5;
 
         private Font font;
+
+        public void UpdateFont(Font newFont)
+        {
+            font = newFont;
+            // Menu items are drawn directly in this class, so font update is handled here
+        }
         private string menuName;
         private List<MenuItemData> items = new List<MenuItemData>();
         private bool isOpen = false;
