@@ -506,6 +506,9 @@ namespace Keysharp.UI
                         bool hasData = ngramTable != null && ngramTable.Rows.Count > 0;
                         saveCsvButton.IsVisible = hasData;
                     }
+
+                    // Notify layout tab that corpus changed (for heatmap updates)
+                    NotifyCorpusChanged();
                 }
                 catch (Exception ex)
                 {
