@@ -46,6 +46,11 @@ namespace Keysharp.Components
         private int dragStartMouseX = 0;
         private int dragStartMouseY = 0;
         private const int DRAG_THRESHOLD = 5; // Pixels to move before starting drag
+        
+        // Shift+drag selection state
+        private bool isShiftDragging = false;
+        private PhysicalKey? lastShiftDragKey = null; // Last key we processed during shift+drag
+        private bool shiftDragShouldSelect = true; // True if we should select keys during shift+drag, false to deselect
 
         public Layout? Layout
         {
@@ -286,13 +291,9 @@ namespace Keysharp.Components
                 // Handle mouse button press (start drag or select)
                 if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT))
                 {
-                    System.Console.WriteLine($"=== Mouse Button Pressed ===");
                     bool leftShift = Raylib.IsKeyDown(KeyboardKey.KEY_LEFT_SHIFT);
                     bool rightShift = Raylib.IsKeyDown(KeyboardKey.KEY_RIGHT_SHIFT);
                     bool shiftDown = leftShift || rightShift;
-                    System.Console.WriteLine($"  LEFT_SHIFT: {leftShift}, RIGHT_SHIFT: {rightShift}, shiftDown: {shiftDown}");
-                    System.Console.WriteLine($"  hoveredKey: {(hoveredKey?.Identifier ?? "null")}");
-                    System.Console.WriteLine($"  Current selectedKeys count: {selectedKeys.Count}");
                     
                     if (hoveredKey != null)
                     {
@@ -300,23 +301,22 @@ namespace Keysharp.Components
                         
                         if (shiftDown)
                         {
-                            System.Console.WriteLine($"  -> Multi-selection mode");
-                            // Multi-selection mode: toggle selection without starting drag
+                            // Multi-selection mode: toggle selection and prepare for potential shift+drag
                             bool wasSelected = selectedKeys.Contains(hoveredKey);
-                            System.Console.WriteLine($"  -> Key was already selected: {wasSelected}");
+                            
+                            // Determine the action (select or deselect) based on initial state
+                            // This will be used for shift+drag if the user starts dragging
+                            shiftDragShouldSelect = !wasSelected;
                             
                             if (wasSelected)
                             {
                                 selectedKeys.Remove(hoveredKey);
-                                System.Console.WriteLine($"  -> Removed key from selection");
                             }
                             else
                             {
                                 selectedKeys.Add(hoveredKey);
-                                System.Console.WriteLine($"  -> Added key to selection");
                             }
                             
-                            System.Console.WriteLine($"  -> New selectedKeys count: {selectedKeys.Count}");
                             OnSelectedKeysChanged?.Invoke(selectedKeys);
                             // Don't call legacy callback for multi-selection (it would clear it via SetSelectedKey)
                             if (selectedKeys.Count == 1)
@@ -330,22 +330,21 @@ namespace Keysharp.Components
                             
                             // Don't set up drag state when Shift is held
                             draggedKey = null;
-                            System.Console.WriteLine($"  -> Set draggedKey to null (Shift mode)");
+                            // Initialize shift+drag state (will become active if mouse moves)
+                            isShiftDragging = false;
+                            lastShiftDragKey = hoveredKey;
                         }
                         else
                         {
-                            System.Console.WriteLine($"  -> Single selection mode");
                             // Single selection mode: set up drag state
                             draggedKey = hoveredKey;
                             dragStartMouseX = mouseX;
                             dragStartMouseY = mouseY;
                             isDragging = false;
-                            System.Console.WriteLine($"  -> Set up drag state for key: {hoveredKey.Identifier}");
                             
                             // Single selection (clear previous and select only this key)
                             selectedKeys.Clear();
                             selectedKeys.Add(hoveredKey);
-                            System.Console.WriteLine($"  -> Cleared and set single selection: {hoveredKey.Identifier}");
                             
                             OnSelectedKeysChanged?.Invoke(selectedKeys);
                             // Single selection - safe to call legacy callback
@@ -359,32 +358,28 @@ namespace Keysharp.Components
                         if (mouseX >= Bounds.X && mouseX <= Bounds.X + Bounds.Width &&
                             mouseY >= Bounds.Y && mouseY <= Bounds.Y + Bounds.Height)
                         {
-                            System.Console.WriteLine($"  -> Clicked on empty space within keyboard view");
                             // Clicked on empty space within keyboard view - clear selection unless Shift is held
                             if (!shiftDown)
                             {
                                 selectedKeys.Clear();
-                                System.Console.WriteLine($"  -> Cleared selection (no Shift)");
                                 OnSelectedKeysChanged?.Invoke(selectedKeys);
                                 OnSelectedKeyChanged?.Invoke(null);
                             }
-                            else
-                            {
-                                System.Console.WriteLine($"  -> Preserved selection (Shift held)");
-                            }
-                        }
-                        else
-                        {
-                            System.Console.WriteLine($"  -> Clicked outside keyboard view bounds, preserving selection");
                         }
                         draggedKey = null;
                     }
-                    System.Console.WriteLine($"============================");
                 }
 
                 // Handle mouse button release (complete drag or just selection)
                 if (Raylib.IsMouseButtonReleased(MouseButton.MOUSE_BUTTON_LEFT))
                 {
+                    // End shift+drag selection
+                    if (isShiftDragging)
+                    {
+                        isShiftDragging = false;
+                        lastShiftDragKey = null;
+                    }
+                    
                     if (draggedKey != null && isDragging && hoveredKey != null && hoveredKey != draggedKey)
                     {
                         // Swap the keys
@@ -401,6 +396,13 @@ namespace Keysharp.Components
                         OnSelectedKeyChanged?.Invoke(hoveredKey);
                     }
                     
+                    // End shift+drag selection if active
+                    if (isShiftDragging)
+                    {
+                        isShiftDragging = false;
+                        lastShiftDragKey = null;
+                    }
+                    
                     // Reset drag state
                     draggedKey = null;
                     dragTargetKey = null;
@@ -408,7 +410,59 @@ namespace Keysharp.Components
                 }
 
                 // Handle mouse move (track dragging)
-                if (draggedKey != null && Raylib.IsMouseButtonDown(MouseButton.MOUSE_BUTTON_LEFT))
+                bool shiftHeld = Raylib.IsKeyDown(KeyboardKey.KEY_LEFT_SHIFT) || Raylib.IsKeyDown(KeyboardKey.KEY_RIGHT_SHIFT);
+                bool mouseDown = Raylib.IsMouseButtonDown(MouseButton.MOUSE_BUTTON_LEFT);
+                bool mousePressed = Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT);
+                
+                // Check for shift+drag selection (shift held and mouse down, but not in normal drag mode)
+                if (shiftHeld && mouseDown && !mousePressed && draggedKey == null && !isDragging)
+                {
+                    if (!isShiftDragging)
+                    {
+                        // Start shift+drag selection - use the action determined on mouse down
+                        isShiftDragging = true;
+                        lastShiftDragKey = null;
+                    }
+                    
+                    // Process hovered key during shift+drag
+                    if (hoveredKey != null && hoveredKey != lastShiftDragKey)
+                    {
+                        lastShiftDragKey = hoveredKey;
+                        
+                        // Apply the action determined on initial mouse down (select or deselect)
+                        bool currentlySelected = selectedKeys.Contains(hoveredKey);
+                        if (shiftDragShouldSelect && !currentlySelected)
+                        {
+                            // We're in "select mode" - add key if not selected
+                            selectedKeys.Add(hoveredKey);
+                        }
+                        else if (!shiftDragShouldSelect && currentlySelected)
+                        {
+                            // We're in "deselect mode" - remove key if selected
+                            selectedKeys.Remove(hoveredKey);
+                        }
+                        
+                        OnSelectedKeysChanged?.Invoke(selectedKeys);
+                        // Don't call legacy callback for multi-selection
+                        if (selectedKeys.Count == 1)
+                        {
+                            OnSelectedKeyChanged?.Invoke(selectedKeys.First());
+                        }
+                        else if (selectedKeys.Count == 0)
+                        {
+                            OnSelectedKeyChanged?.Invoke(null);
+                        }
+                    }
+                }
+                else if (!mouseDown && isShiftDragging)
+                {
+                    // End shift+drag selection
+                    isShiftDragging = false;
+                    lastShiftDragKey = null;
+                }
+                
+                // Handle normal drag (no shift)
+                if (draggedKey != null && mouseDown && !shiftHeld)
                 {
                     int dx = mouseX - dragStartMouseX;
                     int dy = mouseY - dragStartMouseY;
