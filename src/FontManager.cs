@@ -29,8 +29,10 @@ namespace Keysharp
             // Add specific Unicode characters we use:
             // ▲ U+25B2 (Black Up-Pointing Triangle)
             // ▼ U+25BC (Black Down-Pointing Triangle)
+            // • U+2022 (Bullet - used in regex help tips)
             codepoints.Add(0x25B2); // ▲
             codepoints.Add(0x25BC); // ▼
+            codepoints.Add(0x2022); // •
 
             int[] codepointArray = codepoints.ToArray();
             int fontSize = 32; // Base font size for loading
