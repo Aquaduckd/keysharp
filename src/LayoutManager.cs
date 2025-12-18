@@ -6,7 +6,7 @@ namespace Keysharp
     public class LayoutManager
     {
         // Panel dimensions (stored as state so they can be modified)
-        public float SidePanelWidth { get; set; } = 200;
+        public float SidePanelWidth { get; set; } = 280;
         public float BottomPanelHeight { get; set; } = 100;
         public static int SplitterWidth => 4;
         public const int MinPanelSize = 50; // Minimum size for panels

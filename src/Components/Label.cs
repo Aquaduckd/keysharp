@@ -10,16 +10,23 @@ namespace Keysharp.Components
         private string text;
         private int fontSize;
         private Color color;
-        private bool rightAlign;
+        private TextAlignment alignment;
 
-        public Label(Font font, string text, int fontSize = 14, Color? color = null, bool rightAlign = false) 
+        public enum TextAlignment
+        {
+            Left,
+            Center,
+            Right
+        }
+
+        public Label(Font font, string text, int fontSize = 14, Color? color = null, TextAlignment alignment = TextAlignment.Left) 
             : base("Label")
         {
             this.font = font;
             this.text = text;
             this.fontSize = fontSize;
             this.color = color ?? UITheme.TextColor;
-            this.rightAlign = rightAlign;
+            this.alignment = alignment;
             
             // Labels are not interactive
             IsClickable = false;
@@ -49,37 +56,41 @@ namespace Keysharp.Components
             {
                 string[] lines = text.Split('\n');
                 int lineHeight = fontSize + 4; // Add spacing between lines
-                int startY = (int)Bounds.Y;
+                int startY = (int)Bounds.Y + (int)ChildPadding;
                 
                 foreach (string line in lines)
                 {
                     if (!string.IsNullOrEmpty(line))
                     {
                         int y = startY;
-                        if (rightAlign)
+                        float textWidth = FontManager.MeasureText(font, line, fontSize);
+                        int textX = alignment switch
                         {
-                            float textWidth = FontManager.MeasureText(font, line, fontSize);
-                            int textX = (int)(Bounds.X + Bounds.Width - textWidth - 10);
-                            FontManager.DrawText(font, line, textX, y, fontSize, color);
-                        }
-                        else
-                        {
-                            FontManager.DrawText(font, line, (int)Bounds.X, y, fontSize, color);
-                        }
+                            TextAlignment.Center => (int)(Bounds.X + (Bounds.Width - textWidth) / 2),
+                            TextAlignment.Right => (int)(Bounds.X + Bounds.Width - textWidth - 10),
+                            _ => (int)Bounds.X + (int)ChildPadding
+                        };
+                        FontManager.DrawText(font, line, textX, y, fontSize, color);
                     }
                     startY += lineHeight;
                 }
             }
             else
             {
-                // Single line text
-                if (rightAlign)
+                // Single line text - center vertically and align horizontally
+                int textY = (int)(Bounds.Y + (Bounds.Height - fontSize) / 2);
+                
+                switch (alignment)
                 {
-                    TextContainer.DrawRightAlignedText(font, text, Bounds, fontSize, color, 10);
-                }
-                else
-                {
-                    FontManager.DrawText(font, text, (int)Bounds.X, (int)Bounds.Y, fontSize, color);
+                    case TextAlignment.Center:
+                        TextContainer.DrawCenteredText(font, text, Bounds, fontSize, color);
+                        break;
+                    case TextAlignment.Right:
+                        TextContainer.DrawRightAlignedText(font, text, Bounds, fontSize, color, 10);
+                        break;
+                    default:
+                        FontManager.DrawText(font, text, (int)Bounds.X + (int)ChildPadding, textY, fontSize, color);
+                        break;
                 }
             }
         }

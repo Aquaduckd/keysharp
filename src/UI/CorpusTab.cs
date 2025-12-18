@@ -192,7 +192,7 @@ namespace Keysharp.UI
             regexHelpScreen.SetPatternSelectedCallback(OnRegexPatternSelected);
 
             // Create total count label (right-aligned)
-            totalCountLabel = new Components.Label(font, "", 14, null, rightAlign: true);
+            totalCountLabel = new Components.Label(font, "", 14, null, Components.Label.TextAlignment.Right);
             totalCountLabel.Bounds = new Rectangle(0, 0, 250, 35);
             totalCountLabel.PositionMode = Components.PositionMode.Absolute;
             ngramSelectorContainer.AddChild(totalCountLabel);

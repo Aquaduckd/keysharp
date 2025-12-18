@@ -106,9 +106,22 @@ namespace Keysharp.Components
         }
 
         /// <summary>
+        /// Called before ResolveBounds() resolves children. Override this to set child sizes
+        /// before relative positioning is resolved. This ensures children have correct dimensions
+        /// when their positions are calculated.
+        /// 
+        /// This is the correct place to set child bounds when using relative positioning,
+        /// not in Update() which runs after ResolveBounds().
+        /// </summary>
+        protected virtual void PrepareResolveBounds()
+        {
+            // Override in derived classes to set up child bounds before resolution
+        }
+
+        /// <summary>
         /// Phase 1: Resolve bounds. Converts relative positioning to absolute bounds based on parent.
         /// This should be called before Update() to ensure all bounds are resolved.
-        /// Order: 1) Resolve own position (if relative, needs parent bounds), 2) Resolve children, 3) Calculate AutoSize.
+        /// Order: 1) Prepare child bounds, 2) Resolve own position (if relative), 3) Resolve children, 4) Calculate AutoSize.
         /// </summary>
         public virtual void ResolveBounds()
         {
@@ -116,24 +129,39 @@ namespace Keysharp.Components
             if (!IsVisible || !IsEnabled)
                 return;
 
-            // Step 1: Resolve own position if relative to parent (needs parent bounds, which should be resolved already)
+            // Step 1: Allow component to prepare child bounds before resolution
+            PrepareResolveBounds();
+
+            // Step 2: Resolve own position if relative to parent (needs parent bounds, which should be resolved already)
             if (PositionMode == PositionMode.Relative && Parent != null)
             {
-                Bounds = new Rectangle(
-                    Parent.Bounds.X + RelativePosition.X,
-                    Parent.Bounds.Y + RelativePosition.Y,
-                    Bounds.Width,
-                    Bounds.Height
-                );
+                // VALIDATION: Check if parent bounds are valid before using them
+                // If parent bounds are invalid, skip position resolution for this element
+                // but still allow children to be prepared/resolved if they can
+                if (Parent.Bounds.Width <= 0 || Parent.Bounds.Height <= 0)
+                {
+                    // Parent bounds not set yet - skip position resolution for this element
+                    // but continue to resolve children (they may have their own logic)
+                    // This prevents elements from appearing at (0, 0) when parent bounds are invalid
+                }
+                else
+                {
+                    Bounds = new Rectangle(
+                        Parent.Bounds.X + RelativePosition.X,
+                        Parent.Bounds.Y + RelativePosition.Y,
+                        Bounds.Width,
+                        Bounds.Height
+                    );
+                }
             }
 
-            // Step 2: Resolve children bounds (they can now use our resolved bounds)
+            // Step 3: Resolve children bounds (they can now use our resolved bounds)
             foreach (var child in Children)
             {
                 child.ResolveBounds();
             }
 
-            // Step 3: Calculate AutoSize if needed (now that children have correct bounds)
+            // Step 4: Calculate AutoSize if needed (now that children have correct bounds)
             if (AutoSize && AutoLayoutChildren)
             {
                 CalculateAutoSize();
@@ -198,7 +226,7 @@ namespace Keysharp.Components
         /// Calculates and applies AutoSize based on children. Called from ResolveBounds().
         /// </summary>
         private void CalculateAutoSize()
-        {
+            {
             // Filter visible children
             var visibleChildren = new List<UIElement>();
             foreach (var child in Children)
@@ -212,9 +240,9 @@ namespace Keysharp.Components
             if (visibleChildren.Count == 0)
                 return;
 
-            ResizeToFitChildren(visibleChildren);
+                ResizeToFitChildren(visibleChildren);
         }
-
+        
         private void ResizeToFitChildren(List<UIElement> visibleChildren)
         {
             if (visibleChildren.Count == 0)
@@ -345,11 +373,11 @@ namespace Keysharp.Components
                 
                 // Notify parent to resize if it has AutoSize enabled
                 if (Parent != null && 
-                    Parent.AutoSize && 
-                    Parent.AutoLayoutChildren)
-                {
-                    // Trigger parent's layout which will resize it if needed
-                    Parent.LayoutChildren();
+                Parent.AutoSize && 
+                Parent.AutoLayoutChildren)
+            {
+                // Trigger parent's layout which will resize it if needed
+                Parent.LayoutChildren();
                 }
             }
         }
@@ -732,6 +760,18 @@ namespace Keysharp.Components
                     yield return descendant;
                 }
             }
+        }
+
+        /// <summary>
+        /// Sets the size of this element without affecting its position.
+        /// Use this when setting bounds for elements with PositionMode.Relative
+        /// to avoid accidentally resetting the position to (0, 0).
+        /// 
+        /// Example: element.SetSize(100, 50) instead of element.Bounds = new Rectangle(0, 0, 100, 50)
+        /// </summary>
+        public void SetSize(float width, float height)
+        {
+            Bounds = new Rectangle(Bounds.X, Bounds.Y, width, height);
         }
     }
 }

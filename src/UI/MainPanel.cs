@@ -225,7 +225,7 @@ namespace Keysharp.UI
             
             // Update tab visibility again after content updates
             UpdateTabVisibility();
-            
+
         }
 
         protected override void DrawPanelContent(Rectangle bounds)
