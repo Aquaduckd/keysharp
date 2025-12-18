@@ -66,6 +66,41 @@ namespace Keysharp.UI
         /// </summary>
         public Core.Corpus? LoadedCorpus => loadedCorpus;
 
+        /// <summary>
+        /// Sets a loaded corpus programmatically (e.g., during startup).
+        /// </summary>
+        public void SetLoadedCorpus(Core.Corpus corpus, string corpusPath)
+        {
+            loadedCorpus = corpus;
+            loadedCorpusPath = corpusPath;
+
+            // Update dropdown selection if available
+            if (corpusDropdown != null)
+            {
+                string fileName = Path.GetFileName(corpusPath);
+                // Temporarily remove callback to avoid triggering reload
+                var oldCallback = corpusDropdown.OnSelectionChanged;
+                corpusDropdown.OnSelectionChanged = null;
+                corpusDropdown.SetSelectedItem(fileName);
+                corpusDropdown.OnSelectionChanged = oldCallback;
+            }
+
+            // Update n-gram table with loaded corpus
+            UpdateNgramTable();
+
+            // Update save CSV button visibility
+            if (saveCsvButton != null)
+            {
+                bool hasData = ngramTable != null && ngramTable.Rows.Count > 0;
+                saveCsvButton.IsVisible = loadedCorpus != null && hasData;
+            }
+
+            // Notify layout tab that corpus changed (for heatmap updates)
+            NotifyCorpusChanged();
+
+            System.Console.WriteLine($"Corpus set: {corpus.FileName}");
+        }
+
         private Action? onCorpusChanged;
 
         /// <summary>

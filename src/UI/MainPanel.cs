@@ -31,6 +31,8 @@ namespace Keysharp.UI
 
         // Reference to side panel for key info display
         private SidePanel? sidePanel;
+        public CorpusTab? CorpusTab => corpusTab;
+
         public SidePanel? SidePanel
         {
             get => sidePanel;

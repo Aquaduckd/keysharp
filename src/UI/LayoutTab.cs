@@ -47,8 +47,16 @@ namespace Keysharp.UI
                 if (sidePanel != null && keyboardView != null)
                 {
                     sidePanel.SetKeyboardView(keyboardView);
-                    // Also notify of current view mode
-                    sidePanel.SetViewMode(keyboardView.ViewMode);
+                    // Also notify of current view mode (ensure it matches the selected radio button)
+                    // Heatmap is the default, so use that if heatmapRadioButton is selected
+                    var viewMode = keyboardView.ViewMode;
+                    if (heatmapRadioButton != null && heatmapRadioButton.IsSelected && viewMode != Components.KeyboardViewMode.Heatmap)
+                    {
+                        // Sync view mode to match selected radio button
+                        keyboardView.ViewMode = Components.KeyboardViewMode.Heatmap;
+                        viewMode = Components.KeyboardViewMode.Heatmap;
+                    }
+                    sidePanel.SetViewMode(viewMode);
                     // Update metadata in side panel if we loaded from a file
                     sidePanel.SetLayoutMetadata(metadata);
                 }
@@ -190,7 +198,7 @@ namespace Keysharp.UI
             regularRadioButton = new Components.RadioButton(font, "Regular", radioGroup, 14);
             regularRadioButton.Bounds = new Rectangle(0, 0, regularWidth, buttonHeight);
             regularRadioButton.AutoSize = false;
-            regularRadioButton.IsSelected = true; // Default selection
+            regularRadioButton.IsSelected = false;
             regularRadioButton!.OnSelectedInGroup = deselectOthers;
             regularRadioButton.OnSelectedChanged = (selected) => {
                 if (selected)
@@ -204,6 +212,7 @@ namespace Keysharp.UI
             fingerColorsRadioButton = new Components.RadioButton(font, "Finger Colors", radioGroup, 14);
             fingerColorsRadioButton.Bounds = new Rectangle(0, 0, fingerColorsWidth, buttonHeight);
             fingerColorsRadioButton.AutoSize = false;
+            fingerColorsRadioButton.IsSelected = false;
             fingerColorsRadioButton!.OnSelectedInGroup = deselectOthers;
             fingerColorsRadioButton.OnSelectedChanged = (selected) => {
                 if (selected)
@@ -217,6 +226,7 @@ namespace Keysharp.UI
             heatmapRadioButton = new Components.RadioButton(font, "Heatmap", radioGroup, 14);
             heatmapRadioButton.Bounds = new Rectangle(0, 0, heatmapWidth, buttonHeight);
             heatmapRadioButton.AutoSize = false;
+            heatmapRadioButton.IsSelected = true; // Default selection
             heatmapRadioButton!.OnSelectedInGroup = deselectOthers;
             heatmapRadioButton.OnSelectedChanged = (selected) => {
                 if (selected)
@@ -227,6 +237,10 @@ namespace Keysharp.UI
                     sidePanel?.SetViewMode(Components.KeyboardViewMode.Heatmap);
                 }
             };
+            
+            // Ensure keyboardView is in heatmap mode to match the selected radio button
+            // This is needed because keyboardView might be created after radio buttons
+            // We'll set it again after keyboardView is created, but this ensures consistency
 
             radioButtonsContainer.AddChild(regularRadioButton);
             radioButtonsContainer.AddChild(fingerColorsRadioButton);
@@ -277,6 +291,7 @@ namespace Keysharp.UI
             keyboardView.Layout = layout; // Layout was either loaded from file or created programmatically
             keyboardView.PositionMode = Components.PositionMode.Relative;
             keyboardView.ShowDisabledKeys = true; // Default: show disabled keys
+            keyboardView.ViewMode = Components.KeyboardViewMode.Heatmap; // Default to heatmap view (matches heatmapRadioButton.IsSelected = true)
             keyboardView.OnSelectedKeyChanged = (key) => {
                 // Use the property getter to get current value
                 var currentSidePanel = SidePanel;
@@ -299,10 +314,15 @@ namespace Keysharp.UI
             if (sidePanel != null)
             {
                 sidePanel.SetKeyboardView(keyboardView);
+                // Set initial view mode to heatmap (matches default radio button selection)
+                sidePanel.SetViewMode(Components.KeyboardViewMode.Heatmap);
             }
             
             // Initially hide heatmap button (will be shown when corpus is loaded)
             UpdateHeatmapButtonVisibility();
+            
+            // Initialize heatmap data if we have a corpus
+            UpdateHeatmapData();
         }
 
         /// <summary>
@@ -417,8 +437,18 @@ namespace Keysharp.UI
             heatmapRadioButton.IsVisible = hasCorpus;
             
             // If heatmap was selected but corpus was unloaded, switch to regular view
-            if (!hasCorpus && keyboardView.ViewMode == Components.KeyboardViewMode.Heatmap)
+            // BUT: Don't switch if heatmap is the default selection (heatmapRadioButton.IsSelected = true)
+            // This allows the default heatmap selection to persist even if corpus loads later during startup
+            if (!hasCorpus && keyboardView.ViewMode == Components.KeyboardViewMode.Heatmap && heatmapRadioButton.IsSelected)
             {
+                // Heatmap is the default selection, keep it even without corpus
+                // The heatmap will just show no data initially, which is fine
+                // Don't switch away from default selection
+            }
+            else if (!hasCorpus && keyboardView.ViewMode == Components.KeyboardViewMode.Heatmap)
+            {
+                // Heatmap mode but radio button not selected - user must have manually changed view mode
+                // Switch to regular view
                 keyboardView.ViewMode = Components.KeyboardViewMode.Regular;
                 if (regularRadioButton != null)
                 {
