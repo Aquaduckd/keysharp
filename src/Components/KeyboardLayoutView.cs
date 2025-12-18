@@ -6,6 +6,16 @@ using Keysharp.Core;
 namespace Keysharp.Components
 {
     /// <summary>
+    /// View modes for the keyboard layout display.
+    /// </summary>
+    public enum KeyboardViewMode
+    {
+        Regular,        // Standard view
+        FingerColors,   // Color keys based on finger used
+        Heatmap         // Show heatmap based on monogram usage
+    }
+
+    /// <summary>
     /// A component that renders a keyboard layout by drawing physical keys.
     /// </summary>
     public class KeyboardLayoutView : UIElement
@@ -16,6 +26,10 @@ namespace Keysharp.Components
         private float padding = 0.0f; // No padding around the keyboard view
         private PhysicalKey? selectedKey;
         private Dictionary<PhysicalKey, Rectangle> keyRectangles = new Dictionary<PhysicalKey, Rectangle>();
+        private KeyboardViewMode viewMode = KeyboardViewMode.Regular;
+        
+        // Heatmap data (monogram counts per key)
+        private Dictionary<string, long>? monogramCounts;
         
         // Drag and drop state
         private PhysicalKey? draggedKey;
@@ -56,6 +70,29 @@ namespace Keysharp.Components
         }
 
         public Action<PhysicalKey?>? OnSelectedKeyChanged { get; set; }
+
+        public KeyboardViewMode ViewMode
+        {
+            get => viewMode;
+            set
+            {
+                viewMode = value;
+                keyRectangles.Clear(); // Clear cache to redraw with new mode
+            }
+        }
+
+        /// <summary>
+        /// Sets monogram counts for heatmap view mode.
+        /// Dictionary maps character strings to their usage counts.
+        /// </summary>
+        public void SetMonogramCounts(Dictionary<string, long>? counts)
+        {
+            monogramCounts = counts;
+            if (viewMode == KeyboardViewMode.Heatmap)
+            {
+                keyRectangles.Clear(); // Force redraw
+            }
+        }
 
         public KeyboardLayoutView(Font font) : base("KeyboardLayoutView")
         {
@@ -237,35 +274,54 @@ namespace Keysharp.Components
             float width = keyRect.Width;
             float height = keyRect.Height;
 
-            // Determine key color based on selection and drag state
+            // Determine key color based on view mode (don't change for selection/drag)
             bool isSelected = selectedKey == key;
             bool isDragged = draggedKey == key;
             bool isDragTarget = dragTargetKey == key && isDragging;
             
             Color keyColor;
-            if (isDragged && isDragging)
+            
+            // Apply view mode colors
+            if (viewMode == KeyboardViewMode.FingerColors)
             {
-                keyColor = new Color(100, 149, 237, 180); // Semi-transparent blue for dragged key
+                keyColor = GetFingerColor(key.Finger);
             }
-            else if (isDragTarget)
+            else if (viewMode == KeyboardViewMode.Heatmap)
             {
-                keyColor = new Color(144, 238, 144, 255); // Light green for drop target
-            }
-            else if (isSelected)
-            {
-                keyColor = new Color(100, 149, 237, 255); // Cornflower blue when selected
+                keyColor = GetHeatmapColor(key);
             }
             else
             {
+                // Regular view mode
                 keyColor = UITheme.SidePanelColor;
             }
 
             // Draw key background
             Raylib.DrawRectangleRec(keyRect, keyColor);
             
-            // Draw key border (thicker if selected or drag target)
-            float borderWidth = (isSelected || isDragTarget) ? 2.0f : 1.0f;
-            Raylib.DrawRectangleLinesEx(keyRect, borderWidth, UITheme.BorderColor);
+            // Draw key border - use different colors/thickness for selection and drag states
+            Color borderColor = UITheme.BorderColor;
+            float borderWidth = 1.0f;
+            
+            if (isDragged && isDragging)
+            {
+                // Dragged key: thicker blue border
+                borderColor = new Color(100, 149, 237, 255); // Cornflower blue
+                borderWidth = 3.0f;
+            }
+            else if (isDragTarget)
+            {
+                // Drop target: thicker green border
+                borderColor = new Color(144, 238, 144, 255); // Light green
+                borderWidth = 3.0f;
+            }
+            else if (isSelected)
+            {
+                // Selected key: thicker border with theme border color
+                borderWidth = 3.0f;
+            }
+            
+            Raylib.DrawRectangleLinesEx(keyRect, borderWidth, borderColor);
 
             // Draw key labels (primary and shift characters)
             if (layout != null)
@@ -322,6 +378,108 @@ namespace Keysharp.Components
                 int textY = (int)(y + (height - fontSize) / 2);
                 
                 FontManager.DrawText(font, key.Identifier, textX, textY, fontSize, UITheme.TextColor);
+            }
+        }
+
+        private Color GetFingerColor(Core.Finger finger)
+        {
+            // Color scheme for different fingers
+            switch (finger)
+            {
+                case Core.Finger.LeftPinky:
+                    return new Color(200, 100, 100, 255); // Light red
+                case Core.Finger.LeftRing:
+                    return new Color(200, 150, 100, 255); // Light orange
+                case Core.Finger.LeftMiddle:
+                    return new Color(200, 200, 100, 255); // Light yellow
+                case Core.Finger.LeftIndex:
+                    return new Color(150, 200, 100, 255); // Light green
+                case Core.Finger.LeftThumb:
+                    return new Color(100, 200, 200, 255); // Light cyan
+                case Core.Finger.RightThumb:
+                    return new Color(100, 150, 200, 255); // Light blue
+                case Core.Finger.RightIndex:
+                    return new Color(150, 100, 200, 255); // Light purple
+                case Core.Finger.RightMiddle:
+                    return new Color(200, 100, 200, 255); // Light magenta
+                case Core.Finger.RightRing:
+                    return new Color(200, 100, 150, 255); // Light pink
+                case Core.Finger.RightPinky:
+                    return new Color(150, 150, 200, 255); // Light lavender
+                default:
+                    return UITheme.SidePanelColor;
+            }
+        }
+
+        private Color GetHeatmapColor(PhysicalKey key)
+        {
+            if (monogramCounts == null || layout == null)
+            {
+                return UITheme.SidePanelColor;
+            }
+
+            // Get characters associated with this key
+            var (primary, shift) = layout.GetCharactersForKey(key);
+            
+            // Sum up counts for primary and shift characters
+            long totalCount = 0;
+            if (!string.IsNullOrEmpty(primary) && monogramCounts.TryGetValue(primary, out long primaryCount))
+            {
+                totalCount += primaryCount;
+            }
+            if (!string.IsNullOrEmpty(shift) && monogramCounts.TryGetValue(shift, out long shiftCount))
+            {
+                totalCount += shiftCount;
+            }
+
+            // If no counts found, return default color
+            if (totalCount == 0)
+            {
+                return UITheme.SidePanelColor;
+            }
+
+            // Calculate heatmap color (green = low usage, yellow = medium, red = high)
+            // Find max count for normalization
+            long maxCount = 0;
+            foreach (var count in monogramCounts.Values)
+            {
+                if (count > maxCount) maxCount = count;
+            }
+
+            if (maxCount == 0)
+            {
+                return UITheme.SidePanelColor;
+            }
+
+            // Normalize to 0-1 range
+            float normalized = (float)totalCount / maxCount;
+
+            // Interpolate from green (low) -> yellow (medium) -> red (high)
+            Color lowColor = new Color((byte)100, (byte)200, (byte)100, (byte)255);   // Green
+            Color midColor = new Color((byte)200, (byte)200, (byte)100, (byte)255);   // Yellow
+            Color highColor = new Color((byte)200, (byte)100, (byte)100, (byte)255);  // Red
+
+            if (normalized < 0.5f)
+            {
+                // Interpolate between green and yellow
+                float t = normalized * 2.0f;
+                return new Color(
+                    (byte)(lowColor.R + (midColor.R - lowColor.R) * t),
+                    (byte)(lowColor.G + (midColor.G - lowColor.G) * t),
+                    (byte)(lowColor.B + (midColor.B - lowColor.B) * t),
+                    (byte)255
+                );
+            }
+            else
+            {
+                // Interpolate between yellow and red
+                float t = (normalized - 0.5f) * 2.0f;
+                return new Color(
+                    (byte)(midColor.R + (highColor.R - midColor.R) * t),
+                    (byte)(midColor.G + (highColor.G - midColor.G) * t),
+                    (byte)(midColor.B + (highColor.B - midColor.B) * t),
+                    (byte)255
+                );
             }
         }
     }

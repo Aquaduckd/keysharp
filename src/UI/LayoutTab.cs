@@ -1,4 +1,6 @@
 using Raylib_cs;
+using System;
+using System.Collections.Generic;
 using Keysharp.Components;
 using Keysharp.Core;
 
@@ -8,11 +10,16 @@ namespace Keysharp.UI
     {
         private Components.TabContent tabContent;
         private Components.Label titleLabel;
+        private Components.Container? viewControlsContainer;
+        private Components.RadioButton? regularRadioButton;
+        private Components.RadioButton? fingerColorsRadioButton;
+        private Components.RadioButton? heatmapRadioButton;
         private Components.Canvas keyboardCanvas;
         private Components.KeyboardLayoutView keyboardView;
         private Layout layout;
         private SidePanel? sidePanel;
         private Font font;
+        private CorpusTab? corpusTab; // Reference to corpus tab for checking loaded corpus
 
         public Components.TabContent TabContent => tabContent;
 
@@ -22,6 +29,17 @@ namespace Keysharp.UI
             set
             {
                 sidePanel = value;
+            }
+        }
+
+        public CorpusTab? CorpusTab
+        {
+            get => corpusTab;
+            set
+            {
+                corpusTab = value;
+                // Update heatmap button visibility when corpus tab changes
+                UpdateHeatmapButtonVisibility();
             }
         }
 
@@ -38,13 +56,78 @@ namespace Keysharp.UI
             tabContent.LayoutDirection = Components.LayoutDirection.Vertical;
             tabContent.ChildJustification = Components.ChildJustification.Left;
             tabContent.ChildPadding = 20;
-            tabContent.ChildGap = 0;
+            tabContent.ChildGap = 10; // Gap between title, controls, and keyboard
 
             // Create title label
             titleLabel = new Components.Label(font, "Layout", 24);
             titleLabel.AutoSize = false;
             titleLabel.Bounds = new Rectangle(0, 0, 0, 40); // Height for title
             titleLabel.PositionMode = Components.PositionMode.Relative;
+
+            // Create view controls container
+            viewControlsContainer = new Components.Container("ViewControlsContainer");
+            viewControlsContainer.AutoLayoutChildren = true;
+            viewControlsContainer.LayoutDirection = Components.LayoutDirection.Horizontal;
+            viewControlsContainer.AutoSize = false;
+            viewControlsContainer.Bounds = new Rectangle(0, 0, 0, 30); // Height for controls
+            viewControlsContainer.ChildPadding = 0;
+            viewControlsContainer.ChildGap = 15;
+            viewControlsContainer.PositionMode = Components.PositionMode.Relative;
+
+            // Create radio buttons for view modes
+            const string radioGroup = "ViewMode";
+            
+            // Helper function to deselect other radio buttons
+            Action<Components.RadioButton> deselectOthers = (selectedButton) => {
+                if (regularRadioButton != null && selectedButton != regularRadioButton) regularRadioButton.IsSelected = false;
+                if (fingerColorsRadioButton != null && selectedButton != fingerColorsRadioButton) fingerColorsRadioButton.IsSelected = false;
+                if (heatmapRadioButton != null && selectedButton != heatmapRadioButton) heatmapRadioButton.IsSelected = false;
+            };
+
+            // Calculate button widths based on text
+            int buttonHeight = 30;
+            float regularWidth = FontManager.MeasureText(font, "Regular", 14) + 16 + 8; // text + radio + spacing
+            float fingerColorsWidth = FontManager.MeasureText(font, "Finger Colors", 14) + 16 + 8;
+            float heatmapWidth = FontManager.MeasureText(font, "Heatmap", 14) + 16 + 8;
+
+            regularRadioButton = new Components.RadioButton(font, "Regular", radioGroup, 14);
+            regularRadioButton.Bounds = new Rectangle(0, 0, regularWidth, buttonHeight);
+            regularRadioButton.AutoSize = false;
+            regularRadioButton.IsSelected = true; // Default selection
+            regularRadioButton!.OnSelectedInGroup = deselectOthers;
+            regularRadioButton.OnSelectedChanged = (selected) => {
+                if (selected)
+                {
+                    keyboardView.ViewMode = Components.KeyboardViewMode.Regular;
+                }
+            };
+
+            fingerColorsRadioButton = new Components.RadioButton(font, "Finger Colors", radioGroup, 14);
+            fingerColorsRadioButton.Bounds = new Rectangle(0, 0, fingerColorsWidth, buttonHeight);
+            fingerColorsRadioButton.AutoSize = false;
+            fingerColorsRadioButton!.OnSelectedInGroup = deselectOthers;
+            fingerColorsRadioButton.OnSelectedChanged = (selected) => {
+                if (selected)
+                {
+                    keyboardView.ViewMode = Components.KeyboardViewMode.FingerColors;
+                }
+            };
+
+            heatmapRadioButton = new Components.RadioButton(font, "Heatmap", radioGroup, 14);
+            heatmapRadioButton.Bounds = new Rectangle(0, 0, heatmapWidth, buttonHeight);
+            heatmapRadioButton.AutoSize = false;
+            heatmapRadioButton!.OnSelectedInGroup = deselectOthers;
+            heatmapRadioButton.OnSelectedChanged = (selected) => {
+                if (selected)
+                {
+                    keyboardView.ViewMode = Components.KeyboardViewMode.Heatmap;
+                    UpdateHeatmapData(); // Update heatmap data when selected
+                }
+            };
+
+            viewControlsContainer.AddChild(regularRadioButton);
+            viewControlsContainer.AddChild(fingerColorsRadioButton);
+            viewControlsContainer.AddChild(heatmapRadioButton);
 
             // Create canvas to hold the keyboard view
             keyboardCanvas = new Components.Canvas("KeyboardCanvas");
@@ -68,7 +151,23 @@ namespace Keysharp.UI
             
             keyboardCanvas.AddChild(keyboardView);
             tabContent.AddChild(titleLabel);
+            tabContent.AddChild(viewControlsContainer);
             tabContent.AddChild(keyboardCanvas);
+            
+            // Initially hide heatmap button (will be shown when corpus is loaded)
+            UpdateHeatmapButtonVisibility();
+        }
+
+        /// <summary>
+        /// Called when corpus is loaded or changed to update heatmap data and button visibility.
+        /// </summary>
+        public void OnCorpusChanged()
+        {
+            UpdateHeatmapButtonVisibility();
+            if (keyboardView.ViewMode == Components.KeyboardViewMode.Heatmap)
+            {
+                UpdateHeatmapData();
+            }
         }
 
         public void Update(Rectangle contentArea)
@@ -80,6 +179,12 @@ namespace Keysharp.UI
             // Set title label width to fill available space (accounting for padding)
             float availableWidth = contentArea.Width - (tabContent.ChildPadding * 2);
             titleLabel.Bounds = new Rectangle(0, 0, availableWidth, 40);
+
+            // Set view controls container width
+            if (viewControlsContainer != null)
+            {
+                viewControlsContainer.Bounds = new Rectangle(0, 0, availableWidth, 30);
+            }
 
             // Set keyboard view initial size calculation (width/height will be calculated in ResolveBounds)
             // We just need to trigger the initial calculation
@@ -141,6 +246,65 @@ namespace Keysharp.UI
             keyboardView.UpdateFont(newFont);
             // Update font in title label (would need UpdateFont in Label component)
             // For now, just update the keyboard view which is most visible
+        }
+
+        private void UpdateHeatmapButtonVisibility()
+        {
+            if (heatmapRadioButton == null)
+                return;
+
+            // Check if corpus is loaded (we'll need to add a method to check this)
+            bool hasCorpus = corpusTab != null && HasLoadedCorpus();
+            
+            heatmapRadioButton.IsVisible = hasCorpus;
+            
+            // If heatmap was selected but corpus was unloaded, switch to regular view
+            if (!hasCorpus && keyboardView.ViewMode == Components.KeyboardViewMode.Heatmap)
+            {
+                keyboardView.ViewMode = Components.KeyboardViewMode.Regular;
+                if (regularRadioButton != null)
+                {
+                    regularRadioButton.IsSelected = true;
+                    if (heatmapRadioButton.IsSelected)
+                    {
+                        heatmapRadioButton.IsSelected = false;
+                    }
+                }
+            }
+        }
+
+        private bool HasLoadedCorpus()
+        {
+            return corpusTab != null && corpusTab.HasLoadedCorpus;
+        }
+
+        /// <summary>
+        /// Updates the heatmap data from the loaded corpus's monograms.
+        /// Should be called when corpus is loaded or changed.
+        /// </summary>
+        public void UpdateHeatmapData()
+        {
+            if (corpusTab == null)
+            {
+                keyboardView.SetMonogramCounts(null);
+                return;
+            }
+
+            var corpus = corpusTab.LoadedCorpus;
+            if (corpus != null && corpus.IsLoaded)
+            {
+                var monograms = corpus.GetMonograms();
+                var counts = new Dictionary<string, long>();
+                foreach (var kvp in monograms.Counts)
+                {
+                    counts[kvp.Key] = kvp.Value;
+                }
+                keyboardView.SetMonogramCounts(counts);
+            }
+            else
+            {
+                keyboardView.SetMonogramCounts(null);
+            }
         }
     }
 }

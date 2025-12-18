@@ -56,6 +56,31 @@ namespace Keysharp.UI
         public Components.Dropdown? NgramSizeDropdown => ngramSizeDropdown;
         public RegexHelpScreen? RegexHelpScreen => regexHelpScreen;
 
+        /// <summary>
+        /// Gets whether a corpus is currently loaded.
+        /// </summary>
+        public bool HasLoadedCorpus => loadedCorpus != null && loadedCorpus.IsLoaded;
+
+        /// <summary>
+        /// Gets the loaded corpus, or null if no corpus is loaded.
+        /// </summary>
+        public Core.Corpus? LoadedCorpus => loadedCorpus;
+
+        private Action? onCorpusChanged;
+
+        /// <summary>
+        /// Sets a callback to be called when the corpus is loaded, unloaded, or changed.
+        /// </summary>
+        public void SetOnCorpusChanged(Action? callback)
+        {
+            onCorpusChanged = callback;
+        }
+
+        private void NotifyCorpusChanged()
+        {
+            onCorpusChanged?.Invoke();
+        }
+
         public void UpdateFont(Font newFont)
         {
             font = newFont;
@@ -493,6 +518,9 @@ namespace Keysharp.UI
                     {
                         saveCsvButton.IsVisible = false;
                     }
+
+                    // Notify layout tab that corpus changed (for heatmap updates)
+                    NotifyCorpusChanged();
                 }
             }
         }
@@ -1002,12 +1030,18 @@ namespace Keysharp.UI
 
                                     // Update n-gram table with loaded corpus
                                     UpdateNgramTable();
+
+                                    // Notify layout tab that corpus changed (for heatmap updates)
+                                    NotifyCorpusChanged();
                                 }
                                 catch (Exception ex)
                                 {
                                     System.Console.WriteLine($"Error loading corpus: {ex.Message}");
                                     loadedCorpus = null;
                                     UpdateNgramTable();
+
+                                    // Notify layout tab that corpus changed (for heatmap updates)
+                                    NotifyCorpusChanged();
 
                                     // Hide save CSV button on error
                                     if (saveCsvButton != null)

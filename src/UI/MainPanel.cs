@@ -80,12 +80,19 @@ namespace Keysharp.UI
             AddChild(tabContentContainer);
 
             // Create tab classes
+            corpusTab = new CorpusTab(font);
+            
             layoutTab = new LayoutTab(font);
             layoutTab.SidePanel = sidePanel; // Connect to side panel for key info display (may be null initially)
+            layoutTab.CorpusTab = corpusTab; // Connect to corpus tab for heatmap data
+            
+            // Notify layout tab when corpus changes
+            corpusTab.SetOnCorpusChanged(() => {
+                layoutTab?.OnCorpusChanged();
+            });
+            
             layoutTab.SetVisible(activeTabIndex == 0);
             tabContentContainer.AddChild(layoutTab.TabContent);
-
-            corpusTab = new CorpusTab(font);
             corpusTab.SetVisible(activeTabIndex == 1);
             tabContentContainer.AddChild(corpusTab.TabContent);
 
