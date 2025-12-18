@@ -289,6 +289,7 @@ namespace Keysharp.UI
             // Draw dropdown lists on top of everything
             corpusTab?.CorpusDropdown?.DrawDropdown();
             corpusTab?.NgramSizeDropdown?.DrawDropdown();
+            layoutTab?.LayoutsDropdown?.DrawDropdown();
         }
 
         public void DrawHelpScreen()

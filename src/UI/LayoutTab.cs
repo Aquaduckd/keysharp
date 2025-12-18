@@ -1,7 +1,10 @@
 using Raylib_cs;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 using Keysharp.Components;
 using Keysharp.Core;
 
@@ -17,6 +20,9 @@ namespace Keysharp.UI
         private Components.RadioButton? fingerColorsRadioButton;
         private Components.RadioButton? heatmapRadioButton;
         private Components.Checkbox? showDisabledCheckbox;
+        private Components.Button? saveLayoutButton;
+        private Components.Button? loadLayoutButton;
+        private Components.Dropdown? layoutsDropdown;
         private Components.Canvas keyboardCanvas;
         private Components.KeyboardLayoutView keyboardView;
         private Layout layout;
@@ -25,6 +31,7 @@ namespace Keysharp.UI
         private CorpusTab? corpusTab; // Reference to corpus tab for checking loaded corpus
 
         public Components.TabContent TabContent => tabContent;
+        public Components.Dropdown? LayoutsDropdown => layoutsDropdown;
 
         public SidePanel? SidePanel
         {
@@ -85,16 +92,35 @@ namespace Keysharp.UI
             viewControlsContainer.ChildJustification = Components.ChildJustification.SpaceBetween; // Space between radio buttons container and checkbox
             viewControlsContainer.PositionMode = Components.PositionMode.Relative;
 
-            // Create container for radio buttons (so they stay left-justified together)
-            radioButtonsContainer = new Components.Container("RadioButtonsContainer");
+            // Calculate button height (used for all controls)
+            int buttonHeight = 30;
+
+            // Create container for left-side controls (Load Layout, dropdown, and radio buttons)
+            radioButtonsContainer = new Components.Container("LeftControlsContainer");
             radioButtonsContainer.AutoLayoutChildren = true;
             radioButtonsContainer.LayoutDirection = Components.LayoutDirection.Horizontal;
             radioButtonsContainer.AutoSize = false;
-            radioButtonsContainer.Bounds = new Rectangle(0, 0, 0, 30); // Height to match controls
+            radioButtonsContainer.Bounds = new Rectangle(0, 0, 0, buttonHeight); // Height to match controls
             radioButtonsContainer.ChildPadding = 0;
             radioButtonsContainer.ChildGap = 15;
-            radioButtonsContainer.ChildJustification = Components.ChildJustification.Left; // Left-justify radio buttons
+            radioButtonsContainer.ChildJustification = Components.ChildJustification.Left; // Left-justify controls
             radioButtonsContainer.PositionMode = Components.PositionMode.Relative;
+
+            // Create Load Layout button (first item on left)
+            loadLayoutButton = new Components.Button(font, "Load Layout", 14);
+            loadLayoutButton.Bounds = new Rectangle(0, 0, 120, buttonHeight);
+            loadLayoutButton.AutoSize = false;
+            loadLayoutButton.OnClick = LoadLayoutFromFile;
+            radioButtonsContainer.AddChild(loadLayoutButton);
+
+            // Initialize layouts dropdown (second item on left)
+            List<string> layoutFiles = GetLayoutFiles();
+            layoutsDropdown = new Components.Dropdown(font, layoutFiles, 14);
+            layoutsDropdown.SetBounds(new Rectangle(0, 0, 200, buttonHeight));
+            layoutsDropdown.AutoSize = false;
+            layoutsDropdown.OnSelectionChanged = OnLayoutSelected;
+            radioButtonsContainer.AddChild(layoutsDropdown);
+
             viewControlsContainer.AddChild(radioButtonsContainer);
 
             // Create radio buttons for view modes
@@ -108,7 +134,6 @@ namespace Keysharp.UI
             };
 
             // Calculate button widths based on text
-            int buttonHeight = 30;
             float regularWidth = FontManager.MeasureText(font, "Regular", 14) + 16 + 8; // text + radio + spacing
             float fingerColorsWidth = FontManager.MeasureText(font, "Finger Colors", 14) + 16 + 8;
             float heatmapWidth = FontManager.MeasureText(font, "Heatmap", 14) + 16 + 8;
@@ -158,7 +183,25 @@ namespace Keysharp.UI
             radioButtonsContainer.AddChild(fingerColorsRadioButton);
             radioButtonsContainer.AddChild(heatmapRadioButton);
 
-            // Create checkbox for showing disabled keys (right-justified)
+            // Create container for right-side controls (Save Layout button and Show Disabled checkbox)
+            var rightControlsContainer = new Components.Container("RightControlsContainer");
+            rightControlsContainer.AutoLayoutChildren = true;
+            rightControlsContainer.LayoutDirection = Components.LayoutDirection.Horizontal;
+            rightControlsContainer.AutoSize = false;
+            rightControlsContainer.Bounds = new Rectangle(0, 0, 0, buttonHeight);
+            rightControlsContainer.ChildPadding = 0;
+            rightControlsContainer.ChildGap = 15;
+            rightControlsContainer.ChildJustification = Components.ChildJustification.Right;
+            rightControlsContainer.PositionMode = Components.PositionMode.Relative;
+
+            // Create Save Layout button (first item on right)
+            saveLayoutButton = new Components.Button(font, "Save Layout", 14);
+            saveLayoutButton.Bounds = new Rectangle(0, 0, 120, buttonHeight);
+            saveLayoutButton.AutoSize = false;
+            saveLayoutButton.OnClick = SaveLayoutToJson;
+            rightControlsContainer.AddChild(saveLayoutButton);
+
+            // Create checkbox for showing disabled keys (last item on right)
             float showDisabledWidth = FontManager.MeasureText(font, "Show Disabled", 14) + 16 + 8; // text + checkbox + spacing
             showDisabledCheckbox = new Components.Checkbox(font, "Show Disabled", 14);
             showDisabledCheckbox.Bounds = new Rectangle(0, 0, showDisabledWidth, buttonHeight);
@@ -167,7 +210,9 @@ namespace Keysharp.UI
             showDisabledCheckbox.OnCheckedChanged = (isChecked) => {
                 keyboardView.ShowDisabledKeys = isChecked;
             };
-            viewControlsContainer.AddChild(showDisabledCheckbox);
+            rightControlsContainer.AddChild(showDisabledCheckbox);
+
+            viewControlsContainer.AddChild(rightControlsContainer);
 
             // Initially hide the checkbox if there are no disabled keys
             UpdateShowDisabledCheckboxVisibility();
@@ -368,6 +413,185 @@ namespace Keysharp.UI
             else
             {
                 keyboardView.SetMonogramCounts(null);
+            }
+        }
+
+        private List<string> GetLayoutFiles()
+        {
+            List<string> files = new List<string>();
+            string layoutDir = Path.Combine(Directory.GetCurrentDirectory(), "layouts");
+
+            if (Directory.Exists(layoutDir))
+            {
+                var jsonFiles = Directory.GetFiles(layoutDir, "*.json")
+                    .Select(f => Path.GetFileName(f))
+                    .OrderBy(f => f)
+                    .ToList();
+                files.AddRange(jsonFiles);
+            }
+
+            return files;
+        }
+
+        private void SaveLayoutToJson()
+        {
+            if (layout == null)
+                return;
+
+            try
+            {
+                // Use zenity for file save dialog on Linux
+                ProcessStartInfo startInfo = new ProcessStartInfo
+                {
+                    FileName = "zenity",
+                    Arguments = "--file-selection --title=\"Save Layout File\" --save --confirm-overwrite",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    CreateNoWindow = true
+                };
+
+                Process? process = Process.Start(startInfo);
+                if (process != null)
+                {
+                    string? output = process.StandardOutput.ReadToEnd();
+                    process.WaitForExit();
+
+                    if (process.ExitCode == 0 && !string.IsNullOrWhiteSpace(output))
+                    {
+                        string filePath = output.Trim();
+                        if (!filePath.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+                        {
+                            filePath += ".json";
+                        }
+
+                        // Convert layout to JSON DTO
+                        var layoutJson = LayoutJson.FromLayout(layout);
+
+                        // Serialize to JSON
+                        var options = new JsonSerializerOptions
+                        {
+                            WriteIndented = true
+                        };
+                        string json = JsonSerializer.Serialize(layoutJson, options);
+
+                        // Write JSON file
+                        File.WriteAllText(filePath, json);
+
+                        System.Console.WriteLine($"Layout saved to: {filePath}");
+
+                        // Refresh layouts dropdown
+                        RefreshLayoutsDropdown();
+                    }
+                    else
+                    {
+                        System.Console.WriteLine("Layout save cancelled");
+                    }
+                }
+                else
+                {
+                    System.Console.WriteLine("zenity not available for file save dialog");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"Error saving layout: {ex.Message}");
+            }
+        }
+
+        private void LoadLayoutFromFile()
+        {
+            try
+            {
+                // Use zenity for file open dialog on Linux
+                ProcessStartInfo startInfo = new ProcessStartInfo
+                {
+                    FileName = "zenity",
+                    Arguments = "--file-selection --title=\"Load Layout File\"",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    CreateNoWindow = true
+                };
+
+                Process? process = Process.Start(startInfo);
+                if (process != null)
+                {
+                    string? output = process.StandardOutput.ReadToEnd();
+                    process.WaitForExit();
+
+                    if (process.ExitCode == 0 && !string.IsNullOrWhiteSpace(output))
+                    {
+                        string filePath = output.Trim();
+                        LoadLayoutFromPath(filePath);
+                    }
+                    else
+                    {
+                        System.Console.WriteLine("Layout load cancelled");
+                    }
+                }
+                else
+                {
+                    System.Console.WriteLine("zenity not available for file open dialog");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"Error loading layout: {ex.Message}");
+            }
+        }
+
+        private void OnLayoutSelected(string layoutFile)
+        {
+            string layoutDir = Path.Combine(Directory.GetCurrentDirectory(), "layouts");
+            string fullPath = Path.Combine(layoutDir, layoutFile);
+
+            if (File.Exists(fullPath))
+            {
+                LoadLayoutFromPath(fullPath);
+            }
+        }
+
+        private void LoadLayoutFromPath(string filePath)
+        {
+            try
+            {
+                // Read JSON file
+                string json = File.ReadAllText(filePath);
+
+                // Deserialize JSON
+                var layoutJson = JsonSerializer.Deserialize<LayoutJson>(json);
+                if (layoutJson == null)
+                {
+                    System.Console.WriteLine("Failed to deserialize layout JSON");
+                    return;
+                }
+
+                // Convert JSON DTO to Layout
+                var newLayout = layoutJson.ToLayout();
+
+                // Update the current layout
+                layout = newLayout;
+                keyboardView.Layout = layout;
+
+                // Update side panel if a key was selected
+                sidePanel?.SetLayout(layout);
+
+                System.Console.WriteLine($"Layout loaded from: {filePath}");
+
+                // Update show disabled checkbox visibility
+                UpdateShowDisabledCheckboxVisibility();
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"Error loading layout: {ex.Message}");
+            }
+        }
+
+        private void RefreshLayoutsDropdown()
+        {
+            if (layoutsDropdown != null)
+            {
+                List<string> layoutFiles = GetLayoutFiles();
+                layoutsDropdown.SetItems(layoutFiles);
             }
         }
     }

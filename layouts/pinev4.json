@@ -1,0 +1,1009 @@
+{
+  "keys": [
+    {
+      "x": 0,
+      "y": 0,
+      "width": 1,
+      "height": 1,
+      "finger": 0,
+      "identifier": "\u0060",
+      "primaryCharacter": "\u0060",
+      "shiftCharacter": "~",
+      "disabled": false
+    },
+    {
+      "x": 1,
+      "y": 0,
+      "width": 1,
+      "height": 1,
+      "finger": 0,
+      "identifier": "1",
+      "primaryCharacter": "1",
+      "shiftCharacter": "!",
+      "disabled": false
+    },
+    {
+      "x": 2,
+      "y": 0,
+      "width": 1,
+      "height": 1,
+      "finger": 1,
+      "identifier": "2",
+      "primaryCharacter": "2",
+      "shiftCharacter": "@",
+      "disabled": false
+    },
+    {
+      "x": 3,
+      "y": 0,
+      "width": 1,
+      "height": 1,
+      "finger": 2,
+      "identifier": "3",
+      "primaryCharacter": "3",
+      "shiftCharacter": "#",
+      "disabled": false
+    },
+    {
+      "x": 4,
+      "y": 0,
+      "width": 1,
+      "height": 1,
+      "finger": 3,
+      "identifier": "4",
+      "primaryCharacter": "4",
+      "shiftCharacter": "$",
+      "disabled": false
+    },
+    {
+      "x": 5,
+      "y": 0,
+      "width": 1,
+      "height": 1,
+      "finger": 3,
+      "identifier": "5",
+      "primaryCharacter": "5",
+      "shiftCharacter": "%",
+      "disabled": false
+    },
+    {
+      "x": 6,
+      "y": 0,
+      "width": 1,
+      "height": 1,
+      "finger": 6,
+      "identifier": "6",
+      "primaryCharacter": "6",
+      "shiftCharacter": "^",
+      "disabled": false
+    },
+    {
+      "x": 7,
+      "y": 0,
+      "width": 1,
+      "height": 1,
+      "finger": 6,
+      "identifier": "7",
+      "primaryCharacter": "7",
+      "shiftCharacter": "\u0026",
+      "disabled": false
+    },
+    {
+      "x": 8,
+      "y": 0,
+      "width": 1,
+      "height": 1,
+      "finger": 7,
+      "identifier": "8",
+      "primaryCharacter": "8",
+      "shiftCharacter": "*",
+      "disabled": false
+    },
+    {
+      "x": 9,
+      "y": 0,
+      "width": 1,
+      "height": 1,
+      "finger": 8,
+      "identifier": "9",
+      "primaryCharacter": "9",
+      "shiftCharacter": "(",
+      "disabled": false
+    },
+    {
+      "x": 10,
+      "y": 0,
+      "width": 1,
+      "height": 1,
+      "finger": 9,
+      "identifier": "0",
+      "primaryCharacter": "0",
+      "shiftCharacter": ")",
+      "disabled": false
+    },
+    {
+      "x": 11,
+      "y": 0,
+      "width": 1,
+      "height": 1,
+      "finger": 9,
+      "identifier": "-",
+      "primaryCharacter": "-",
+      "shiftCharacter": "_",
+      "disabled": false
+    },
+    {
+      "x": 12,
+      "y": 0,
+      "width": 1,
+      "height": 1,
+      "finger": 9,
+      "identifier": "=",
+      "primaryCharacter": "=",
+      "shiftCharacter": "\u002B",
+      "disabled": false
+    },
+    {
+      "x": 13,
+      "y": 0,
+      "width": 2,
+      "height": 1,
+      "finger": 9,
+      "identifier": "Backspace",
+      "primaryCharacter": null,
+      "shiftCharacter": null,
+      "disabled": false
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "width": 1.5,
+      "height": 1,
+      "finger": 0,
+      "identifier": "Tab",
+      "primaryCharacter": null,
+      "shiftCharacter": null,
+      "disabled": false
+    },
+    {
+      "x": 1.5,
+      "y": 1,
+      "width": 1,
+      "height": 1,
+      "finger": 0,
+      "identifier": "Q",
+      "primaryCharacter": "q",
+      "shiftCharacter": "Q",
+      "disabled": false
+    },
+    {
+      "x": 2.5,
+      "y": 1,
+      "width": 1,
+      "height": 1,
+      "finger": 1,
+      "identifier": "L",
+      "primaryCharacter": "l",
+      "shiftCharacter": "L",
+      "disabled": false
+    },
+    {
+      "x": 3.5,
+      "y": 1,
+      "width": 1,
+      "height": 1,
+      "finger": 2,
+      "identifier": "C",
+      "primaryCharacter": "c",
+      "shiftCharacter": "C",
+      "disabled": false
+    },
+    {
+      "x": 4.5,
+      "y": 1,
+      "width": 1,
+      "height": 1,
+      "finger": 3,
+      "identifier": "M",
+      "primaryCharacter": "m",
+      "shiftCharacter": "M",
+      "disabled": false
+    },
+    {
+      "x": 5.5,
+      "y": 1,
+      "width": 1,
+      "height": 1,
+      "finger": 3,
+      "identifier": "K",
+      "primaryCharacter": "k",
+      "shiftCharacter": "K",
+      "disabled": false
+    },
+    {
+      "x": 6.5,
+      "y": 1,
+      "width": 1,
+      "height": 1,
+      "finger": 6,
+      "identifier": "\u0027",
+      "primaryCharacter": "\u0027",
+      "shiftCharacter": "\u0022",
+      "disabled": false
+    },
+    {
+      "x": 7.5,
+      "y": 1,
+      "width": 1,
+      "height": 1,
+      "finger": 6,
+      "identifier": "F",
+      "primaryCharacter": "f",
+      "shiftCharacter": "F",
+      "disabled": false
+    },
+    {
+      "x": 8.5,
+      "y": 1,
+      "width": 1,
+      "height": 1,
+      "finger": 7,
+      "identifier": "U",
+      "primaryCharacter": "u",
+      "shiftCharacter": "U",
+      "disabled": false
+    },
+    {
+      "x": 9.5,
+      "y": 1,
+      "width": 1,
+      "height": 1,
+      "finger": 8,
+      "identifier": "O",
+      "primaryCharacter": "o",
+      "shiftCharacter": "O",
+      "disabled": false
+    },
+    {
+      "x": 10.5,
+      "y": 1,
+      "width": 1,
+      "height": 1,
+      "finger": 9,
+      "identifier": "Y",
+      "primaryCharacter": "y",
+      "shiftCharacter": "Y",
+      "disabled": false
+    },
+    {
+      "x": 11.5,
+      "y": 1,
+      "width": 1,
+      "height": 1,
+      "finger": 9,
+      "identifier": "[",
+      "primaryCharacter": "[",
+      "shiftCharacter": "{",
+      "disabled": false
+    },
+    {
+      "x": 12.5,
+      "y": 1,
+      "width": 1,
+      "height": 1,
+      "finger": 9,
+      "identifier": "]",
+      "primaryCharacter": "]",
+      "shiftCharacter": "}",
+      "disabled": false
+    },
+    {
+      "x": 13.5,
+      "y": 1,
+      "width": 1.5,
+      "height": 1,
+      "finger": 9,
+      "identifier": "\\",
+      "primaryCharacter": "\\",
+      "shiftCharacter": "|",
+      "disabled": false
+    },
+    {
+      "x": 0,
+      "y": 2,
+      "width": 1.75,
+      "height": 1,
+      "finger": 0,
+      "identifier": "Caps",
+      "primaryCharacter": null,
+      "shiftCharacter": null,
+      "disabled": false
+    },
+    {
+      "x": 1.75,
+      "y": 2,
+      "width": 1,
+      "height": 1,
+      "finger": 0,
+      "identifier": "N",
+      "primaryCharacter": "n",
+      "shiftCharacter": "N",
+      "disabled": false
+    },
+    {
+      "x": 2.75,
+      "y": 2,
+      "width": 1,
+      "height": 1,
+      "finger": 1,
+      "identifier": "R",
+      "primaryCharacter": "r",
+      "shiftCharacter": "R",
+      "disabled": false
+    },
+    {
+      "x": 3.75,
+      "y": 2,
+      "width": 1,
+      "height": 1,
+      "finger": 2,
+      "identifier": "S",
+      "primaryCharacter": "s",
+      "shiftCharacter": "S",
+      "disabled": false
+    },
+    {
+      "x": 4.75,
+      "y": 2,
+      "width": 1,
+      "height": 1,
+      "finger": 3,
+      "identifier": "T",
+      "primaryCharacter": "t",
+      "shiftCharacter": "T",
+      "disabled": false
+    },
+    {
+      "x": 5.75,
+      "y": 2,
+      "width": 1,
+      "height": 1,
+      "finger": 3,
+      "identifier": "W",
+      "primaryCharacter": "w",
+      "shiftCharacter": "W",
+      "disabled": false
+    },
+    {
+      "x": 6.75,
+      "y": 2,
+      "width": 1,
+      "height": 1,
+      "finger": 6,
+      "identifier": "P",
+      "primaryCharacter": "p",
+      "shiftCharacter": "P",
+      "disabled": false
+    },
+    {
+      "x": 7.75,
+      "y": 2,
+      "width": 1,
+      "height": 1,
+      "finger": 6,
+      "identifier": "H",
+      "primaryCharacter": "h",
+      "shiftCharacter": "H",
+      "disabled": false
+    },
+    {
+      "x": 8.75,
+      "y": 2,
+      "width": 1,
+      "height": 1,
+      "finger": 7,
+      "identifier": "E",
+      "primaryCharacter": "e",
+      "shiftCharacter": "E",
+      "disabled": false
+    },
+    {
+      "x": 9.75,
+      "y": 2,
+      "width": 1,
+      "height": 1,
+      "finger": 8,
+      "identifier": "A",
+      "primaryCharacter": "a",
+      "shiftCharacter": "A",
+      "disabled": false
+    },
+    {
+      "x": 10.75,
+      "y": 2,
+      "width": 1,
+      "height": 1,
+      "finger": 9,
+      "identifier": "I",
+      "primaryCharacter": "i",
+      "shiftCharacter": "I",
+      "disabled": false
+    },
+    {
+      "x": 11.75,
+      "y": 2,
+      "width": 1,
+      "height": 1,
+      "finger": 9,
+      "identifier": "/",
+      "primaryCharacter": "/",
+      "shiftCharacter": "?",
+      "disabled": false
+    },
+    {
+      "x": 12.75,
+      "y": 2,
+      "width": 2.25,
+      "height": 1,
+      "finger": 9,
+      "identifier": "Enter",
+      "primaryCharacter": null,
+      "shiftCharacter": null,
+      "disabled": false
+    },
+    {
+      "x": 0,
+      "y": 3,
+      "width": 2.25,
+      "height": 1,
+      "finger": 0,
+      "identifier": "LShift",
+      "primaryCharacter": null,
+      "shiftCharacter": null,
+      "disabled": false
+    },
+    {
+      "x": 2.25,
+      "y": 3,
+      "width": 1,
+      "height": 1,
+      "finger": 0,
+      "identifier": "J",
+      "primaryCharacter": "j",
+      "shiftCharacter": "J",
+      "disabled": false
+    },
+    {
+      "x": 3.25,
+      "y": 3,
+      "width": 1,
+      "height": 1,
+      "finger": 1,
+      "identifier": "X",
+      "primaryCharacter": "x",
+      "shiftCharacter": "X",
+      "disabled": false
+    },
+    {
+      "x": 4.25,
+      "y": 3,
+      "width": 1,
+      "height": 1,
+      "finger": 2,
+      "identifier": "Z",
+      "primaryCharacter": "z",
+      "shiftCharacter": "Z",
+      "disabled": false
+    },
+    {
+      "x": 5.25,
+      "y": 3,
+      "width": 1,
+      "height": 1,
+      "finger": 3,
+      "identifier": "G",
+      "primaryCharacter": "g",
+      "shiftCharacter": "G",
+      "disabled": false
+    },
+    {
+      "x": 6.25,
+      "y": 3,
+      "width": 1,
+      "height": 1,
+      "finger": 3,
+      "identifier": "V",
+      "primaryCharacter": "v",
+      "shiftCharacter": "V",
+      "disabled": false
+    },
+    {
+      "x": 7.25,
+      "y": 3,
+      "width": 1,
+      "height": 1,
+      "finger": 6,
+      "identifier": "B",
+      "primaryCharacter": "b",
+      "shiftCharacter": "B",
+      "disabled": false
+    },
+    {
+      "x": 8.25,
+      "y": 3,
+      "width": 1,
+      "height": 1,
+      "finger": 6,
+      "identifier": "D",
+      "primaryCharacter": "d",
+      "shiftCharacter": "D",
+      "disabled": false
+    },
+    {
+      "x": 9.25,
+      "y": 3,
+      "width": 1,
+      "height": 1,
+      "finger": 7,
+      "identifier": ";",
+      "primaryCharacter": ";",
+      "shiftCharacter": ":",
+      "disabled": false
+    },
+    {
+      "x": 10.25,
+      "y": 3,
+      "width": 1,
+      "height": 1,
+      "finger": 8,
+      "identifier": ",",
+      "primaryCharacter": ",",
+      "shiftCharacter": "\u003C",
+      "disabled": false
+    },
+    {
+      "x": 11.25,
+      "y": 3,
+      "width": 1,
+      "height": 1,
+      "finger": 9,
+      "identifier": ".",
+      "primaryCharacter": ".",
+      "shiftCharacter": "\u003E",
+      "disabled": false
+    },
+    {
+      "x": 12.25,
+      "y": 3,
+      "width": 2.75,
+      "height": 1,
+      "finger": 9,
+      "identifier": "RShift",
+      "primaryCharacter": null,
+      "shiftCharacter": null,
+      "disabled": false
+    },
+    {
+      "x": 0,
+      "y": 4,
+      "width": 1.25,
+      "height": 1,
+      "finger": 0,
+      "identifier": "LCtrl",
+      "primaryCharacter": null,
+      "shiftCharacter": null,
+      "disabled": false
+    },
+    {
+      "x": 1.25,
+      "y": 4,
+      "width": 1.25,
+      "height": 1,
+      "finger": 1,
+      "identifier": "LWin",
+      "primaryCharacter": null,
+      "shiftCharacter": null,
+      "disabled": false
+    },
+    {
+      "x": 2.5,
+      "y": 4,
+      "width": 1.25,
+      "height": 1,
+      "finger": 4,
+      "identifier": "LAlt",
+      "primaryCharacter": null,
+      "shiftCharacter": null,
+      "disabled": false
+    },
+    {
+      "x": 3.75,
+      "y": 4,
+      "width": 6.25,
+      "height": 1,
+      "finger": 5,
+      "identifier": "Space",
+      "primaryCharacter": " ",
+      "shiftCharacter": null,
+      "disabled": false
+    },
+    {
+      "x": 10,
+      "y": 4,
+      "width": 1.25,
+      "height": 1,
+      "finger": 5,
+      "identifier": "RAlt",
+      "primaryCharacter": null,
+      "shiftCharacter": null,
+      "disabled": false
+    },
+    {
+      "x": 11.25,
+      "y": 4,
+      "width": 1.25,
+      "height": 1,
+      "finger": 8,
+      "identifier": "Menu",
+      "primaryCharacter": null,
+      "shiftCharacter": null,
+      "disabled": false
+    },
+    {
+      "x": 12.5,
+      "y": 4,
+      "width": 1.25,
+      "height": 1,
+      "finger": 8,
+      "identifier": "Fn",
+      "primaryCharacter": null,
+      "shiftCharacter": null,
+      "disabled": false
+    },
+    {
+      "x": 13.75,
+      "y": 4,
+      "width": 1.25,
+      "height": 1,
+      "finger": 9,
+      "identifier": "RCtrl",
+      "primaryCharacter": null,
+      "shiftCharacter": null,
+      "disabled": false
+    }
+  ],
+  "mappings": {
+    "\u0060": [
+      "\u0060"
+    ],
+    "~": [
+      "LShift",
+      "\u0060"
+    ],
+    "1": [
+      "1"
+    ],
+    "!": [
+      "LShift",
+      "1"
+    ],
+    "2": [
+      "2"
+    ],
+    "@": [
+      "LShift",
+      "2"
+    ],
+    "3": [
+      "3"
+    ],
+    "#": [
+      "LShift",
+      "3"
+    ],
+    "4": [
+      "4"
+    ],
+    "$": [
+      "LShift",
+      "4"
+    ],
+    "5": [
+      "5"
+    ],
+    "%": [
+      "LShift",
+      "5"
+    ],
+    "6": [
+      "6"
+    ],
+    "^": [
+      "LShift",
+      "6"
+    ],
+    "7": [
+      "7"
+    ],
+    "\u0026": [
+      "LShift",
+      "7"
+    ],
+    "8": [
+      "8"
+    ],
+    "*": [
+      "LShift",
+      "8"
+    ],
+    "9": [
+      "9"
+    ],
+    "(": [
+      "LShift",
+      "9"
+    ],
+    "0": [
+      "0"
+    ],
+    ")": [
+      "LShift",
+      "0"
+    ],
+    "-": [
+      "-"
+    ],
+    "_": [
+      "LShift",
+      "-"
+    ],
+    "=": [
+      "="
+    ],
+    "\u002B": [
+      "LShift",
+      "="
+    ],
+    "q": [
+      "Q"
+    ],
+    "Q": [
+      "LShift",
+      "Q"
+    ],
+    "l": [
+      "L"
+    ],
+    "L": [
+      "LShift",
+      "L"
+    ],
+    "c": [
+      "C"
+    ],
+    "C": [
+      "LShift",
+      "C"
+    ],
+    "m": [
+      "M"
+    ],
+    "M": [
+      "LShift",
+      "M"
+    ],
+    "k": [
+      "K"
+    ],
+    "K": [
+      "LShift",
+      "K"
+    ],
+    "\u0027": [
+      "\u0027"
+    ],
+    "\u0022": [
+      "LShift",
+      "\u0027"
+    ],
+    "f": [
+      "F"
+    ],
+    "F": [
+      "LShift",
+      "F"
+    ],
+    "u": [
+      "U"
+    ],
+    "U": [
+      "LShift",
+      "U"
+    ],
+    "o": [
+      "O"
+    ],
+    "O": [
+      "LShift",
+      "O"
+    ],
+    "y": [
+      "Y"
+    ],
+    "Y": [
+      "LShift",
+      "Y"
+    ],
+    "[": [
+      "["
+    ],
+    "{": [
+      "LShift",
+      "["
+    ],
+    "]": [
+      "]"
+    ],
+    "}": [
+      "LShift",
+      "]"
+    ],
+    "\\": [
+      "\\"
+    ],
+    "|": [
+      "LShift",
+      "\\"
+    ],
+    "n": [
+      "N"
+    ],
+    "N": [
+      "LShift",
+      "N"
+    ],
+    "r": [
+      "R"
+    ],
+    "R": [
+      "LShift",
+      "R"
+    ],
+    "s": [
+      "S"
+    ],
+    "S": [
+      "LShift",
+      "S"
+    ],
+    "t": [
+      "T"
+    ],
+    "T": [
+      "LShift",
+      "T"
+    ],
+    "w": [
+      "W"
+    ],
+    "W": [
+      "LShift",
+      "W"
+    ],
+    "p": [
+      "P"
+    ],
+    "P": [
+      "LShift",
+      "P"
+    ],
+    "h": [
+      "H"
+    ],
+    "H": [
+      "LShift",
+      "H"
+    ],
+    "e": [
+      "E"
+    ],
+    "E": [
+      "LShift",
+      "E"
+    ],
+    "a": [
+      "A"
+    ],
+    "A": [
+      "LShift",
+      "A"
+    ],
+    "i": [
+      "I"
+    ],
+    "I": [
+      "LShift",
+      "I"
+    ],
+    "/": [
+      "/"
+    ],
+    "?": [
+      "LShift",
+      "/"
+    ],
+    "j": [
+      "J"
+    ],
+    "J": [
+      "LShift",
+      "J"
+    ],
+    "x": [
+      "X"
+    ],
+    "X": [
+      "LShift",
+      "X"
+    ],
+    "z": [
+      "Z"
+    ],
+    "Z": [
+      "LShift",
+      "Z"
+    ],
+    "g": [
+      "G"
+    ],
+    "G": [
+      "LShift",
+      "G"
+    ],
+    "v": [
+      "V"
+    ],
+    "V": [
+      "LShift",
+      "V"
+    ],
+    "b": [
+      "B"
+    ],
+    "B": [
+      "LShift",
+      "B"
+    ],
+    "d": [
+      "D"
+    ],
+    "D": [
+      "LShift",
+      "D"
+    ],
+    ";": [
+      ";"
+    ],
+    ":": [
+      "LShift",
+      ";"
+    ],
+    ",": [
+      ","
+    ],
+    "\u003C": [
+      "LShift",
+      ","
+    ],
+    ".": [
+      "."
+    ],
+    "\u003E": [
+      "LShift",
+      "."
+    ],
+    " ": [
+      "Space"
+    ]
+  }
+}

@@ -113,6 +113,20 @@ namespace Keysharp.Core
         public int MappingCount => _stringToKeys.Count;
 
         /// <summary>
+        /// Gets all string-to-keys mappings in this layout.
+        /// </summary>
+        /// <returns>A dictionary mapping strings to their key sequences</returns>
+        public Dictionary<string, List<PhysicalKey>> GetAllMappings()
+        {
+            var result = new Dictionary<string, List<PhysicalKey>>();
+            foreach (var kvp in _stringToKeys)
+            {
+                result[kvp.Key] = new List<PhysicalKey>(kvp.Value);
+            }
+            return result;
+        }
+
+        /// <summary>
         /// Gets the number of physical keys in this layout.
         /// </summary>
         public int PhysicalKeyCount => _physicalKeys.Count;
