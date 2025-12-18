@@ -11,7 +11,7 @@ namespace Keysharp.UI
         private Components.Container? keyInfoContainer;
         private Components.Label? titleLabel;
         private Components.Label? identifierLabel;
-        private Components.Label? identifierValue;
+        private Components.TextInput? identifierInput;
         private Components.Label? positionLabel;
         private Components.TextInput? positionXInput;
         private Components.TextInput? positionYInput;
@@ -26,6 +26,7 @@ namespace Keysharp.UI
         private Components.TextInput? shiftCharacterInput;
         private Components.Label? disabledLabel;
         private Components.Checkbox? disabledCheckbox;
+        private Components.Button? deleteKeyButton;
         private Components.Label? placeholderLabel;
         private Keysharp.Core.PhysicalKey? selectedKey;
         private Core.Layout? layout; // Reference to layout for rebuilding mappings
@@ -179,10 +180,16 @@ namespace Keysharp.UI
             titleLabel.PositionMode = Components.PositionMode.Relative;
             keyInfoContainer.AddChild(titleLabel);
 
-            // Create identifier row
-            var identifierRow = CreateInfoRow(font, "Identifier:", "None");
+            // Create identifier row (editable)
+            var identifierRow = CreateInfoRowWithInput(font, "Identifier:");
             identifierLabel = identifierRow.label;
-            identifierValue = identifierRow.value;
+            identifierInput = identifierRow.input;
+            identifierInput.OnTextChanged = (text) => {
+                if (!isUpdatingFromKey && selectedKey != null)
+                {
+                    selectedKey.Identifier = string.IsNullOrEmpty(text) ? null : text;
+                }
+            };
             keyInfoContainer.AddChild(identifierRow.container);
 
             // Create position row with two inputs (X and Y)
@@ -362,6 +369,38 @@ namespace Keysharp.UI
                 }
             };
             keyInfoContainer.AddChild(disabledRow.container);
+
+            // Create delete key button (only visible when a key is selected)
+            var deleteKeyButton = new Components.Button(Font, "Delete Key", 14);
+            deleteKeyButton.Bounds = new Rectangle(0, 0, 0, 30);
+            deleteKeyButton.AutoSize = true;
+            deleteKeyButton.PositionMode = Components.PositionMode.Relative;
+            deleteKeyButton.IsVisible = false; // Initially hidden
+            deleteKeyButton.OnClick = () => {
+                if (selectedKey != null && layout != null)
+                {
+                    // Remove the key from the layout
+                    layout.RemovePhysicalKey(selectedKey);
+                    // Rebuild mappings after removing key
+                    layout.RebuildMappings();
+                    // Clear selection
+                    selectedKey = null;
+                    // Notify keyboard view to clear selection
+                    if (keyboardView != null)
+                    {
+                        keyboardView.SelectedKey = null;
+                    }
+                    // Update UI to reflect no key selected
+                    UpdateKeyInfo();
+                    // Invalidate keyboard view cache to force redraw
+                    if (keyboardView != null && layout != null)
+                    {
+                        keyboardView.Layout = layout; // This will trigger cache clear
+                    }
+                }
+            };
+            keyInfoContainer.AddChild(deleteKeyButton);
+            this.deleteKeyButton = deleteKeyButton; // Store reference
 
             // Initially show placeholder, hide info rows
             UpdateKeyInfo();
@@ -743,6 +782,12 @@ namespace Keysharp.UI
         private void UpdateKeyInfo()
         {
             bool hasKey = selectedKey != null;
+            
+            // Show/hide delete button based on whether a key is selected
+            if (deleteKeyButton != null)
+            {
+                deleteKeyButton.IsVisible = hasKey;
+            }
 
             // Show/hide placeholder and info rows
             if (placeholderLabel != null)
@@ -755,13 +800,15 @@ namespace Keysharp.UI
                 titleLabel.IsVisible = hasKey;
             }
 
-            if (identifierLabel != null && identifierValue != null)
+            if (identifierLabel != null && identifierInput != null)
             {
                 identifierLabel.IsVisible = hasKey;
-                identifierValue.IsVisible = hasKey;
+                identifierInput.IsVisible = hasKey;
                 if (hasKey && selectedKey != null)
                 {
-                    identifierValue.SetText(selectedKey.Identifier ?? "None");
+                    isUpdatingFromKey = true;
+                    identifierInput.SetText(selectedKey.Identifier ?? "");
+                    isUpdatingFromKey = false;
                 }
             }
 
@@ -925,10 +972,10 @@ namespace Keysharp.UI
                 float labelWidth = 90;
                 float valueWidth = availableWidth - labelWidth - 8; // 8 is gap between label and value
 
-                if (identifierLabel != null && identifierValue != null)
+                if (identifierLabel != null && identifierInput != null)
                 {
                     identifierLabel.SetSize(labelWidth, 18);
-                    identifierValue.SetSize(valueWidth, 18);
+                    identifierInput.SetSize(valueWidth, 24);
                 }
 
                 if (positionLabel != null && positionXInput != null && positionYInput != null)

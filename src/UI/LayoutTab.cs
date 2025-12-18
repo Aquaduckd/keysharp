@@ -22,6 +22,7 @@ namespace Keysharp.UI
         private Components.Checkbox? showDisabledCheckbox;
         private Components.Button? saveLayoutButton;
         private Components.Button? loadLayoutButton;
+        private Components.Button? addKeyButton;
         private Components.Dropdown? layoutsDropdown;
         private Components.Canvas keyboardCanvas;
         private string? initialLayoutFile = null; // Track which file was initially loaded
@@ -263,6 +264,13 @@ namespace Keysharp.UI
             saveLayoutButton.AutoSize = false;
             saveLayoutButton.OnClick = SaveLayoutToJson;
             rightControlsContainer.AddChild(saveLayoutButton);
+
+            // Create Add Key button (after Save Layout)
+            addKeyButton = new Components.Button(font, "Add Key", 14);
+            addKeyButton.Bounds = new Rectangle(0, 0, 100, buttonHeight);
+            addKeyButton.AutoSize = false;
+            addKeyButton.OnClick = AddNewKey;
+            rightControlsContainer.AddChild(addKeyButton);
 
             // Create checkbox for showing disabled keys (last item on right)
             float showDisabledWidth = FontManager.MeasureText(font, "Show Disabled", 14) + 16 + 8; // text + checkbox + spacing
@@ -755,6 +763,86 @@ namespace Keysharp.UI
                     currentlyLoadedFile = previousFile;
                 }
             }
+        }
+
+        private void AddNewKey()
+        {
+            if (layout == null)
+                return;
+
+            // Find the bottom-rightmost key (key with highest bottom Y, and if tie, highest right X)
+            // NOTE: We should consider ALL keys (including disabled ones) when determining placement
+            float maxBottomY = float.MinValue;
+            float maxRightX = float.MinValue;
+            PhysicalKey? bottomRightmostKey = null;
+            bool hasKeys = false;
+
+            foreach (var key in layout.GetPhysicalKeys())
+            {
+                float rightX = key.X + key.Width;
+                float bottomY = key.Y + key.Height;
+
+                // Check if this key is further down, or same row but further right
+                if (bottomY > maxBottomY || (bottomY == maxBottomY && rightX > maxRightX))
+                {
+                    maxBottomY = bottomY;
+                    maxRightX = rightX;
+                    bottomRightmostKey = key;
+                }
+
+                hasKeys = true;
+            }
+
+            // Calculate position for new key: aligned with the right edge of the bottom-rightmost key
+            // Use maxRightX directly since we already computed the right edge
+            float newX = hasKeys ? maxRightX : 0.0f;
+            float newY = hasKeys && bottomRightmostKey != null ? bottomRightmostKey.Y : 0.0f; // Same Y level (same row)
+
+            // Auto-generate identifier (Key1, Key2, etc.)
+            int keyNumber = 1;
+            string identifier;
+            bool identifierExists = true;
+            while (identifierExists)
+            {
+                identifier = $"Key{keyNumber}";
+                identifierExists = false;
+                foreach (var key in layout.GetPhysicalKeys())
+                {
+                    if (key.Identifier == identifier)
+                    {
+                        identifierExists = true;
+                        keyNumber++;
+                        break;
+                    }
+                }
+                if (!identifierExists)
+                {
+                    identifier = $"Key{keyNumber}";
+                    break;
+                }
+            }
+            identifier = $"Key{keyNumber}";
+
+            // Create new key with default properties
+            var newKey = new Core.PhysicalKey(
+                x: newX,
+                y: newY,
+                width: 1.0f,  // 1U width
+                height: 1.0f, // 1U height
+                finger: Core.Finger.LeftIndex, // Default finger
+                identifier: identifier
+            );
+            // Characters are empty by default (PrimaryCharacter and ShiftCharacter are null)
+
+            // Add key to layout
+            layout.AddPhysicalKey(newKey);
+            layout.RebuildMappings();
+
+            // Update keyboard view
+            keyboardView.Layout = layout; // This will clear cache and force redraw
+
+            // Select the new key
+            keyboardView.SelectedKey = newKey;
         }
 
         private void RefreshLayoutsDropdown()

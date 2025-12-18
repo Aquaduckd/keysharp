@@ -86,6 +86,40 @@ namespace Keysharp.Core
         }
 
         /// <summary>
+        /// Removes a physical key from the layout's collection.
+        /// Also removes all mappings that reference this key.
+        /// </summary>
+        /// <param name="key">The physical key to remove</param>
+        /// <returns>True if the key was removed, false if it was not found</returns>
+        public bool RemovePhysicalKey(PhysicalKey key)
+        {
+            if (key == null)
+                return false;
+
+            bool removed = _physicalKeys.Remove(key);
+            
+            if (removed)
+            {
+                // Remove all mappings that reference this key
+                var keysToRemove = new List<string>();
+                foreach (var kvp in _stringToKeys)
+                {
+                    if (kvp.Value.Contains(key))
+                    {
+                        keysToRemove.Add(kvp.Key);
+                    }
+                }
+                
+                foreach (var str in keysToRemove)
+                {
+                    _stringToKeys.Remove(str);
+                }
+            }
+            
+            return removed;
+        }
+
+        /// <summary>
         /// Gets all physical keys in this layout.
         /// </summary>
         /// <returns>A read-only list of all physical keys</returns>
