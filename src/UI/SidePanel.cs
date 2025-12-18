@@ -515,6 +515,7 @@ namespace Keysharp.UI
             var shiftAutoRow = CreateInfoRowWithCheckbox(font, "Auto Shift:");
             shiftAutoLabel = shiftAutoRow.label;
             shiftAutoCheckbox = shiftAutoRow.checkbox;
+            shiftAutoCheckbox.IsChecked = true; // Enable autoshift by default
             shiftAutoCheckbox.OnCheckedChanged = (isChecked) => {
                 if (!isUpdatingFromKey && selectedKeys.Count > 0)
                 {
@@ -1091,6 +1092,27 @@ namespace Keysharp.UI
                     isUpdatingFromKey = true;
                     bool autoEnabled = shiftAutoCheckbox != null && shiftAutoCheckbox.IsChecked;
                     shiftCharacterInput.IsEnabled = !autoEnabled; // Disable input when auto is enabled
+                    
+                    // If autoshift is enabled, ensure shift characters are set from primary characters
+                    if (autoEnabled)
+                    {
+                        foreach (var key in selectedKeys)
+                        {
+                            if (!string.IsNullOrEmpty(key.PrimaryCharacter))
+                            {
+                                // Only update if shift character is not already set or doesn't match expected
+                                string expectedShift = ConvertToShiftCharacter(key.PrimaryCharacter);
+                                if (key.ShiftCharacter != expectedShift)
+                                {
+                                    key.ShiftCharacter = expectedShift;
+                                }
+                            }
+                            else if (key.ShiftCharacter != null)
+                            {
+                                key.ShiftCharacter = null;
+                            }
+                        }
+                    }
                     
                     if (isMultiSelect)
                     {
