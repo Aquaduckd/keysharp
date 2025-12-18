@@ -16,6 +16,14 @@ namespace Keysharp.Components
         private float padding = 0.0f; // No padding around the keyboard view
         private PhysicalKey? selectedKey;
         private Dictionary<PhysicalKey, Rectangle> keyRectangles = new Dictionary<PhysicalKey, Rectangle>();
+        
+        // Drag and drop state
+        private PhysicalKey? draggedKey;
+        private PhysicalKey? dragTargetKey;
+        private bool isDragging = false;
+        private int dragStartMouseX = 0;
+        private int dragStartMouseY = 0;
+        private const int DRAG_THRESHOLD = 5; // Pixels to move before starting drag
 
         public Layout? Layout
         {
@@ -120,24 +128,70 @@ namespace Keysharp.Components
                 keyRectangles.Clear();
             }
 
-            // Handle mouse clicks to select keys
+            // Handle mouse input for selection and drag-and-drop
             if (layout != null && IsVisible && IsEnabled && !IsAnyParentHidden())
             {
+                int mouseX = Raylib.GetMouseX();
+                int mouseY = Raylib.GetMouseY();
+
+                // Check if mouse is over a key
+                PhysicalKey? hoveredKey = null;
+                foreach (var key in layout.GetPhysicalKeys())
+                {
+                    Rectangle keyRect = GetKeyRectangle(key);
+                    if (mouseX >= keyRect.X && mouseX <= keyRect.X + keyRect.Width &&
+                        mouseY >= keyRect.Y && mouseY <= keyRect.Y + keyRect.Height)
+                    {
+                        hoveredKey = key;
+                        break;
+                    }
+                }
+
+                // Handle mouse button press (start drag or select)
                 if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT))
                 {
-                    int mouseX = Raylib.GetMouseX();
-                    int mouseY = Raylib.GetMouseY();
-
-                    // Check which key was clicked
-                    foreach (var key in layout.GetPhysicalKeys())
+                    if (hoveredKey != null)
                     {
-                        Rectangle keyRect = GetKeyRectangle(key);
-                        if (mouseX >= keyRect.X && mouseX <= keyRect.X + keyRect.Width &&
-                            mouseY >= keyRect.Y && mouseY <= keyRect.Y + keyRect.Height)
-                        {
-                            SelectedKey = key;
-                            break;
-                        }
+                        draggedKey = hoveredKey;
+                        dragStartMouseX = mouseX;
+                        dragStartMouseY = mouseY;
+                        isDragging = false;
+                        SelectedKey = hoveredKey;
+                    }
+                }
+
+                // Handle mouse button release (complete drag or just selection)
+                if (Raylib.IsMouseButtonReleased(MouseButton.MOUSE_BUTTON_LEFT))
+                {
+                    if (draggedKey != null && isDragging && hoveredKey != null && hoveredKey != draggedKey)
+                    {
+                        // Swap the keys
+                        layout.SwapKeys(draggedKey, hoveredKey);
+                        
+                        // Clear cache to force redraw with new identifiers
+                        keyRectangles.Clear();
+                        
+                        // Update selected key to the target (since identifiers were swapped)
+                        SelectedKey = hoveredKey;
+                    }
+                    
+                    // Reset drag state
+                    draggedKey = null;
+                    dragTargetKey = null;
+                    isDragging = false;
+                }
+
+                // Handle mouse move (track dragging)
+                if (draggedKey != null && Raylib.IsMouseButtonDown(MouseButton.MOUSE_BUTTON_LEFT))
+                {
+                    int dx = mouseX - dragStartMouseX;
+                    int dy = mouseY - dragStartMouseY;
+                    int distance = (int)Math.Sqrt(dx * dx + dy * dy);
+                    
+                    if (distance > DRAG_THRESHOLD)
+                    {
+                        isDragging = true;
+                        dragTargetKey = hoveredKey;
                     }
                 }
             }
@@ -178,15 +232,34 @@ namespace Keysharp.Components
             float width = keyRect.Width;
             float height = keyRect.Height;
 
-            // Determine key color based on selection
+            // Determine key color based on selection and drag state
             bool isSelected = selectedKey == key;
-            Color keyColor = isSelected ? new Color(100, 149, 237, 255) : UITheme.SidePanelColor; // Cornflower blue when selected
+            bool isDragged = draggedKey == key;
+            bool isDragTarget = dragTargetKey == key && isDragging;
+            
+            Color keyColor;
+            if (isDragged && isDragging)
+            {
+                keyColor = new Color(100, 149, 237, 180); // Semi-transparent blue for dragged key
+            }
+            else if (isDragTarget)
+            {
+                keyColor = new Color(144, 238, 144, 255); // Light green for drop target
+            }
+            else if (isSelected)
+            {
+                keyColor = new Color(100, 149, 237, 255); // Cornflower blue when selected
+            }
+            else
+            {
+                keyColor = UITheme.SidePanelColor;
+            }
 
             // Draw key background
             Raylib.DrawRectangleRec(keyRect, keyColor);
             
-            // Draw key border (thicker if selected)
-            float borderWidth = isSelected ? 2.0f : 1.0f;
+            // Draw key border (thicker if selected or drag target)
+            float borderWidth = (isSelected || isDragTarget) ? 2.0f : 1.0f;
             Raylib.DrawRectangleLinesEx(keyRect, borderWidth, UITheme.BorderColor);
 
             // Draw key label if available

@@ -118,6 +118,94 @@ namespace Keysharp.Core
         public int PhysicalKeyCount => _physicalKeys.Count;
 
         /// <summary>
+        /// Gets all string mappings that use a specific physical key as their primary key
+        /// (the first key in the sequence, or the only key if no modifiers are used).
+        /// </summary>
+        /// <param name="physicalKey">The physical key to search for</param>
+        /// <returns>A dictionary mapping strings to their key sequences</returns>
+        public Dictionary<string, List<PhysicalKey>> GetMappingsForPhysicalKey(PhysicalKey physicalKey)
+        {
+            var result = new Dictionary<string, List<PhysicalKey>>();
+            
+            foreach (var kvp in _stringToKeys)
+            {
+                // Check if this mapping's primary key (first key) matches the physical key
+                if (kvp.Value.Count > 0 && kvp.Value[0] == physicalKey)
+                {
+                    result[kvp.Key] = new List<PhysicalKey>(kvp.Value);
+                }
+            }
+            
+            return result;
+        }
+
+        /// <summary>
+        /// Swaps the character mappings between two physical keys.
+        /// All string mappings that use key1 as their primary key will now use key2, and vice versa.
+        /// This also updates any modifier-based mappings (e.g., uppercase letters using Shift).
+        /// </summary>
+        /// <param name="key1">The first physical key</param>
+        /// <param name="key2">The second physical key</param>
+        public void SwapKeys(PhysicalKey key1, PhysicalKey key2)
+        {
+            if (key1 == null || key2 == null)
+                throw new ArgumentNullException();
+
+            // Get all mappings for both keys
+            var mappings1 = GetMappingsForPhysicalKey(key1);
+            var mappings2 = GetMappingsForPhysicalKey(key2);
+
+            // Store original key sequences temporarily
+            var tempMappings = new Dictionary<string, List<PhysicalKey>>();
+
+            // Remove original mappings
+            foreach (var str in mappings1.Keys)
+            {
+                tempMappings[str] = new List<PhysicalKey>(_stringToKeys[str]);
+                _stringToKeys.Remove(str);
+            }
+            foreach (var str in mappings2.Keys)
+            {
+                tempMappings[str] = new List<PhysicalKey>(_stringToKeys[str]);
+                _stringToKeys.Remove(str);
+            }
+
+            // Create new mappings with swapped keys
+            // For mappings that used key1, replace key1 with key2 in the sequence
+            foreach (var kvp in mappings1)
+            {
+                var newSequence = new List<PhysicalKey>();
+                foreach (var key in kvp.Value)
+                {
+                    if (key == key1)
+                        newSequence.Add(key2);
+                    else
+                        newSequence.Add(key);
+                }
+                _stringToKeys[kvp.Key] = newSequence;
+            }
+
+            // For mappings that used key2, replace key2 with key1 in the sequence
+            foreach (var kvp in mappings2)
+            {
+                var newSequence = new List<PhysicalKey>();
+                foreach (var key in kvp.Value)
+                {
+                    if (key == key2)
+                        newSequence.Add(key1);
+                    else
+                        newSequence.Add(key);
+                }
+                _stringToKeys[kvp.Key] = newSequence;
+            }
+
+            // Also swap the key identifiers so the display updates
+            string? tempIdentifier = key1.Identifier;
+            key1.Identifier = key2.Identifier;
+            key2.Identifier = tempIdentifier;
+        }
+
+        /// <summary>
         /// Creates a standard 60% QWERTY keyboard layout.
         /// </summary>
         /// <returns>A Layout instance configured with a standard 60% QWERTY layout</returns>
