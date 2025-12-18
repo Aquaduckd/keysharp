@@ -28,7 +28,7 @@ namespace Keysharp.UI
         private Components.Checkbox? disabledCheckbox;
         private Components.Button? deleteKeyButton;
         private Components.Label? placeholderLabel;
-        private Keysharp.Core.PhysicalKey? selectedKey;
+        private HashSet<Keysharp.Core.PhysicalKey> selectedKeys = new HashSet<Keysharp.Core.PhysicalKey>();
         private Core.Layout? layout; // Reference to layout for rebuilding mappings
         private bool isUpdatingFromKey = false; // Flag to prevent circular updates
         private LayoutTab? layoutTab; // Reference to layout tab for updating checkbox visibility
@@ -185,9 +185,11 @@ namespace Keysharp.UI
             identifierLabel = identifierRow.label;
             identifierInput = identifierRow.input;
             identifierInput.OnTextChanged = (text) => {
-                if (!isUpdatingFromKey && selectedKey != null)
+                if (!isUpdatingFromKey && selectedKeys.Count == 1)
                 {
-                    selectedKey.Identifier = string.IsNullOrEmpty(text) ? null : text;
+                    // Only allow editing identifier for single selection
+                    var key = selectedKeys.First();
+                    key.Identifier = string.IsNullOrEmpty(text) ? null : text;
                 }
             };
             keyInfoContainer.AddChild(identifierRow.container);
@@ -211,11 +213,32 @@ namespace Keysharp.UI
             positionXInput.AutoSize = false;
             positionXInput.EnableScrollIncrement = true; // Enable scroll wheel increment/decrement
             positionXInput.OnTextChanged = (text) => {
-                if (!isUpdatingFromKey && selectedKey != null && float.TryParse(text, out float value))
+                if (!isUpdatingFromKey && selectedKeys.Count > 0 && float.TryParse(text, out float value))
                 {
-                    selectedKey.X = value;
-                    // Invalidate the cache for this key so it recalculates its rectangle
-                    keyboardView?.InvalidateKeyCache(selectedKey);
+                    // Find top-leftmost key to get reference position
+                    PhysicalKey? refKey = null;
+                    float minX = float.MaxValue;
+                    float minY = float.MaxValue;
+                    foreach (var key in selectedKeys)
+                    {
+                        if (key.X < minX || (key.X == minX && key.Y < minY))
+                        {
+                            minX = key.X;
+                            minY = key.Y;
+                            refKey = key;
+                        }
+                    }
+                    
+                    if (refKey != null)
+                    {
+                        // Calculate offset and apply to all selected keys
+                        float offsetX = value - refKey.X;
+                        foreach (var key in selectedKeys)
+                        {
+                            key.X += offsetX;
+                            keyboardView?.InvalidateKeyCache(key);
+                        }
+                    }
                 }
             };
             
@@ -224,11 +247,32 @@ namespace Keysharp.UI
             positionYInput.AutoSize = false;
             positionYInput.EnableScrollIncrement = true; // Enable scroll wheel increment/decrement
             positionYInput.OnTextChanged = (text) => {
-                if (!isUpdatingFromKey && selectedKey != null && float.TryParse(text, out float value))
+                if (!isUpdatingFromKey && selectedKeys.Count > 0 && float.TryParse(text, out float value))
                 {
-                    selectedKey.Y = value;
-                    // Invalidate the cache for this key so it recalculates its rectangle
-                    keyboardView?.InvalidateKeyCache(selectedKey);
+                    // Find top-leftmost key to get reference position
+                    PhysicalKey? refKey = null;
+                    float minX = float.MaxValue;
+                    float minY = float.MaxValue;
+                    foreach (var key in selectedKeys)
+                    {
+                        if (key.X < minX || (key.X == minX && key.Y < minY))
+                        {
+                            minX = key.X;
+                            minY = key.Y;
+                            refKey = key;
+                        }
+                    }
+                    
+                    if (refKey != null)
+                    {
+                        // Calculate offset and apply to all selected keys
+                        float offsetY = value - refKey.Y;
+                        foreach (var key in selectedKeys)
+                        {
+                            key.Y += offsetY;
+                            keyboardView?.InvalidateKeyCache(key);
+                        }
+                    }
                 }
             };
             
@@ -270,13 +314,16 @@ namespace Keysharp.UI
             sizeWidthInput.ScrollIncrementAmount = 0.25f; // Increment by 0.25 for size values
             sizeWidthInput.MinValue = 0.25f; // Minimum size to keep keys clickable (0.25U)
             sizeWidthInput.OnTextChanged = (text) => {
-                if (!isUpdatingFromKey && selectedKey != null && float.TryParse(text, out float value))
+                if (!isUpdatingFromKey && selectedKeys.Count > 0 && float.TryParse(text, out float value))
                 {
                     // Clamp to minimum value
                     value = System.Math.Max(value, 0.25f);
-                    selectedKey.Width = value;
-                    // Invalidate the cache for this key so it recalculates its rectangle
-                    keyboardView?.InvalidateKeyCache(selectedKey);
+                    // Apply to all selected keys
+                    foreach (var key in selectedKeys)
+                    {
+                        key.Width = value;
+                        keyboardView?.InvalidateKeyCache(key);
+                    }
                 }
             };
             
@@ -288,13 +335,16 @@ namespace Keysharp.UI
             sizeHeightInput.ScrollIncrementAmount = 0.25f; // Increment by 0.25 for size values
             sizeHeightInput.MinValue = 0.25f; // Minimum size to keep keys clickable (0.25U)
             sizeHeightInput.OnTextChanged = (text) => {
-                if (!isUpdatingFromKey && selectedKey != null && float.TryParse(text, out float value))
+                if (!isUpdatingFromKey && selectedKeys.Count > 0 && float.TryParse(text, out float value))
                 {
                     // Clamp to minimum value
                     value = System.Math.Max(value, 0.25f);
-                    selectedKey.Height = value;
-                    // Invalidate the cache for this key so it recalculates its rectangle
-                    keyboardView?.InvalidateKeyCache(selectedKey);
+                    // Apply to all selected keys
+                    foreach (var key in selectedKeys)
+                    {
+                        key.Height = value;
+                        keyboardView?.InvalidateKeyCache(key);
+                    }
                 }
             };
             
@@ -319,12 +369,17 @@ namespace Keysharp.UI
             fingerLabel = fingerRow.label;
             fingerDropdown = fingerRow.dropdown;
             fingerDropdown.OnSelectionChanged = (selectedItem) => {
-                if (!isUpdatingFromKey && selectedKey != null)
+                if (!isUpdatingFromKey && selectedKeys.Count > 0)
                 {
                     int index = fingerDropdown.SelectedIndex;
                     if (index >= 0 && index < GetFingerNames().Count)
                     {
-                        selectedKey.Finger = GetFingerFromIndex(index);
+                        Finger newFinger = GetFingerFromIndex(index);
+                        // Apply to all selected keys
+                        foreach (var key in selectedKeys)
+                        {
+                            key.Finger = newFinger;
+                        }
                     }
                 }
             };
@@ -335,9 +390,11 @@ namespace Keysharp.UI
             primaryCharacterLabel = primaryCharacterRow.label;
             primaryCharacterInput = primaryCharacterRow.input;
             primaryCharacterInput.OnTextChanged = (text) => {
-                if (!isUpdatingFromKey && selectedKey != null)
+                if (!isUpdatingFromKey && selectedKeys.Count == 1)
                 {
-                    selectedKey.PrimaryCharacter = string.IsNullOrEmpty(text) ? null : text;
+                    // Only allow editing primary character for single selection
+                    var key = selectedKeys.First();
+                    key.PrimaryCharacter = string.IsNullOrEmpty(text) ? null : text;
                     layout?.RebuildMappings();
                 }
             };
@@ -348,9 +405,11 @@ namespace Keysharp.UI
             shiftCharacterLabel = shiftCharacterRow.label;
             shiftCharacterInput = shiftCharacterRow.input;
             shiftCharacterInput.OnTextChanged = (text) => {
-                if (!isUpdatingFromKey && selectedKey != null)
+                if (!isUpdatingFromKey && selectedKeys.Count == 1)
                 {
-                    selectedKey.ShiftCharacter = string.IsNullOrEmpty(text) ? null : text;
+                    // Only allow editing shift character for single selection
+                    var key = selectedKeys.First();
+                    key.ShiftCharacter = string.IsNullOrEmpty(text) ? null : text;
                     layout?.RebuildMappings();
                 }
             };
@@ -361,9 +420,13 @@ namespace Keysharp.UI
             disabledLabel = disabledRow.label;
             disabledCheckbox = disabledRow.checkbox;
             disabledCheckbox.OnCheckedChanged = (isChecked) => {
-                if (!isUpdatingFromKey && selectedKey != null)
+                if (!isUpdatingFromKey && selectedKeys.Count > 0)
                 {
-                    selectedKey.Disabled = isChecked;
+                    // Apply to all selected keys
+                    foreach (var key in selectedKeys)
+                    {
+                        key.Disabled = isChecked;
+                    }
                     // Notify layout tab to update checkbox visibility
                     layoutTab?.UpdateShowDisabledCheckboxVisibility();
                 }
@@ -376,29 +439,7 @@ namespace Keysharp.UI
             deleteKeyButton.AutoSize = true;
             deleteKeyButton.PositionMode = Components.PositionMode.Relative;
             deleteKeyButton.IsVisible = false; // Initially hidden
-            deleteKeyButton.OnClick = () => {
-                if (selectedKey != null && layout != null)
-                {
-                    // Remove the key from the layout
-                    layout.RemovePhysicalKey(selectedKey);
-                    // Rebuild mappings after removing key
-                    layout.RebuildMappings();
-                    // Clear selection
-                    selectedKey = null;
-                    // Notify keyboard view to clear selection
-                    if (keyboardView != null)
-                    {
-                        keyboardView.SelectedKey = null;
-                    }
-                    // Update UI to reflect no key selected
-                    UpdateKeyInfo();
-                    // Invalidate keyboard view cache to force redraw
-                    if (keyboardView != null && layout != null)
-                    {
-                        keyboardView.Layout = layout; // This will trigger cache clear
-                    }
-                }
-            };
+            deleteKeyButton.OnClick = DeleteSelectedKey;
             keyInfoContainer.AddChild(deleteKeyButton);
             this.deleteKeyButton = deleteKeyButton; // Store reference
 
@@ -775,13 +816,43 @@ namespace Keysharp.UI
 
         public void SetSelectedKey(Keysharp.Core.PhysicalKey? key)
         {
-            selectedKey = key;
+            selectedKeys.Clear();
+            if (key != null)
+            {
+                selectedKeys.Add(key);
+            }
+            UpdateKeyInfo();
+        }
+
+        public void SetSelectedKeys(HashSet<Keysharp.Core.PhysicalKey> keys)
+        {
+            System.Console.WriteLine($"SidePanel.SetSelectedKeys called with {keys?.Count ?? 0} keys");
+            selectedKeys = keys ?? new HashSet<Keysharp.Core.PhysicalKey>();
+            System.Console.WriteLine($"SidePanel.selectedKeys now has {selectedKeys.Count} keys");
             UpdateKeyInfo();
         }
 
         private void UpdateKeyInfo()
         {
-            bool hasKey = selectedKey != null;
+            bool hasKey = selectedKeys.Count > 0;
+            bool isMultiSelect = selectedKeys.Count > 1;
+            
+            // Find top-leftmost key for position display
+            PhysicalKey? topLeftKey = null;
+            if (hasKey)
+            {
+                float minX = float.MaxValue;
+                float minY = float.MaxValue;
+                foreach (var key in selectedKeys)
+                {
+                    if (key.X < minX || (key.X == minX && key.Y < minY))
+                    {
+                        minX = key.X;
+                        minY = key.Y;
+                        topLeftKey = key;
+                    }
+                }
+            }
             
             // Show/hide delete button based on whether a key is selected
             if (deleteKeyButton != null)
@@ -800,92 +871,131 @@ namespace Keysharp.UI
                 titleLabel.IsVisible = hasKey;
             }
 
+            // Hide identifier field when multiple keys are selected
             if (identifierLabel != null && identifierInput != null)
             {
-                identifierLabel.IsVisible = hasKey;
-                identifierInput.IsVisible = hasKey;
-                if (hasKey && selectedKey != null)
+                identifierLabel.IsVisible = hasKey && !isMultiSelect;
+                identifierInput.IsVisible = hasKey && !isMultiSelect;
+                if (hasKey && !isMultiSelect && topLeftKey != null)
                 {
                     isUpdatingFromKey = true;
-                    identifierInput.SetText(selectedKey.Identifier ?? "");
+                    identifierInput.SetText(topLeftKey.Identifier ?? "");
                     isUpdatingFromKey = false;
                 }
             }
 
+            // Position shows top-leftmost key's position
             if (positionLabel != null && positionXInput != null && positionYInput != null)
             {
                 positionLabel.IsVisible = hasKey;
                 positionXInput.IsVisible = hasKey;
                 positionYInput.IsVisible = hasKey;
-                if (hasKey && selectedKey != null)
+                if (hasKey && topLeftKey != null)
                 {
                     isUpdatingFromKey = true;
-                    positionXInput.SetText(selectedKey.X.ToString("F2"));
-                    positionYInput.SetText(selectedKey.Y.ToString("F2"));
+                    positionXInput.SetText(topLeftKey.X.ToString("F2"));
+                    positionYInput.SetText(topLeftKey.Y.ToString("F2"));
                     isUpdatingFromKey = false;
                 }
             }
 
+            // Size: show first key's size, apply to all when edited
             if (sizeLabel != null && sizeWidthInput != null && sizeHeightInput != null)
             {
                 sizeLabel.IsVisible = hasKey;
                 sizeWidthInput.IsVisible = hasKey;
                 sizeHeightInput.IsVisible = hasKey;
-                if (hasKey && selectedKey != null)
+                if (hasKey && topLeftKey != null)
                 {
                     isUpdatingFromKey = true;
-                    sizeWidthInput.SetText(selectedKey.Width.ToString("F2"));
-                    sizeHeightInput.SetText(selectedKey.Height.ToString("F2"));
+                    sizeWidthInput.SetText(topLeftKey.Width.ToString("F2"));
+                    sizeHeightInput.SetText(topLeftKey.Height.ToString("F2"));
                     isUpdatingFromKey = false;
                 }
             }
 
+            // Finger: show first key's finger, apply to all when edited
             if (fingerLabel != null && fingerDropdown != null)
             {
                 fingerLabel.IsVisible = hasKey;
                 fingerDropdown.IsVisible = hasKey;
-                if (hasKey && selectedKey != null)
+                if (hasKey && topLeftKey != null)
                 {
                     isUpdatingFromKey = true;
-                    int fingerIndex = GetIndexFromFinger(selectedKey.Finger);
+                    int fingerIndex = GetIndexFromFinger(topLeftKey.Finger);
                     fingerDropdown.SetSelectedIndex(fingerIndex, triggerCallback: false);
                     isUpdatingFromKey = false;
                 }
             }
 
+            // Primary/Shift characters: only visible for single selection
             if (primaryCharacterLabel != null && primaryCharacterInput != null)
             {
-                primaryCharacterLabel.IsVisible = hasKey;
-                primaryCharacterInput.IsVisible = hasKey;
-                if (hasKey && selectedKey != null)
+                primaryCharacterLabel.IsVisible = hasKey && !isMultiSelect;
+                primaryCharacterInput.IsVisible = hasKey && !isMultiSelect;
+                if (hasKey && !isMultiSelect && topLeftKey != null)
                 {
                     isUpdatingFromKey = true;
-                    primaryCharacterInput.SetText(selectedKey.PrimaryCharacter ?? "");
+                    primaryCharacterInput.SetText(topLeftKey.PrimaryCharacter ?? "");
                     isUpdatingFromKey = false;
                 }
             }
 
             if (shiftCharacterLabel != null && shiftCharacterInput != null)
             {
-                shiftCharacterLabel.IsVisible = hasKey;
-                shiftCharacterInput.IsVisible = hasKey;
-                if (hasKey && selectedKey != null)
+                shiftCharacterLabel.IsVisible = hasKey && !isMultiSelect;
+                shiftCharacterInput.IsVisible = hasKey && !isMultiSelect;
+                if (hasKey && !isMultiSelect && topLeftKey != null)
                 {
                     isUpdatingFromKey = true;
-                    shiftCharacterInput.SetText(selectedKey.ShiftCharacter ?? "");
+                    shiftCharacterInput.SetText(topLeftKey.ShiftCharacter ?? "");
                     isUpdatingFromKey = false;
                 }
             }
 
+            // Disabled: show if all keys have same state, apply to all when edited
             if (disabledLabel != null && disabledCheckbox != null)
             {
                 disabledLabel.IsVisible = hasKey;
                 disabledCheckbox.IsVisible = hasKey;
-                if (hasKey && selectedKey != null)
+                if (hasKey && topLeftKey != null)
                 {
                     isUpdatingFromKey = true;
-                    disabledCheckbox.IsChecked = selectedKey.Disabled;
+                    // Check if all selected keys have the same disabled state
+                    bool allDisabled = selectedKeys.All(k => k.Disabled);
+                    bool allEnabled = selectedKeys.All(k => !k.Disabled);
+                    // If mixed state, show indeterminate (for now just show based on first key)
+                    disabledCheckbox.IsChecked = allDisabled || (!allEnabled && topLeftKey.Disabled);
                     isUpdatingFromKey = false;
+                }
+            }
+        }
+
+        private void DeleteSelectedKey()
+        {
+            if (layout != null && selectedKeys.Count > 0)
+            {
+                // Remove all selected keys from the layout
+                foreach (var key in selectedKeys)
+                {
+                    layout.RemovePhysicalKey(key);
+                }
+                // Rebuild mappings after removing keys
+                layout.RebuildMappings();
+                // Clear selection
+                selectedKeys.Clear();
+                // Notify keyboard view to clear selection
+                if (keyboardView != null)
+                {
+                    var emptySelection = new HashSet<PhysicalKey>();
+                    keyboardView.SelectedKeys = emptySelection;
+                }
+                // Update UI to reflect no key selected
+                UpdateKeyInfo();
+                // Invalidate keyboard view cache to force redraw
+                if (keyboardView != null)
+                {
+                    keyboardView.Layout = layout; // This will trigger cache clear
                 }
             }
         }

@@ -300,12 +300,24 @@ namespace Keysharp.UI
             keyboardView.PositionMode = Components.PositionMode.Relative;
             keyboardView.ShowDisabledKeys = true; // Default: show disabled keys
             keyboardView.ViewMode = Components.KeyboardViewMode.Heatmap; // Default to heatmap view (matches heatmapRadioButton.IsSelected = true)
-            keyboardView.OnSelectedKeyChanged = (key) => {
+            keyboardView.OnSelectedKeysChanged = (keys) => {
+                System.Console.WriteLine($"LayoutTab.OnSelectedKeysChanged callback: {keys?.Count ?? 0} keys");
                 // Use the property getter to get current value
                 var currentSidePanel = SidePanel;
+                System.Console.WriteLine($"LayoutTab: currentSidePanel is {(currentSidePanel != null ? "not null" : "null")}");
                 if (currentSidePanel != null)
                 {
                     currentSidePanel.SetLayout(layout); // Set layout reference for rebuilding mappings
+                    currentSidePanel.SetSelectedKeys(keys);
+                }
+            };
+            
+            // Legacy callback for backwards compatibility
+            keyboardView.OnSelectedKeyChanged = (key) => {
+                var currentSidePanel = SidePanel;
+                if (currentSidePanel != null)
+                {
+                    currentSidePanel.SetLayout(layout);
                     currentSidePanel.SetSelectedKey(key);
                 }
             };

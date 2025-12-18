@@ -1,6 +1,7 @@
 using Raylib_cs;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Keysharp.Core;
 
 namespace Keysharp.Components
@@ -24,7 +25,7 @@ namespace Keysharp.Components
         private Layout? layout;
         private float pixelsPerU = 50.0f; // Scale factor: 50 pixels per 1U
         private float padding = 0.0f; // No padding around the keyboard view
-        private PhysicalKey? selectedKey;
+        private HashSet<PhysicalKey> selectedKeys = new HashSet<PhysicalKey>();
         private Dictionary<PhysicalKey, Rectangle> keyRectangles = new Dictionary<PhysicalKey, Rectangle>();
         private KeyboardViewMode viewMode = KeyboardViewMode.Regular;
         private bool showDisabledKeys = false; // Whether to show disabled keys (with outline) or hide them
@@ -66,17 +67,33 @@ namespace Keysharp.Components
             }
         }
 
-        public PhysicalKey? SelectedKey
+        public HashSet<PhysicalKey> SelectedKeys
         {
-            get => selectedKey;
+            get => selectedKeys;
             set
             {
-                selectedKey = value;
-                OnSelectedKeyChanged?.Invoke(value);
+                selectedKeys = value ?? new HashSet<PhysicalKey>();
+                OnSelectedKeysChanged?.Invoke(selectedKeys);
             }
         }
 
-        public Action<PhysicalKey?>? OnSelectedKeyChanged { get; set; }
+        // Legacy property for single key selection (returns first selected key or null)
+        public PhysicalKey? SelectedKey
+        {
+            get => selectedKeys.Count > 0 ? selectedKeys.First() : null;
+            set
+            {
+                selectedKeys.Clear();
+                if (value != null)
+                {
+                    selectedKeys.Add(value);
+                }
+                OnSelectedKeysChanged?.Invoke(selectedKeys);
+            }
+        }
+
+        public Action<HashSet<PhysicalKey>>? OnSelectedKeysChanged { get; set; }
+        public Action<PhysicalKey?>? OnSelectedKeyChanged { get; set; } // Legacy callback for backwards compatibility
 
         public KeyboardViewMode ViewMode
         {
@@ -269,14 +286,100 @@ namespace Keysharp.Components
                 // Handle mouse button press (start drag or select)
                 if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT))
                 {
+                    System.Console.WriteLine($"=== Mouse Button Pressed ===");
+                    bool leftShift = Raylib.IsKeyDown(KeyboardKey.KEY_LEFT_SHIFT);
+                    bool rightShift = Raylib.IsKeyDown(KeyboardKey.KEY_RIGHT_SHIFT);
+                    bool shiftDown = leftShift || rightShift;
+                    System.Console.WriteLine($"  LEFT_SHIFT: {leftShift}, RIGHT_SHIFT: {rightShift}, shiftDown: {shiftDown}");
+                    System.Console.WriteLine($"  hoveredKey: {(hoveredKey?.Identifier ?? "null")}");
+                    System.Console.WriteLine($"  Current selectedKeys count: {selectedKeys.Count}");
+                    
                     if (hoveredKey != null)
                     {
-                        draggedKey = hoveredKey;
-                        dragStartMouseX = mouseX;
-                        dragStartMouseY = mouseY;
-                        isDragging = false;
-                        SelectedKey = hoveredKey;
+                        // Check if Shift is held for multi-selection FIRST
+                        
+                        if (shiftDown)
+                        {
+                            System.Console.WriteLine($"  -> Multi-selection mode");
+                            // Multi-selection mode: toggle selection without starting drag
+                            bool wasSelected = selectedKeys.Contains(hoveredKey);
+                            System.Console.WriteLine($"  -> Key was already selected: {wasSelected}");
+                            
+                            if (wasSelected)
+                            {
+                                selectedKeys.Remove(hoveredKey);
+                                System.Console.WriteLine($"  -> Removed key from selection");
+                            }
+                            else
+                            {
+                                selectedKeys.Add(hoveredKey);
+                                System.Console.WriteLine($"  -> Added key to selection");
+                            }
+                            
+                            System.Console.WriteLine($"  -> New selectedKeys count: {selectedKeys.Count}");
+                            OnSelectedKeysChanged?.Invoke(selectedKeys);
+                            // Don't call legacy callback for multi-selection (it would clear it via SetSelectedKey)
+                            if (selectedKeys.Count == 1)
+                            {
+                                OnSelectedKeyChanged?.Invoke(selectedKeys.First());
+                            }
+                            else if (selectedKeys.Count == 0)
+                            {
+                                OnSelectedKeyChanged?.Invoke(null);
+                            }
+                            
+                            // Don't set up drag state when Shift is held
+                            draggedKey = null;
+                            System.Console.WriteLine($"  -> Set draggedKey to null (Shift mode)");
+                        }
+                        else
+                        {
+                            System.Console.WriteLine($"  -> Single selection mode");
+                            // Single selection mode: set up drag state
+                            draggedKey = hoveredKey;
+                            dragStartMouseX = mouseX;
+                            dragStartMouseY = mouseY;
+                            isDragging = false;
+                            System.Console.WriteLine($"  -> Set up drag state for key: {hoveredKey.Identifier}");
+                            
+                            // Single selection (clear previous and select only this key)
+                            selectedKeys.Clear();
+                            selectedKeys.Add(hoveredKey);
+                            System.Console.WriteLine($"  -> Cleared and set single selection: {hoveredKey.Identifier}");
+                            
+                            OnSelectedKeysChanged?.Invoke(selectedKeys);
+                            // Single selection - safe to call legacy callback
+                            OnSelectedKeyChanged?.Invoke(selectedKeys.First());
+                        }
                     }
+                    else
+                    {
+                        // Only clear selection if clicking within the keyboard view bounds
+                        // This prevents clearing selection when clicking on other UI elements (like text inputs)
+                        if (mouseX >= Bounds.X && mouseX <= Bounds.X + Bounds.Width &&
+                            mouseY >= Bounds.Y && mouseY <= Bounds.Y + Bounds.Height)
+                        {
+                            System.Console.WriteLine($"  -> Clicked on empty space within keyboard view");
+                            // Clicked on empty space within keyboard view - clear selection unless Shift is held
+                            if (!shiftDown)
+                            {
+                                selectedKeys.Clear();
+                                System.Console.WriteLine($"  -> Cleared selection (no Shift)");
+                                OnSelectedKeysChanged?.Invoke(selectedKeys);
+                                OnSelectedKeyChanged?.Invoke(null);
+                            }
+                            else
+                            {
+                                System.Console.WriteLine($"  -> Preserved selection (Shift held)");
+                            }
+                        }
+                        else
+                        {
+                            System.Console.WriteLine($"  -> Clicked outside keyboard view bounds, preserving selection");
+                        }
+                        draggedKey = null;
+                    }
+                    System.Console.WriteLine($"============================");
                 }
 
                 // Handle mouse button release (complete drag or just selection)
@@ -290,8 +393,12 @@ namespace Keysharp.Components
                         // Clear cache to force redraw with new identifiers
                         keyRectangles.Clear();
                         
-                        // Update selected key to the target (since identifiers were swapped)
-                        SelectedKey = hoveredKey;
+                        // Update selected keys - remove old key, add new key (since identifiers were swapped)
+                        selectedKeys.Remove(draggedKey);
+                        selectedKeys.Add(hoveredKey);
+                        OnSelectedKeysChanged?.Invoke(selectedKeys);
+                        // After swap, we have single selection
+                        OnSelectedKeyChanged?.Invoke(hoveredKey);
                     }
                     
                     // Reset drag state
@@ -345,8 +452,8 @@ namespace Keysharp.Components
                     continue;
                 }
 
-                // Skip selected key in first pass (will draw it in second pass)
-                if (selectedKey == key)
+                // Skip selected keys in first pass (will draw them in second pass)
+                if (selectedKeys.Contains(key))
                 {
                     continue;
                 }
@@ -354,13 +461,13 @@ namespace Keysharp.Components
                 DrawKey(key);
             }
 
-            // Second pass: Draw selected key on top
-            if (selectedKey != null)
+            // Second pass: Draw selected keys on top
+            foreach (var key in selectedKeys)
             {
                 // Check if selected key should be drawn (not disabled or show disabled is enabled)
-                if (!selectedKey.Disabled || showDisabledKeys)
+                if (!key.Disabled || showDisabledKeys)
                 {
-                    DrawKey(selectedKey);
+                    DrawKey(key);
                 }
             }
         }
@@ -377,7 +484,7 @@ namespace Keysharp.Components
             bool isDisabled = key.Disabled;
 
             // Determine key color based on view mode (don't change for selection/drag)
-            bool isSelected = selectedKey == key;
+            bool isSelected = selectedKeys.Contains(key);
             bool isDragged = draggedKey == key;
             bool isDragTarget = dragTargetKey == key && isDragging;
             
