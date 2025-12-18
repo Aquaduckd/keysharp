@@ -27,6 +27,8 @@ namespace Keysharp.UI
         private Components.Label? shiftCharacterLabel;
         private Components.TextInput? shiftCharacterInput;
         private Components.Container? shiftCharacterRowContainer;
+        private Components.Checkbox? shiftAutoCheckbox;
+        private Components.Label? shiftAutoLabel;
         private Components.Label? disabledLabel;
         private Components.Checkbox? disabledCheckbox;
         private Components.Button? deleteKeyButton;
@@ -395,11 +397,77 @@ namespace Keysharp.UI
             primaryCharacterInput = primaryCharacterRow.input;
             primaryCharacterRowContainer = primaryCharacterRow.container;
             primaryCharacterInput.OnTextChanged = (text) => {
-                if (!isUpdatingFromKey && selectedKeys.Count == 1)
+                if (!isUpdatingFromKey && selectedKeys.Count > 0)
                 {
-                    // Only allow editing primary character for single selection
-                    var key = selectedKeys.First();
-                    key.PrimaryCharacter = string.IsNullOrEmpty(text) ? null : text;
+                    if (selectedKeys.Count == 1)
+                    {
+                        // Single selection: assign directly
+                        var key = selectedKeys.First();
+                        key.PrimaryCharacter = string.IsNullOrEmpty(text) ? null : text;
+                        
+                        // Auto-update shift character if checkbox is enabled
+                        if (shiftAutoCheckbox != null && shiftAutoCheckbox.IsChecked && !string.IsNullOrEmpty(text))
+                        {
+                            key.ShiftCharacter = ConvertToShiftCharacter(text);
+                            // Update shift input display without triggering callback
+                            if (shiftCharacterInput != null)
+                            {
+                                isUpdatingFromKey = true;
+                                shiftCharacterInput.SetText(key.ShiftCharacter ?? "");
+                                isUpdatingFromKey = false;
+                            }
+                        }
+                        else if (shiftAutoCheckbox != null && shiftAutoCheckbox.IsChecked && string.IsNullOrEmpty(text))
+                        {
+                            key.ShiftCharacter = null;
+                            if (shiftCharacterInput != null)
+                            {
+                                isUpdatingFromKey = true;
+                                shiftCharacterInput.SetText("");
+                                isUpdatingFromKey = false;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Multi-selection: parse space-separated characters and assign to keys in order
+                        // Sort keys by position (left to right, top to bottom)
+                        var sortedKeys = selectedKeys.OrderBy(k => k.Y).ThenBy(k => k.X).ToList();
+                        string[] characters = text.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+                        
+                        for (int i = 0; i < sortedKeys.Count; i++)
+                        {
+                            if (i < characters.Length)
+                            {
+                                sortedKeys[i].PrimaryCharacter = characters[i];
+                                
+                                // Auto-update shift character if checkbox is enabled
+                                if (shiftAutoCheckbox != null && shiftAutoCheckbox.IsChecked)
+                                {
+                                    sortedKeys[i].ShiftCharacter = ConvertToShiftCharacter(characters[i]);
+                                }
+                            }
+                            else
+                            {
+                                sortedKeys[i].PrimaryCharacter = null;
+                                if (shiftAutoCheckbox != null && shiftAutoCheckbox.IsChecked)
+                                {
+                                    sortedKeys[i].ShiftCharacter = null;
+                                }
+                            }
+                        }
+                        
+                        // Update shift input display for multi-select if checkbox is enabled
+                        if (shiftAutoCheckbox != null && shiftAutoCheckbox.IsChecked && shiftCharacterInput != null)
+                        {
+                            isUpdatingFromKey = true;
+                            var shiftChars = sortedKeys
+                                .Select(k => k.ShiftCharacter ?? "")
+                                .Where(c => !string.IsNullOrEmpty(c));
+                            shiftCharacterInput.SetText(string.Join(" ", shiftChars));
+                            isUpdatingFromKey = false;
+                        }
+                    }
                     layout?.RebuildMappings();
                 }
             };
@@ -411,15 +479,71 @@ namespace Keysharp.UI
             shiftCharacterInput = shiftCharacterRow.input;
             shiftCharacterRowContainer = shiftCharacterRow.container;
             shiftCharacterInput.OnTextChanged = (text) => {
-                if (!isUpdatingFromKey && selectedKeys.Count == 1)
+                if (!isUpdatingFromKey && selectedKeys.Count > 0)
                 {
-                    // Only allow editing shift character for single selection
-                    var key = selectedKeys.First();
-                    key.ShiftCharacter = string.IsNullOrEmpty(text) ? null : text;
+                    if (selectedKeys.Count == 1)
+                    {
+                        // Single selection: assign directly
+                        var key = selectedKeys.First();
+                        key.ShiftCharacter = string.IsNullOrEmpty(text) ? null : text;
+                    }
+                    else
+                    {
+                        // Multi-selection: parse space-separated characters and assign to keys in order
+                        // Sort keys by position (left to right, top to bottom)
+                        var sortedKeys = selectedKeys.OrderBy(k => k.Y).ThenBy(k => k.X).ToList();
+                        string[] characters = text.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+                        
+                        for (int i = 0; i < sortedKeys.Count; i++)
+                        {
+                            if (i < characters.Length)
+                            {
+                                sortedKeys[i].ShiftCharacter = characters[i];
+                            }
+                            else
+                            {
+                                sortedKeys[i].ShiftCharacter = null;
+                            }
+                        }
+                    }
                     layout?.RebuildMappings();
                 }
             };
             keyInfoContainer.AddChild(shiftCharacterRowContainer);
+
+            // Create shift auto-fill checkbox row
+            var shiftAutoRow = CreateInfoRowWithCheckbox(font, "Auto Shift:");
+            shiftAutoLabel = shiftAutoRow.label;
+            shiftAutoCheckbox = shiftAutoRow.checkbox;
+            shiftAutoCheckbox.OnCheckedChanged = (isChecked) => {
+                if (!isUpdatingFromKey && selectedKeys.Count > 0)
+                {
+                    // When enabled, convert all primary characters to shift characters
+                    if (isChecked)
+                    {
+                        foreach (var key in selectedKeys)
+                        {
+                            if (!string.IsNullOrEmpty(key.PrimaryCharacter))
+                            {
+                                key.ShiftCharacter = ConvertToShiftCharacter(key.PrimaryCharacter);
+                            }
+                            else
+                            {
+                                key.ShiftCharacter = null;
+                            }
+                        }
+                        // Update shift input display
+                        UpdateShiftInputDisplay();
+                        layout?.RebuildMappings();
+                    }
+                    // Update shift input enabled state
+                    if (shiftCharacterInput != null)
+                    {
+                        shiftCharacterInput.IsEnabled = !isChecked;
+                    }
+                }
+            };
+            keyInfoContainer.AddChild(shiftAutoRow.container);
 
             // Create disabled row with checkbox
             var disabledRow = CreateInfoRowWithCheckbox(font, "Disabled:");
@@ -933,29 +1057,67 @@ namespace Keysharp.UI
                 }
             }
 
-            // Primary/Shift characters: hide containers for multi-selection
+            // Primary/Shift characters: show for both single and multi-selection
             if (primaryCharacterRowContainer != null)
             {
-                primaryCharacterRowContainer.IsVisible = hasKey && !isMultiSelect;
-                if (hasKey && !isMultiSelect && topLeftKey != null && primaryCharacterInput != null)
+                primaryCharacterRowContainer.IsVisible = hasKey;
+                if (hasKey && primaryCharacterInput != null)
                 {
                     isUpdatingFromKey = true;
-                    primaryCharacterInput.SetText(topLeftKey.PrimaryCharacter ?? "");
+                    if (isMultiSelect)
+                    {
+                        // Multi-selection: combine characters from all selected keys
+                        // Sort keys by position (left to right, top to bottom)
+                        var sortedKeys = selectedKeys.OrderBy(k => k.Y).ThenBy(k => k.X).ToList();
+                        var primaryChars = sortedKeys
+                            .Select(k => k.PrimaryCharacter ?? "")
+                            .Where(c => !string.IsNullOrEmpty(c));
+                        primaryCharacterInput.SetText(string.Join(" ", primaryChars));
+                    }
+                    else if (topLeftKey != null)
+                    {
+                        // Single selection: show single character
+                        primaryCharacterInput.SetText(topLeftKey.PrimaryCharacter ?? "");
+                    }
                     isUpdatingFromKey = false;
                 }
             }
 
             if (shiftCharacterRowContainer != null)
             {
-                shiftCharacterRowContainer.IsVisible = hasKey && !isMultiSelect;
-                if (hasKey && !isMultiSelect && topLeftKey != null && shiftCharacterInput != null)
+                shiftCharacterRowContainer.IsVisible = hasKey;
+                if (hasKey && shiftCharacterInput != null)
                 {
                     isUpdatingFromKey = true;
-                    shiftCharacterInput.SetText(topLeftKey.ShiftCharacter ?? "");
+                    bool autoEnabled = shiftAutoCheckbox != null && shiftAutoCheckbox.IsChecked;
+                    shiftCharacterInput.IsEnabled = !autoEnabled; // Disable input when auto is enabled
+                    
+                    if (isMultiSelect)
+                    {
+                        // Multi-selection: combine characters from all selected keys
+                        // Sort keys by position (left to right, top to bottom)
+                        var sortedKeys = selectedKeys.OrderBy(k => k.Y).ThenBy(k => k.X).ToList();
+                        var shiftChars = sortedKeys
+                            .Select(k => k.ShiftCharacter ?? "")
+                            .Where(c => !string.IsNullOrEmpty(c));
+                        shiftCharacterInput.SetText(string.Join(" ", shiftChars));
+                    }
+                    else if (topLeftKey != null)
+                    {
+                        // Single selection: show single character
+                        shiftCharacterInput.SetText(topLeftKey.ShiftCharacter ?? "");
+                    }
                     isUpdatingFromKey = false;
                 }
             }
 
+            // Shift auto checkbox: show when key is selected
+            if (shiftAutoLabel != null && shiftAutoCheckbox != null)
+            {
+                shiftAutoLabel.IsVisible = hasKey;
+                shiftAutoCheckbox.IsVisible = hasKey;
+            }
+            
             // Disabled: show if all keys have same state, apply to all when edited
             if (disabledLabel != null && disabledCheckbox != null)
             {
@@ -1003,6 +1165,92 @@ namespace Keysharp.UI
             }
         }
 
+        private void UpdateShiftInputDisplay()
+        {
+            if (shiftCharacterInput == null || isUpdatingFromKey)
+                return;
+                
+            isUpdatingFromKey = true;
+            bool isMultiSelect = selectedKeys.Count > 1;
+            
+            if (isMultiSelect)
+            {
+                var sortedKeys = selectedKeys.OrderBy(k => k.Y).ThenBy(k => k.X).ToList();
+                var shiftChars = sortedKeys
+                    .Select(k => k.ShiftCharacter ?? "")
+                    .Where(c => !string.IsNullOrEmpty(c));
+                shiftCharacterInput.SetText(string.Join(" ", shiftChars));
+            }
+            else if (selectedKeys.Count == 1)
+            {
+                var key = selectedKeys.First();
+                shiftCharacterInput.SetText(key.ShiftCharacter ?? "");
+            }
+            
+            isUpdatingFromKey = false;
+        }
+        
+        private string ConvertToShiftCharacter(string primaryChar)
+        {
+            if (string.IsNullOrEmpty(primaryChar))
+                return "";
+            
+            // Handle single character (most common case)
+            if (primaryChar.Length == 1)
+            {
+                char c = primaryChar[0];
+                
+                // Letters: convert to uppercase
+                if (c >= 'a' && c <= 'z')
+                {
+                    return char.ToUpper(c).ToString();
+                }
+                
+                // Numbers and symbols on number row
+                switch (c)
+                {
+                    case '1': return "!";
+                    case '2': return "@";
+                    case '3': return "#";
+                    case '4': return "$";
+                    case '5': return "%";
+                    case '6': return "^";
+                    case '7': return "&";
+                    case '8': return "*";
+                    case '9': return "(";
+                    case '0': return ")";
+                    case '-': return "_";
+                    case '=': return "+";
+                    case '[': return "{";
+                    case ']': return "}";
+                    case '\\': return "|";
+                    case ';': return ":";
+                    case '\'': return "\"";
+                    case ',': return "<";
+                    case '.': return ">";
+                    case '/': return "?";
+                    case '`': return "~";
+                    default:
+                        // For other characters, try uppercase first
+                        if (char.IsLetter(c))
+                        {
+                            return char.ToUpper(c).ToString();
+                        }
+                        // Otherwise return as-is
+                        return primaryChar;
+                }
+            }
+            
+            // For multi-character strings (shouldn't happen in normal use, but handle it)
+            // Convert each character individually
+            var converted = new System.Text.StringBuilder();
+            foreach (char c in primaryChar)
+            {
+                converted.Append(ConvertToShiftCharacter(c.ToString()));
+            }
+            return converted.ToString();
+        }
+        
         private string GetFingerName(Finger finger)
         {
             return finger switch
@@ -1125,6 +1373,12 @@ namespace Keysharp.UI
                 {
                     shiftCharacterLabel.SetSize(labelWidth, 18);
                     shiftCharacterInput.SetSize(valueWidth, 24);
+                }
+                
+                if (shiftAutoLabel != null && shiftAutoCheckbox != null)
+                {
+                    shiftAutoLabel.SetSize(labelWidth, 18);
+                    shiftAutoCheckbox.SetSize(16, 16);
                 }
 
                 if (disabledLabel != null && disabledCheckbox != null)

@@ -37,6 +37,9 @@ namespace Keysharp.Components
         private bool isSelecting = false;
         private int mouseClickPosition = -1;
         
+        // Horizontal scrolling for long text
+        private float scrollOffset = 0; // Horizontal offset in pixels
+        
         // Key repeat tracking
         private double arrowLeftLastPress = -1;
         private double arrowRightLastPress = -1;
@@ -69,6 +72,7 @@ namespace Keysharp.Components
             this.Text = text;
             cursorPosition = text.Length;
             ClearSelection();
+            scrollOffset = 0; // Reset scroll when text is set programmatically
             ValidateInput();
             OnTextChanged?.Invoke(text);
         }
@@ -279,7 +283,7 @@ namespace Keysharp.Components
         
         private int GetCursorPositionFromMouse(int mouseX)
         {
-            float textX = Bounds.X + Padding;
+            float textX = Bounds.X + Padding - scrollOffset;
             
             // Find the closest cursor position
             int bestPos = Text.Length;
@@ -314,8 +318,20 @@ namespace Keysharp.Components
             // Reset frame-specific flags at the start of each frame
             backspaceProcessedThisFrame = false;
 
-            if (!IsVisible || !IsEnabled || Bounds.Width <= 0 || Bounds.Height <= 0)
+            if (!IsVisible || Bounds.Width <= 0 || Bounds.Height <= 0)
                 return;
+            
+            // Don't process input if disabled
+            if (!IsEnabled)
+            {
+                // Clear focus if we become disabled
+                if (IsFocused)
+                {
+                    IsFocused = false;
+                    ClearSelection();
+                }
+                return;
+            }
 
             int mouseX = Raylib.GetMouseX();
             int mouseY = Raylib.GetMouseY();
@@ -365,7 +381,8 @@ namespace Keysharp.Components
             if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT))
             {
                 bool wasFocused = IsFocused;
-                IsFocused = isHovered;
+                // Only allow focus if enabled
+                IsFocused = isHovered && IsEnabled;
                 
                 if (IsFocused)
                 {
@@ -397,8 +414,8 @@ namespace Keysharp.Components
                 isSelecting = false;
             }
 
-            // Handle text input when focused
-            if (IsFocused)
+            // Handle text input when focused (only if enabled)
+            if (IsFocused && IsEnabled)
             {
                 // Check Ctrl state first - need to check BEFORE GetCharPressed() which might consume events
                 bool leftCtrlDown = Raylib.IsKeyDown(KeyboardKey.KEY_LEFT_CONTROL);
@@ -707,6 +724,65 @@ namespace Keysharp.Components
                 // Clear selection when not focused
                 ClearSelection();
             }
+            
+            // Update scroll offset to keep cursor visible
+            UpdateScrollOffset();
+        }
+        
+        private void UpdateScrollOffset()
+        {
+            // Reset scroll when not focused or when text is empty
+            if (string.IsNullOrEmpty(Text) || !IsFocused)
+            {
+                scrollOffset = 0;
+                return;
+            }
+            
+            float availableWidth = Bounds.Width - (Padding * 2);
+            
+            // Calculate cursor position in pixels (relative to text start, not screen)
+            string beforeCursor = Text.Substring(0, cursorPosition);
+            float cursorX = FontManager.MeasureText(font, beforeCursor, fontSize);
+            
+            // Calculate full text width
+            float fullTextWidth = FontManager.MeasureText(font, Text, fontSize);
+            
+            // If text fits entirely, no scrolling needed
+            if (fullTextWidth <= availableWidth)
+            {
+                scrollOffset = 0;
+                return;
+            }
+            
+            // Calculate where cursor appears on screen with current scroll
+            // The visible text area starts at Bounds.X + Padding
+            // With scrollOffset, text is drawn at (Bounds.X + Padding - scrollOffset)
+            // So cursor appears at: (Bounds.X + Padding - scrollOffset) + cursorX
+            float visibleLeft = Bounds.X + Padding;
+            float cursorScreenX = visibleLeft - scrollOffset + cursorX;
+            float visibleRight = visibleLeft + availableWidth;
+            
+            // If cursor is to the left of visible area, scroll left (increase scrollOffset)
+            if (cursorScreenX < visibleLeft)
+            {
+                scrollOffset = cursorX;
+            }
+            // If cursor is to the right of visible area, scroll right
+            else if (cursorScreenX > visibleRight)
+            {
+                scrollOffset = cursorX - availableWidth;
+            }
+            
+            // Clamp scroll offset to valid range
+            float maxScroll = fullTextWidth - availableWidth;
+            if (scrollOffset < 0)
+            {
+                scrollOffset = 0;
+            }
+            else if (scrollOffset > maxScroll)
+            {
+                scrollOffset = maxScroll;
+            }
         }
 
         protected override void DrawSelf()
@@ -732,12 +808,27 @@ namespace Keysharp.Components
 
             // Text or placeholder
             string displayText = string.IsNullOrEmpty(Text) ? Placeholder : Text;
-            Color textColor = string.IsNullOrEmpty(Text) ? UITheme.TextSecondaryColor : UITheme.TextColor;
+            // Use grayed out color if disabled or if it's a placeholder
+            Color textColor;
+            if (!IsEnabled)
+            {
+                // When disabled, use a more muted gray color
+                textColor = new Color(128, 128, 128, 255); // Gray color for disabled state
+            }
+            else if (string.IsNullOrEmpty(Text))
+            {
+                textColor = UITheme.TextSecondaryColor; // Placeholder color
+            }
+            else
+            {
+                textColor = UITheme.TextColor; // Normal text color
+            }
             
-            float textX = Bounds.X + Padding;
+            float textX = Bounds.X + Padding - scrollOffset;
             float textY = Bounds.Y + (Bounds.Height - fontSize) / 2;
+            float availableWidth = Bounds.Width - (Padding * 2);
             
-            // Draw selection highlight if there is one
+            // Draw selection highlight if there is one (only visible portion)
             if (IsFocused && HasSelection() && !string.IsNullOrEmpty(Text))
             {
                 int selStart = GetSelectionStart();
@@ -749,22 +840,45 @@ namespace Keysharp.Components
                 float selectionX = textX + FontManager.MeasureText(font, beforeSelection, fontSize);
                 float selectionWidth = FontManager.MeasureText(font, selection, fontSize);
                 
-                Rectangle selectionRect = new Rectangle(selectionX, textY, selectionWidth, fontSize);
-                Raylib.DrawRectangleRec(selectionRect, new Color(100, 150, 255, 150)); // Light blue selection
+                // Clamp selection rectangle to visible bounds
+                float visibleSelectionX = Math.Max(selectionX, Bounds.X + Padding);
+                float visibleSelectionWidth = Math.Min(selectionWidth, availableWidth - (visibleSelectionX - (Bounds.X + Padding)));
+                if (visibleSelectionWidth > 0 && visibleSelectionX < Bounds.X + Bounds.Width - Padding)
+                {
+                    Rectangle selectionRect = new Rectangle(visibleSelectionX, textY, visibleSelectionWidth, fontSize);
+                    Raylib.DrawRectangleRec(selectionRect, new Color(100, 150, 255, 150)); // Light blue selection
+                }
             }
             
-            // Draw text
-            TextContainer.DrawLeftAlignedText(font, displayText, Bounds, fontSize, textColor, Padding);
+            // Draw text (clipped to visible area)
+            float textWidth = FontManager.MeasureText(font, displayText, fontSize);
+            Rectangle clipRect = new Rectangle(Bounds.X + Padding, Bounds.Y, availableWidth, Bounds.Height);
             
-            // Draw cursor when focused
-            if (IsFocused && (int)(Raylib.GetTime() * 2) % 2 == 0)
+            // Only draw if text is within visible area
+            if (textX + textWidth >= Bounds.X + Padding && textX < Bounds.X + Bounds.Width - Padding)
+            {
+                // Use scissor mode to clip text to bounds
+                Raylib.BeginScissorMode((int)clipRect.X, (int)clipRect.Y, (int)clipRect.Width, (int)clipRect.Height);
+                FontManager.DrawText(font, displayText, (int)textX, (int)textY, fontSize, textColor);
+                Raylib.EndScissorMode();
+            }
+            
+            // Draw cursor when focused (only if visible)
+            if (IsFocused && !string.IsNullOrEmpty(Text) && (int)(Raylib.GetTime() * 2) % 2 == 0)
             {
                 string beforeCursor = Text.Substring(0, cursorPosition);
                 float cursorX = textX + FontManager.MeasureText(font, beforeCursor, fontSize);
-                Raylib.DrawLineEx(
-                    new System.Numerics.Vector2(cursorX, Bounds.Y + Padding),
-                    new System.Numerics.Vector2(cursorX, Bounds.Y + Bounds.Height - Padding),
-                    1, UITheme.TextColor);
+                
+                // Only draw cursor if it's visible
+                if (cursorX >= Bounds.X + Padding && cursorX <= Bounds.X + Bounds.Width - Padding)
+                {
+                    Raylib.DrawLineEx(
+                        new System.Numerics.Vector2(cursorX, textY),
+                        new System.Numerics.Vector2(cursorX, textY + fontSize),
+                        1.0f,
+                        UITheme.TextColor
+                    );
+                }
             }
         }
     }
