@@ -24,11 +24,15 @@ namespace Keysharp.UI
         private Components.Button? loadLayoutButton;
         private Components.Dropdown? layoutsDropdown;
         private Components.Canvas keyboardCanvas;
+        private string? initialLayoutFile = null; // Track which file was initially loaded
+        private bool isLoadingLayout = false; // Flag to prevent recursive loading
+        private string? currentlyLoadedFile = null; // Track which file is currently loaded
         private Components.KeyboardLayoutView keyboardView;
         private Layout layout;
         private SidePanel? sidePanel;
         private Font font;
         private CorpusTab? corpusTab; // Reference to corpus tab for checking loaded corpus
+        private LayoutMetadataJson metadata = new LayoutMetadataJson(); // Layout metadata
 
         public Components.TabContent TabContent => tabContent;
         public Components.Dropdown? LayoutsDropdown => layoutsDropdown;
@@ -45,6 +49,8 @@ namespace Keysharp.UI
                     sidePanel.SetKeyboardView(keyboardView);
                     // Also notify of current view mode
                     sidePanel.SetViewMode(keyboardView.ViewMode);
+                    // Update metadata in side panel if we loaded from a file
+                    sidePanel.SetLayoutMetadata(metadata);
                 }
             }
         }
@@ -60,11 +66,49 @@ namespace Keysharp.UI
             }
         }
 
+        /// <summary>
+        /// Gets the current layout metadata.
+        /// </summary>
+        public LayoutMetadataJson Metadata => metadata;
+
         public LayoutTab(Font font)
         {
             this.font = font;
-            // Create the standard 60% QWERTY layout
-            layout = Layout.CreateStandard60PercentQwerty();
+            
+            // Initialize default metadata
+            metadata = new LayoutMetadataJson();
+            
+            // Try to load qwerty.json layout, fallback to programmatic creation if it doesn't exist
+            string layoutDir = Path.Combine(Directory.GetCurrentDirectory(), "layouts");
+            string qwertyPath = Path.Combine(layoutDir, "qwerty.json");
+            
+            if (File.Exists(qwertyPath))
+            {
+                try
+                {
+                    initialLayoutFile = "qwerty.json";
+                    LoadLayoutFromPath(qwertyPath, skipSidePanelUpdate: true); // Skip side panel update since it's not connected yet
+                    // Ensure layout is initialized (fallback if load failed)
+                    if (layout == null)
+                    {
+                        System.Console.WriteLine("Layout load returned null, falling back to programmatic creation");
+                        layout = Layout.CreateStandard60PercentQwerty();
+                        initialLayoutFile = null; // Clear if fallback was used
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Console.WriteLine($"Exception during initial layout load: {ex.Message}");
+                    System.Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                    layout = Layout.CreateStandard60PercentQwerty();
+                    initialLayoutFile = null;
+                }
+            }
+            else
+            {
+                // Fallback to programmatic creation
+                layout = Layout.CreateStandard60PercentQwerty();
+            }
 
             // Create tab content without title (we'll use a Label element instead)
             tabContent = new Components.TabContent(font, "", null);
@@ -119,6 +163,11 @@ namespace Keysharp.UI
             layoutsDropdown.SetBounds(new Rectangle(0, 0, 200, buttonHeight));
             layoutsDropdown.AutoSize = false;
             layoutsDropdown.OnSelectionChanged = OnLayoutSelected;
+            // Set initial selection if we loaded a file
+            if (initialLayoutFile != null && layoutFiles.Contains(initialLayoutFile))
+            {
+                layoutsDropdown.SetSelectedItem(initialLayoutFile);
+            }
             radioButtonsContainer.AddChild(layoutsDropdown);
 
             viewControlsContainer.AddChild(radioButtonsContainer);
@@ -225,7 +274,7 @@ namespace Keysharp.UI
 
             // Create keyboard layout view
             keyboardView = new Components.KeyboardLayoutView(font);
-            keyboardView.Layout = layout;
+            keyboardView.Layout = layout; // Layout was either loaded from file or created programmatically
             keyboardView.PositionMode = Components.PositionMode.Relative;
             keyboardView.ShowDisabledKeys = true; // Default: show disabled keys
             keyboardView.OnSelectedKeyChanged = (key) => {
@@ -464,8 +513,8 @@ namespace Keysharp.UI
                             filePath += ".json";
                         }
 
-                        // Convert layout to JSON DTO
-                        var layoutJson = LayoutJson.FromLayout(layout);
+                        // Convert layout to JSON DTO (include metadata)
+                        var layoutJson = LayoutJson.FromLayout(layout, metadata);
 
                         // Serialize to JSON
                         var options = new JsonSerializerOptions
@@ -541,6 +590,10 @@ namespace Keysharp.UI
 
         private void OnLayoutSelected(string layoutFile)
         {
+            // Prevent recursive loading
+            if (isLoadingLayout)
+                return;
+                
             string layoutDir = Path.Combine(Directory.GetCurrentDirectory(), "layouts");
             string fullPath = Path.Combine(layoutDir, layoutFile);
 
@@ -550,39 +603,127 @@ namespace Keysharp.UI
             }
         }
 
-        private void LoadLayoutFromPath(string filePath)
+        private void LoadLayoutFromPath(string filePath, bool skipSidePanelUpdate = false)
         {
+            // Prevent recursive loading and loading the same file twice
+            string normalizedPath = Path.GetFullPath(filePath);
+            if (isLoadingLayout || currentlyLoadedFile == normalizedPath)
+                return;
+                
+            isLoadingLayout = true;
+            string? previousFile = currentlyLoadedFile;
+            currentlyLoadedFile = normalizedPath;
             try
             {
+                System.Console.WriteLine($"Loading layout from: {filePath}");
+                
                 // Read JSON file
                 string json = File.ReadAllText(filePath);
+                System.Console.WriteLine($"Read {json.Length} characters from file");
 
                 // Deserialize JSON
                 var layoutJson = JsonSerializer.Deserialize<LayoutJson>(json);
                 if (layoutJson == null)
                 {
                     System.Console.WriteLine("Failed to deserialize layout JSON");
+                    isLoadingLayout = false;
                     return;
                 }
+                
+                System.Console.WriteLine($"Deserialized JSON: {layoutJson.Keys.Count} keys, {layoutJson.Mappings.Count} mappings");
 
                 // Convert JSON DTO to Layout
                 var newLayout = layoutJson.ToLayout();
+                System.Console.WriteLine($"Converted to Layout: {newLayout.PhysicalKeyCount} physical keys, {newLayout.MappingCount} mappings");
+
+                // Load metadata if present
+                if (layoutJson.Metadata != null)
+                {
+                    metadata = layoutJson.Metadata;
+                }
+                else
+                {
+                    // Initialize default metadata if not present
+                    metadata = new LayoutMetadataJson();
+                }
 
                 // Update the current layout
                 layout = newLayout;
-                keyboardView.Layout = layout;
+                
+                // Only update keyboardView if it exists (it might not be created yet during initialization)
+                if (keyboardView != null)
+                {
+                    keyboardView.Layout = layout;
+                }
 
-                // Update side panel if a key was selected
-                sidePanel?.SetLayout(layout);
+                // Update side panel if available and not skipping
+                if (!skipSidePanelUpdate)
+                {
+                    sidePanel?.SetLayout(layout);
+                    sidePanel?.SetLayoutMetadata(metadata);
+                }
+
+                // Update dropdown selection if this is a file from the layouts directory
+                // Only update if it's different from what's already selected to avoid infinite recursion
+                string layoutDir = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "layouts"));
+                string fullFilePath = Path.GetFullPath(filePath);
+                if (fullFilePath.StartsWith(layoutDir, StringComparison.Ordinal))
+                {
+                    string fileName = Path.GetFileName(filePath);
+                    if (layoutsDropdown != null)
+                    {
+                        // Only update if it's different to avoid unnecessary work
+                        if (layoutsDropdown.SelectedItem != fileName)
+                        {
+                            // Temporarily remove the callback to prevent recursion when programmatically setting selection
+                            var oldCallback = layoutsDropdown.OnSelectionChanged;
+                            layoutsDropdown.OnSelectionChanged = null;
+                            
+                            // Refresh the dropdown items first in case the file list changed
+                            RefreshLayoutsDropdown();
+                            // Then set the selection (this won't trigger callback since we removed it)
+                            layoutsDropdown.SetSelectedItem(fileName);
+                            
+                            // Restore the callback
+                            layoutsDropdown.OnSelectionChanged = oldCallback;
+                        }
+                    }
+                    initialLayoutFile = fileName;
+                }
 
                 System.Console.WriteLine($"Layout loaded from: {filePath}");
 
-                // Update show disabled checkbox visibility
-                UpdateShowDisabledCheckboxVisibility();
+                // Update show disabled checkbox visibility (only if keyboardView exists, since it might not be created yet during initialization)
+                if (keyboardView != null)
+                {
+                    UpdateShowDisabledCheckboxVisibility();
+                }
             }
             catch (Exception ex)
             {
                 System.Console.WriteLine($"Error loading layout: {ex.Message}");
+                System.Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                // If loading fails during initialization, fallback to programmatic creation
+                if (layout == null)
+                {
+                    System.Console.WriteLine("Falling back to programmatic layout creation");
+                    layout = Layout.CreateStandard60PercentQwerty();
+                    metadata = new LayoutMetadataJson();
+                }
+            }
+            finally
+            {
+                isLoadingLayout = false;
+                // Only clear currentlyLoadedFile if we successfully loaded, otherwise restore previous
+                // (in case of error, we want to allow retry)
+                if (layout != null)
+                {
+                    // Keep currentlyLoadedFile set
+                }
+                else
+                {
+                    currentlyLoadedFile = previousFile;
+                }
             }
         }
 

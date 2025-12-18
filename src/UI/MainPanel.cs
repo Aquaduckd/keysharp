@@ -89,6 +89,8 @@ namespace Keysharp.UI
             
             layoutTab = new LayoutTab(font);
             layoutTab.SidePanel = sidePanel;
+            // Initialize metadata in side panel
+            sidePanel?.SetLayoutMetadata(layoutTab.Metadata);
             // Connect layout tab to side panel for disabled key changes
             if (sidePanel != null)
             {

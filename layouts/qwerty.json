@@ -1,4 +1,12 @@
 {
+  "metadata": {
+    "displayName": "Qwerty",
+    "authors": [
+      "Christopher Latham Sholes"
+    ],
+    "creationDate": null,
+    "description": null
+  },
   "keys": [
     {
       "x": 0,

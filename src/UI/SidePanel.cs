@@ -1,5 +1,6 @@
 using Raylib_cs;
 using System.Collections.Generic;
+using System.Linq;
 using Keysharp.Components;
 using Keysharp.Core;
 
@@ -42,10 +43,117 @@ namespace Keysharp.UI
         private Components.TextInput? highSInput;
         private Components.TextInput? highVInput;
         private Components.KeyboardLayoutView? keyboardView; // Reference to keyboard view for updating heatmap colors
+        
+        // Layout metadata controls
+        private Components.Container? metadataContainer;
+        private Components.Label? metadataHeaderLabel;
+        private Components.TextInput? displayNameInput;
+        private Components.TextInput? authorsInput;
+        private Components.TextInput? creationDateInput;
+        private Components.TextInput? descriptionInput;
 
         public SidePanel(Font font) : base(font, "SidePanel")
         {
-            // Create main container for key info
+            // Create metadata container (first)
+            metadataContainer = new Components.Container("MetadataContainer");
+            metadataContainer.AutoLayoutChildren = true;
+            metadataContainer.LayoutDirection = Components.LayoutDirection.Vertical;
+            metadataContainer.AutoSize = true; // Auto-size based on content
+            metadataContainer.ChildPadding = 0; // No padding, outer container handles it
+            metadataContainer.ChildGap = 12;
+            metadataContainer.PositionMode = Components.PositionMode.Relative;
+            AddChild(metadataContainer);
+
+            // Create metadata header label
+            metadataHeaderLabel = new Components.Label(Font, "Layout Metadata", 18);
+            metadataHeaderLabel.AutoSize = false;
+            metadataHeaderLabel.Bounds = new Rectangle(0, 0, 0, 24);
+            metadataHeaderLabel.PositionMode = Components.PositionMode.Relative;
+            metadataContainer.AddChild(metadataHeaderLabel);
+
+            // Create Display Name row
+            var displayNameRow = CreateInfoRowWithInput(font, "Display Name:");
+            displayNameInput = displayNameRow.input;
+            displayNameInput.OnTextChanged = (text) => {
+                if (layoutTab != null)
+                {
+                    layoutTab.Metadata.DisplayName = string.IsNullOrEmpty(text) ? null : text;
+                }
+            };
+            metadataContainer.AddChild(displayNameRow.container);
+
+            // Create Authors row (comma-separated)
+            var authorsRow = CreateInfoRowWithInput(font, "Authors:");
+            authorsInput = authorsRow.input;
+            authorsInput.OnTextChanged = (text) => {
+                if (layoutTab != null)
+                {
+                    if (string.IsNullOrEmpty(text))
+                    {
+                        layoutTab.Metadata.Authors.Clear();
+                    }
+                    else
+                    {
+                        // Split by comma and trim each author
+                        var authors = text.Split(',')
+                            .Select(a => a.Trim())
+                            .Where(a => !string.IsNullOrEmpty(a))
+                            .ToList();
+                        layoutTab.Metadata.Authors = authors;
+                    }
+                }
+            };
+            metadataContainer.AddChild(authorsRow.container);
+
+            // Create Creation Date row
+            var creationDateRow = CreateInfoRowWithInput(font, "Creation Date:");
+            creationDateInput = creationDateRow.input;
+            creationDateInput.OnTextChanged = (text) => {
+                if (layoutTab != null)
+                {
+                    layoutTab.Metadata.CreationDate = string.IsNullOrEmpty(text) ? null : text;
+                }
+            };
+            metadataContainer.AddChild(creationDateRow.container);
+
+            // Create Description row (needs to be taller for multi-line)
+            var descriptionRow = CreateInfoRowWithMultilineInput(font, "Description:");
+            descriptionInput = descriptionRow.input;
+            descriptionInput.OnTextChanged = (text) => {
+                if (layoutTab != null)
+                {
+                    layoutTab.Metadata.Description = string.IsNullOrEmpty(text) ? null : text;
+                }
+            };
+            metadataContainer.AddChild(descriptionRow.container);
+
+            // Create color controls container for HSV inputs (second)
+            colorControlsContainer = new Components.Container("ColorControlsContainer");
+            colorControlsContainer.AutoLayoutChildren = true;
+            colorControlsContainer.LayoutDirection = Components.LayoutDirection.Vertical;
+            colorControlsContainer.AutoSize = false;
+            colorControlsContainer.Bounds = new Rectangle(0, 0, 0, 135); // Height for header + 3 rows
+            colorControlsContainer.ChildPadding = 0; // No padding, outer container handles it
+            colorControlsContainer.ChildGap = 5;
+            colorControlsContainer.PositionMode = Components.PositionMode.Relative;
+            AddChild(colorControlsContainer);
+            
+            // Create header label
+            colorControlsHeaderLabel = new Components.Label(Font, "Heatmap Colors", 16);
+            colorControlsHeaderLabel.AutoSize = false;
+            colorControlsHeaderLabel.Bounds = new Rectangle(0, 0, 0, 24);
+            colorControlsHeaderLabel.PositionMode = Components.PositionMode.Relative;
+            colorControlsContainer.AddChild(colorControlsHeaderLabel);
+            
+            // Create three rows: Low, Mid, High, each with H, S, V inputs
+            CreateColorInputRow("Low:", out lowHInput, out lowSInput, out lowVInput, "210", "15", "30");
+            CreateColorInputRow("Mid:", out midHInput, out midSInput, out midVInput, "200", "70", "60");
+            CreateColorInputRow("High:", out highHInput, out highSInput, out highVInput, "130", "60", "90");
+            
+            // Initially hide the container (will be shown when heatmap mode is selected)
+            colorControlsContainer.IsVisible = false;
+
+            // Create main container for key info (last)
             keyInfoContainer = new Components.Container("KeyInfoContainer");
             keyInfoContainer.AutoLayoutChildren = true;
             keyInfoContainer.LayoutDirection = Components.LayoutDirection.Vertical;
@@ -142,32 +250,6 @@ namespace Keysharp.UI
                 }
             };
             keyInfoContainer.AddChild(disabledRow.container);
-
-            // Create color controls container for HSV inputs
-            colorControlsContainer = new Components.Container("ColorControlsContainer");
-            colorControlsContainer.AutoLayoutChildren = true;
-            colorControlsContainer.LayoutDirection = Components.LayoutDirection.Vertical;
-            colorControlsContainer.AutoSize = false;
-            colorControlsContainer.Bounds = new Rectangle(0, 0, 0, 135); // Height for header + 3 rows
-            colorControlsContainer.ChildPadding = 0; // No padding, outer container handles it
-            colorControlsContainer.ChildGap = 5;
-            colorControlsContainer.PositionMode = Components.PositionMode.Relative;
-            AddChild(colorControlsContainer);
-            
-            // Create header label
-            colorControlsHeaderLabel = new Components.Label(Font, "Heatmap Colors", 16);
-            colorControlsHeaderLabel.AutoSize = false;
-            colorControlsHeaderLabel.Bounds = new Rectangle(0, 0, 0, 24);
-            colorControlsHeaderLabel.PositionMode = Components.PositionMode.Relative;
-            colorControlsContainer.AddChild(colorControlsHeaderLabel);
-            
-            // Create three rows: Low, Mid, High, each with H, S, V inputs
-            CreateColorInputRow("Low:", out lowHInput, out lowSInput, out lowVInput, "210", "15", "30");
-            CreateColorInputRow("Mid:", out midHInput, out midSInput, out midVInput, "200", "70", "60");
-            CreateColorInputRow("High:", out highHInput, out highSInput, out highVInput, "130", "60", "90");
-            
-            // Initially hide the container (will be shown when heatmap mode is selected)
-            colorControlsContainer.IsVisible = false;
 
             // Initially show placeholder, hide info rows
             UpdateKeyInfo();
@@ -271,6 +353,31 @@ namespace Keysharp.UI
             row.AddChild(checkbox);
 
             return (row, label, checkbox);
+        }
+
+        private (Components.Container container, Components.Label label, Components.TextInput input) CreateInfoRowWithMultilineInput(Font font, string labelText)
+        {
+            var row = new Components.Container($"InfoRow_{labelText}");
+            row.AutoLayoutChildren = true;
+            row.LayoutDirection = Components.LayoutDirection.Vertical;
+            row.AutoSize = true;
+            row.ChildPadding = 0;
+            row.ChildGap = 5;
+            row.PositionMode = Components.PositionMode.Relative;
+
+            var label = new Components.Label(font, labelText, 14);
+            label.AutoSize = false;
+            label.Bounds = new Rectangle(0, 0, 0, 18);
+            label.PositionMode = Components.PositionMode.Relative;
+            row.AddChild(label);
+
+            var input = new Components.TextInput(font, "", 14);
+            input.AutoSize = false;
+            input.Bounds = new Rectangle(0, 0, 0, 60); // Taller for multi-line description
+            input.PositionMode = Components.PositionMode.Relative;
+            row.AddChild(input);
+
+            return (row, label, input);
         }
 
         private List<string> GetFingerNames()
@@ -477,6 +584,29 @@ namespace Keysharp.UI
             set => layoutTab = value;
         }
 
+        /// <summary>
+        /// Sets the layout metadata and updates the UI.
+        /// </summary>
+        public void SetLayoutMetadata(LayoutMetadataJson metadata)
+        {
+            if (displayNameInput != null)
+            {
+                displayNameInput.Text = metadata.DisplayName ?? "";
+            }
+            if (authorsInput != null)
+            {
+                authorsInput.Text = string.Join(", ", metadata.Authors);
+            }
+            if (creationDateInput != null)
+            {
+                creationDateInput.Text = metadata.CreationDate ?? "";
+            }
+            if (descriptionInput != null)
+            {
+                descriptionInput.Text = metadata.Description ?? "";
+            }
+        }
+
         public void SetSelectedKey(Keysharp.Core.PhysicalKey? key)
         {
             selectedKey = key;
@@ -604,11 +734,47 @@ namespace Keysharp.UI
             if (keyInfoContainer != null && Bounds.Width > 0 && Bounds.Height > 0)
             {
                 // Set container width (height will be auto-calculated based on content)
-                keyInfoContainer.SetSize(Bounds.Width, 0); // Height will be calculated by auto-size
+                // Width accounts for 15px padding on each side
+                float containerWidth = Bounds.Width - 30;
+                keyInfoContainer.SetSize(containerWidth, 0); // Height will be calculated by auto-size
                 keyInfoContainer.RelativePosition = new System.Numerics.Vector2(15, 15);
                 
+                if (metadataHeaderLabel != null)
+                {
+                    metadataHeaderLabel.SetSize(containerWidth, 24);
+                }
+                // Set input widths (accounting for label width)
+                float labelWidth = 100;
+                float inputWidth = containerWidth - labelWidth - 8; // 8 is gap
+                
+                // Find the parent containers of the inputs to set label and input sizes
+                foreach (var child in metadataContainer.Children)
+                {
+                    if (child is Components.Container rowContainer && rowContainer.Children.Count >= 2)
+                    {
+                        var label = rowContainer.Children[0] as Components.Label;
+                        var input = rowContainer.Children[1] as Components.TextInput;
+                        if (label != null && input != null)
+                        {
+                            label.SetSize(labelWidth, label.Bounds.Height);
+                            // For description, use taller height
+                            float inputHeight = (input == descriptionInput) ? 60 : 24;
+                            input.SetSize(inputWidth, inputHeight);
+                        }
+                    }
+                }
+            }
+            
+            // Set key info container size
+            if (keyInfoContainer != null && Bounds.Width > 0 && Bounds.Height > 0)
+            {
+                // Set container width (height will be auto-calculated based on content)
+                // Width accounts for 15px padding on each side
+                float containerWidth = Bounds.Width - 30;
+                keyInfoContainer.SetSize(containerWidth, 0); // Height will be calculated by auto-size
+                
                 // Set label widths to fill available space (accounting for container padding)
-                float availableWidth = Bounds.Width - 30 - (keyInfoContainer.ChildPadding * 2);
+                float availableWidth = containerWidth - (keyInfoContainer.ChildPadding * 2);
                 
                 if (titleLabel != null)
                 {
@@ -667,6 +833,39 @@ namespace Keysharp.UI
                 }
             }
             
+            // Set metadata container size (position will be set after ResolveBounds in ResolveBounds method)
+            if (metadataContainer != null && Bounds.Width > 0 && Bounds.Height > 0)
+            {
+                float availableWidth = Bounds.Width - 30; // Account for 15px padding on each side
+                metadataContainer.SetSize(availableWidth, 0); // Auto-size height, width accounts for padding
+                if (metadataHeaderLabel != null)
+                {
+                    metadataHeaderLabel.SetSize(availableWidth, 24);
+                }
+                // Set input widths (accounting for label width, similar to keyInfoContainer)
+                float labelWidth = 100;
+                float inputWidth = availableWidth - labelWidth - 8; // 8 is gap
+                
+                // Find the parent containers of the inputs to set label and input sizes
+                // The inputs are in containers created by CreateInfoRowWithInput or CreateInfoRowWithMultilineInput
+                // We need to iterate through metadataContainer's children and set sizes
+                foreach (var child in metadataContainer.Children)
+                {
+                    if (child is Components.Container rowContainer && rowContainer.Children.Count >= 2)
+                    {
+                        var label = rowContainer.Children[0] as Components.Label;
+                        var input = rowContainer.Children[1] as Components.TextInput;
+                        if (label != null && input != null)
+                        {
+                            label.SetSize(labelWidth, label.Bounds.Height);
+                            // For description, use taller height
+                            float inputHeight = (input == descriptionInput) ? 60 : 24;
+                            input.SetSize(inputWidth, inputHeight);
+                        }
+                    }
+                }
+            }
+            
             // Set color controls container size (position will be set after ResolveBounds)
             if (colorControlsContainer != null && Bounds.Width > 0 && Bounds.Height > 0)
             {
@@ -698,14 +897,49 @@ namespace Keysharp.UI
         {
             base.ResolveBounds();
             
-            // Position color controls container directly below keyInfoContainer after bounds are resolved
-            if (colorControlsContainer != null && keyInfoContainer != null)
+            // Position containers in order: metadata (first), colorControls (second), keyInfo (last)
+            
+            // Position metadata container first (at top)
+            if (metadataContainer != null)
             {
-                // keyInfoContainer starts at y=15, add its height, then add a small gap (15px)
-                float colorControlsY = 15 + keyInfoContainer.Bounds.Height + 15;
+                metadataContainer.RelativePosition = new System.Numerics.Vector2(15, 15);
+                metadataContainer.ResolveBounds();
+            }
+            
+            // Position color controls container below metadata container
+            if (colorControlsContainer != null)
+            {
+                float colorControlsY;
+                if (metadataContainer != null && metadataContainer.Bounds.Height > 0)
+                {
+                    colorControlsY = metadataContainer.RelativePosition.Y + metadataContainer.Bounds.Height + 15;
+                }
+                else
+                {
+                    colorControlsY = 15;
+                }
                 colorControlsContainer.RelativePosition = new System.Numerics.Vector2(15, colorControlsY);
-                // Need to resolve bounds again for colorControlsContainer since we changed its position
                 colorControlsContainer.ResolveBounds();
+            }
+            
+            // Position key info container last (below color controls container or metadata container)
+            if (keyInfoContainer != null)
+            {
+                float keyInfoY;
+                if (colorControlsContainer != null && colorControlsContainer.IsVisible && colorControlsContainer.Bounds.Height > 0)
+                {
+                    keyInfoY = colorControlsContainer.RelativePosition.Y + colorControlsContainer.Bounds.Height + 15;
+                }
+                else if (metadataContainer != null && metadataContainer.Bounds.Height > 0)
+                {
+                    keyInfoY = metadataContainer.RelativePosition.Y + metadataContainer.Bounds.Height + 15;
+                }
+                else
+                {
+                    keyInfoY = 15;
+                }
+                keyInfoContainer.RelativePosition = new System.Numerics.Vector2(15, keyInfoY);
+                keyInfoContainer.ResolveBounds();
             }
         }
 

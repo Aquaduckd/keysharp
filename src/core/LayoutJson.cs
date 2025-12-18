@@ -9,6 +9,9 @@ namespace Keysharp.Core
     /// </summary>
     public class LayoutJson
     {
+        [JsonPropertyName("metadata")]
+        public LayoutMetadataJson? Metadata { get; set; }
+
         [JsonPropertyName("keys")]
         public List<PhysicalKeyJson> Keys { get; set; } = new List<PhysicalKeyJson>();
 
@@ -18,9 +21,12 @@ namespace Keysharp.Core
         /// <summary>
         /// Converts a Layout instance to a LayoutJson DTO.
         /// </summary>
-        public static LayoutJson FromLayout(Layout layout)
+        public static LayoutJson FromLayout(Layout layout, LayoutMetadataJson? metadata = null)
         {
-            var json = new LayoutJson();
+            var json = new LayoutJson
+            {
+                Metadata = metadata
+            };
 
             // Create a mapping from PhysicalKey to its identifier for serialization
             var keyToIdentifier = new Dictionary<PhysicalKey, string>();
@@ -90,8 +96,33 @@ namespace Keysharp.Core
                 }
             }
 
+            // Rebuild mappings from key properties if no mappings were loaded (for backward compatibility)
+            // If mappings exist, we trust them; otherwise rebuild from PrimaryCharacter/ShiftCharacter
+            if (Mappings.Count == 0)
+            {
+                layout.RebuildMappings();
+            }
+
             return layout;
         }
+    }
+
+    /// <summary>
+    /// Data transfer object for layout metadata.
+    /// </summary>
+    public class LayoutMetadataJson
+    {
+        [JsonPropertyName("displayName")]
+        public string? DisplayName { get; set; }
+
+        [JsonPropertyName("authors")]
+        public List<string> Authors { get; set; } = new List<string>();
+
+        [JsonPropertyName("creationDate")]
+        public string? CreationDate { get; set; }
+
+        [JsonPropertyName("description")]
+        public string? Description { get; set; }
     }
 
     /// <summary>
