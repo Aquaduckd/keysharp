@@ -15,12 +15,15 @@ namespace Keysharp.UI
         // Metrics tab containers
         private Components.Container? metricsMainContainer;
         private Components.Container? metricsHeaderContainer;
+        private Components.Container? metricsNgramSizeContainer;
         private Components.Container? metricsControlsContainer;
         private Components.Container? metricsContentContainer;
         private Components.Label? metricsHeaderLabel;
         private Components.Table? metricsTable;
+        private Components.Dropdown? ngramSizeDropdown;
         private Components.TextInput? ngramSearchInput;
         private Components.TextInput? metricSearchInput;
+        private Components.Checkbox? filterNoMetricsCheckbox;
 
         // Data references
         private Layout? layout = null;
@@ -29,8 +32,11 @@ namespace Keysharp.UI
         // Search state
         private string ngramSearchText = "";
         private string metricSearchText = "";
+        private string selectedNgramSize = "bigram"; // "bigram" or "trigram"
+        private bool filterNoMetrics = true;
 
         public Components.TabContent TabContent => tabContent;
+        public Components.Dropdown? NgramSizeDropdown => ngramSizeDropdown;
 
         /// <summary>
         /// Sets the layout reference for key sequence conversion.
@@ -83,6 +89,31 @@ namespace Keysharp.UI
             metricsHeaderLabel.Bounds = new Rectangle(0, 0, 0, 40); // Height for header text
             metricsHeaderContainer.AddChild(metricsHeaderLabel);
 
+            // Create container for ngram size selector
+            metricsNgramSizeContainer = new Components.Container("MetricsNgramSize");
+            metricsNgramSizeContainer.AutoLayoutChildren = true;
+            metricsNgramSizeContainer.LayoutDirection = Components.LayoutDirection.Horizontal;
+            metricsNgramSizeContainer.AutoSize = true; // Auto-size based on children + padding
+            metricsNgramSizeContainer.ChildJustification = Components.ChildJustification.Left;
+            metricsNgramSizeContainer.ChildGap = 10;
+            metricsNgramSizeContainer.ChildPadding = 0;
+            metricsMainContainer.AddChild(metricsNgramSizeContainer);
+
+            // Create ngram size label
+            var ngramSizeLabel = new Components.Label(font, "Ngram Size:", 14);
+            ngramSizeLabel.Bounds = new Rectangle(0, 0, 100, 35);
+            ngramSizeLabel.PositionMode = Components.PositionMode.Absolute;
+            metricsNgramSizeContainer.AddChild(ngramSizeLabel);
+
+            // Create ngram size dropdown with only Bigram and Trigram options
+            List<string> ngramSizes = new List<string> { "Bigram", "Trigram" };
+            ngramSizeDropdown = new Components.Dropdown(font, ngramSizes, 14);
+            ngramSizeDropdown.SetBounds(new Rectangle(0, 0, 150, 35));
+            ngramSizeDropdown.PositionMode = Components.PositionMode.Absolute;
+            ngramSizeDropdown.OnSelectionChanged = OnNgramSizeSelected;
+            ngramSizeDropdown.SetSelectedItem("Bigram");
+            metricsNgramSizeContainer.AddChild(ngramSizeDropdown);
+
             // Create container for metrics controls bar
             metricsControlsContainer = new Components.Container("MetricsControls");
             metricsControlsContainer.AutoLayoutChildren = true;
@@ -118,6 +149,14 @@ namespace Keysharp.UI
             metricSearchInput.PositionMode = Components.PositionMode.Absolute;
             metricSearchInput.OnTextChanged = OnMetricSearchTextChanged;
             metricsControlsContainer.AddChild(metricSearchInput);
+
+            // Create filter no metrics checkbox
+            filterNoMetricsCheckbox = new Components.Checkbox(font, "Filter rows without metrics", 14);
+            filterNoMetricsCheckbox.Bounds = new Rectangle(0, 0, 200, 35);
+            filterNoMetricsCheckbox.PositionMode = Components.PositionMode.Absolute;
+            filterNoMetricsCheckbox.OnCheckedChanged = OnFilterNoMetricsChanged;
+            filterNoMetricsCheckbox.IsChecked = true; // Checked by default
+            metricsControlsContainer.AddChild(filterNoMetricsCheckbox);
 
             // Create content container for the rest of the metrics tab content
             metricsContentContainer = new Components.Container("MetricsContent");
@@ -188,6 +227,13 @@ namespace Keysharp.UI
                     metricsHeaderLabel.IsVisible = true;
                 }
 
+                // Set ngram size container bounds (width accounts for parent padding, fixed height)
+                if (metricsNgramSizeContainer != null)
+                {
+                    metricsNgramSizeContainer.Bounds = new Rectangle(0, 0, availableWidth, 35);
+                    metricsNgramSizeContainer.IsVisible = true;
+                }
+
                 // Set controls container bounds (width accounts for parent padding, fixed height)
                 if (metricsControlsContainer != null)
                 {
@@ -199,11 +245,12 @@ namespace Keysharp.UI
                 if (metricsContentContainer != null && metricsMainContainer != null)
                 {
                     // Calculate available height for the content container
-                    // Account for: top padding, header, gap, controls, gap, and bottom padding
+                    // Account for: top padding, header, gap, ngram size container, gap, controls, gap, and bottom padding
                     int actualHeaderHeight = metricsHeaderContainer != null && metricsHeaderContainer.Bounds.Height > 0 ? (int)metricsHeaderContainer.Bounds.Height : headerHeight;
+                    int actualNgramSizeHeight = metricsNgramSizeContainer != null && metricsNgramSizeContainer.Bounds.Height > 0 ? (int)metricsNgramSizeContainer.Bounds.Height : 35;
                     int actualControlsHeight = metricsControlsContainer != null && metricsControlsContainer.Bounds.Height > 0 ? (int)metricsControlsContainer.Bounds.Height : 35;
-                    int gaps = (int)metricsMainContainer.ChildGap * 2; // Gap between header->controls and controls->content
-                    int availableHeight = (int)contentArea.Height - (int)(metricsMainContainer.ChildPadding * 2) - actualHeaderHeight - actualControlsHeight - gaps;
+                    int gaps = (int)metricsMainContainer.ChildGap * 3; // Gap between header->ngram size, ngram size->controls, and controls->content
+                    int availableHeight = (int)contentArea.Height - (int)(metricsMainContainer.ChildPadding * 2) - actualHeaderHeight - actualNgramSizeHeight - actualControlsHeight - gaps;
 
                     metricsContentContainer.Bounds = new Rectangle(
                         0, 0,
@@ -256,13 +303,26 @@ namespace Keysharp.UI
             if (corpus == null || layout == null || !corpus.IsLoaded)
                 return;
 
-            // Get bigrams from corpus
-            var bigrams = corpus.GetBigrams();
-            var allBigrams = bigrams.GetAllSorted();
-
-            foreach (var (sequence, count, frequency) in allBigrams)
+            // Get ngrams from corpus based on selected size
+            Core.Grams? grams = null;
+            switch (selectedNgramSize)
             {
-                // Convert bigram to key sequence
+                case "bigram":
+                    grams = corpus.GetBigrams();
+                    break;
+                case "trigram":
+                    grams = corpus.GetTrigrams();
+                    break;
+                default:
+                    grams = corpus.GetBigrams(); // Default to bigrams
+                    break;
+            }
+
+            var allNgrams = grams.GetAllSorted();
+
+            foreach (var (sequence, count, frequency) in allNgrams)
+            {
+                // Convert ngram to key sequence
                 var keySequence = layout.ConvertNgramToKeySequence(sequence);
                 if (keySequence == null)
                     continue; // Skip if can't be mapped
@@ -274,15 +334,23 @@ namespace Keysharp.UI
                 string fingerSequenceStr = FormatFingerSequence(keySequence);
 
                 // Check if it's an SFB (Same Finger Bigram)
-                bool isSFB = IsSameFingerBigram(keySequence);
+                bool isSFB = Core.Metrics.IsSameFingerBigram(keySequence);
                 
                 // Check if it's an LSB (Lateral Stretch Bigram)
-                bool isLSB = IsLateralStretchBigram(keySequence);
+                bool isLSB = Core.Metrics.IsLateralStretchBigram(keySequence);
+                
+                // Check if it's an FSB (Full Scissor Bigram)
+                bool isFSB = Core.Metrics.IsFullScissorBigram(keySequence);
+                
+                // Check if it's an HSB (Half Scissor Bigram)
+                bool isHSB = Core.Metrics.IsHalfScissorBigram(keySequence);
                 
                 // Build metric matches string
                 var metrics = new List<string>();
                 if (isSFB) metrics.Add("SFB");
                 if (isLSB) metrics.Add("LSB");
+                if (isFSB) metrics.Add("FSB");
+                if (isHSB) metrics.Add("HSB");
                 string metricMatches = string.Join(" ", metrics);
 
                 // Apply ngram search filter
@@ -298,6 +366,10 @@ namespace Keysharp.UI
                     if (!metricMatches.Contains(metricSearchText, StringComparison.OrdinalIgnoreCase))
                         continue;
                 }
+
+                // Apply filter no metrics checkbox
+                if (filterNoMetrics && string.IsNullOrEmpty(metricMatches))
+                    continue;
 
                 // Format bigram with escape characters (like corpus tab)
                 string bigramText = $"\"{EscapeSpecialChars(sequence)}\"";
@@ -370,144 +442,6 @@ namespace Keysharp.UI
         }
 
         /// <summary>
-        /// Determines if a key sequence represents a Same Finger Bigram (SFB).
-        /// For sequences longer than 2 keys, splits into overlapping bigrams and checks if ANY bigram is an SFB.
-        /// An SFB occurs when two keys are:
-        /// 1. On the same finger
-        /// 2. Not the same key
-        /// </summary>
-        private bool IsSameFingerBigram(List<PhysicalKey> sequence)
-        {
-            if (sequence == null || sequence.Count < 2)
-                return false;
-
-            // Need at least 2 keys
-            if (sequence.Count < 2)
-                return false;
-
-            // Check all overlapping bigrams in the sequence
-            for (int i = 0; i < sequence.Count - 1; i++)
-            {
-                var firstKey = sequence[i];
-                var secondKey = sequence[i + 1];
-
-                // Check if this bigram is an SFB
-                if (IsSFBPair(firstKey, secondKey))
-                {
-                    return true; // If any bigram is an SFB, return true
-                }
-            }
-
-            return false; // No SFB found in any bigram
-        }
-
-        /// <summary>
-        /// Checks if two keys form a Same Finger Bigram (SFB).
-        /// Returns true if the keys are on the same finger but are different keys.
-        /// </summary>
-        private bool IsSFBPair(PhysicalKey firstKey, PhysicalKey secondKey)
-        {
-            // Check if same finger
-            if (firstKey.Finger != secondKey.Finger)
-                return false;
-
-            // Check if not the same key (compare by identifier if available, otherwise by position)
-            bool isSameKey;
-            if (!string.IsNullOrEmpty(firstKey.Identifier) && !string.IsNullOrEmpty(secondKey.Identifier))
-            {
-                isSameKey = firstKey.Identifier == secondKey.Identifier;
-            }
-            else
-            {
-                // Compare by position (X, Y, Width, Height)
-                isSameKey = firstKey.X == secondKey.X &&
-                           firstKey.Y == secondKey.Y &&
-                           firstKey.Width == secondKey.Width &&
-                           firstKey.Height == secondKey.Height;
-            }
-
-            // SFB if same finger but different key
-            return !isSameKey;
-        }
-
-        /// <summary>
-        /// Determines if a key sequence represents a Lateral Stretch Bigram (LSB).
-        /// An LSB occurs when two keys are:
-        /// 1. On the same hand
-        /// 2. On adjacent fingers (excluding thumb)
-        /// 3. Have a horizontal distance of 2U or greater
-        /// </summary>
-        private bool IsLateralStretchBigram(List<PhysicalKey> sequence)
-        {
-            if (sequence == null || sequence.Count < 2)
-                return false;
-
-            // Check all overlapping bigrams in the sequence
-            for (int i = 0; i < sequence.Count - 1; i++)
-            {
-                var firstKey = sequence[i];
-                var secondKey = sequence[i + 1];
-
-                if (IsLSBPair(firstKey, secondKey))
-                {
-                    return true; // If any bigram is an LSB, return true
-                }
-            }
-
-            return false; // No LSB found in any bigram
-        }
-
-        /// <summary>
-        /// Checks if two keys form a Lateral Stretch Bigram (LSB).
-        /// Returns true if they are on the same hand, adjacent fingers (excluding thumb), and 2U+ apart horizontally.
-        /// </summary>
-        private bool IsLSBPair(PhysicalKey firstKey, PhysicalKey secondKey)
-        {
-            // Check if on same hand
-            if (firstKey.HandIndex != secondKey.HandIndex)
-                return false;
-
-            // Check if adjacent fingers (excluding thumb)
-            // Adjacent means finger index difference is 1
-            int fingerIndexDiff = Math.Abs(firstKey.FingerIndex - secondKey.FingerIndex);
-            if (fingerIndexDiff != 1)
-                return false;
-
-            // Exclude thumb: index 0 on right hand, index 4 on left hand
-            // Since both keys are on the same hand (already checked), we can use either key's HandIndex
-            if (firstKey.HandIndex == 0)
-            {
-                // Left hand: exclude thumb at index 4
-                if (firstKey.FingerIndex == 4 || secondKey.FingerIndex == 4)
-                    return false;
-            }
-            else
-            {
-                // Right hand: exclude thumb at index 0
-                if (firstKey.FingerIndex == 0 || secondKey.FingerIndex == 0)
-                    return false;
-            }
-
-            // Check horizontal distance >= 2U
-            float horizontalDistance = CalculateHorizontalDistance(firstKey, secondKey);
-            if (horizontalDistance < 2.0f)
-                return false;
-
-            return true;
-        }
-
-        /// <summary>
-        /// Calculates the horizontal distance between two keys in U units.
-        /// Uses center-to-center distance.
-        /// </summary>
-        private float CalculateHorizontalDistance(PhysicalKey key1, PhysicalKey key2)
-        {
-            float center1X = key1.X + key1.Width / 2.0f;
-            float center2X = key2.X + key2.Width / 2.0f;
-            return Math.Abs(center2X - center1X);
-        }
-
-        /// <summary>
         /// Handles ngram search text changes.
         /// </summary>
         private void OnNgramSearchTextChanged(string text)
@@ -528,6 +462,28 @@ namespace Keysharp.UI
         {
             metricSearchText = text;
             // Reset scroll when search changes
+            if (metricsTable != null)
+            {
+                metricsTable.ResetScroll();
+            }
+            UpdateMetricsTable();
+        }
+
+        private void OnNgramSizeSelected(string ngramSize)
+        {
+            selectedNgramSize = ngramSize.ToLower();
+            // Reset scroll when ngram size changes
+            if (metricsTable != null)
+            {
+                metricsTable.ResetScroll();
+            }
+            UpdateMetricsTable();
+        }
+
+        private void OnFilterNoMetricsChanged(bool isChecked)
+        {
+            filterNoMetrics = isChecked;
+            // Reset scroll when filter changes
             if (metricsTable != null)
             {
                 metricsTable.ResetScroll();

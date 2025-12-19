@@ -312,6 +312,7 @@ namespace Keysharp.UI
             corpusTab?.CorpusDropdown?.DrawDropdown();
             corpusTab?.NgramSizeDropdown?.DrawDropdown();
             layoutTab?.LayoutsDropdown?.DrawDropdown();
+            metricsTab?.NgramSizeDropdown?.DrawDropdown();
         }
 
         public void DrawHelpScreen()
@@ -340,6 +341,13 @@ namespace Keysharp.UI
                 }
 
                 if (corpusTab?.NgramSizeDropdown != null && corpusTab.NgramSizeDropdown.IsHovering(mouseX, mouseY))
+                {
+                    return true;
+                }
+            }
+            else if (tabs[activeTabIndex] == "metrics")
+            {
+                if (metricsTab?.NgramSizeDropdown != null && metricsTab.NgramSizeDropdown.IsHovering(mouseX, mouseY))
                 {
                     return true;
                 }
