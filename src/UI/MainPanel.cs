@@ -13,7 +13,7 @@ namespace Keysharp.UI
         private const int TabPadding = 15;
         private const int TabSpacing = 2;
 
-        private List<string> tabs = new List<string> { "layout", "corpus", "settings" };
+        private List<string> tabs = new List<string> { "layout", "corpus", "stats", "settings" };
         private HashSet<string> visibleTabs = new HashSet<string> { "layout", "corpus", "metrics", "settings" };
         private int activeTabIndex = 0;
 
@@ -27,6 +27,7 @@ namespace Keysharp.UI
         // Tab classes
         private LayoutTab? layoutTab;
         private CorpusTab? corpusTab;
+        private StatsTab? statsTab;
         private SettingsTab? settingsTab;
 
         // Reference to side panel for key info display
@@ -108,13 +109,22 @@ namespace Keysharp.UI
             // Connect layout to corpus tab for key sequence display
             corpusTab.SetLayout(layoutTab.Layout);
             
+            // Notify stats tab when metric analyzer is updated
+            // Note: StatsTab sets its own callback, so we don't need to set it here
+            // The StatsTab callback handles both baseline reset and marking for update
+            
             layoutTab.SetVisible(activeTabIndex == 0);
             tabContentContainer.AddChild(layoutTab.TabContent);
             corpusTab.SetVisible(activeTabIndex == 1);
             tabContentContainer.AddChild(corpusTab.TabContent);
 
+            statsTab = new StatsTab(font);
+            statsTab.CorpusTab = corpusTab;
+            statsTab.SetVisible(activeTabIndex == 2);
+            tabContentContainer.AddChild(statsTab.TabContent);
+
             settingsTab = new SettingsTab(font);
-            settingsTab.SetVisible(activeTabIndex == 2);
+            settingsTab.SetVisible(activeTabIndex == 3);
             tabContentContainer.AddChild(settingsTab.TabContent);
         }
 
@@ -176,9 +186,15 @@ namespace Keysharp.UI
             }
             
             // Update tab content visibility based on active tab and visibility state
-            layoutTab?.SetVisible(activeTabIndex == 0 && visibleTabs.Contains("layout"));
-            corpusTab?.SetVisible(activeTabIndex == 1 && visibleTabs.Contains("corpus"));
-            settingsTab?.SetVisible(activeTabIndex == 2 && visibleTabs.Contains("settings"));
+            bool layoutVisible = activeTabIndex == 0 && visibleTabs.Contains("layout");
+            bool corpusVisible = activeTabIndex == 1 && visibleTabs.Contains("corpus");
+            bool statsVisible = activeTabIndex == 2 && visibleTabs.Contains("stats");
+            bool settingsVisible = activeTabIndex == 3 && visibleTabs.Contains("settings");
+            
+            layoutTab?.SetVisible(layoutVisible);
+            corpusTab?.SetVisible(corpusVisible);
+            statsTab?.SetVisible(statsVisible);
+            settingsTab?.SetVisible(settingsVisible);
         }
 
         public void Update(Rectangle bounds)
@@ -232,11 +248,26 @@ namespace Keysharp.UI
             // Set tab content bounds (external bounds setting)
             bool isLayoutActive = tabs[activeTabIndex] == "layout";
             bool isCorpusActive = tabs[activeTabIndex] == "corpus";
+            bool isStatsActive = tabs[activeTabIndex] == "stats";
             bool isSettingsActive = tabs[activeTabIndex] == "settings";
 
             layoutTab?.Update(contentArea);
             corpusTab?.Update(contentArea, isCorpusActive);
+            statsTab?.Update(contentArea);
             settingsTab?.Update(contentArea);
+            
+            // Check and update stats only when needed (not every frame)
+            if (isStatsActive)
+            {
+                statsTab?.CheckAndUpdateStats();
+                
+                // After UpdateStats creates new elements, we need to resolve their bounds
+                // Resolve bounds for stats tab content so new elements get proper positions
+                if (statsTab != null && statsTab.TabContent != null)
+                {
+                    statsTab.TabContent.ResolveBounds();
+                }
+            }
 
             // Phase 1: Resolve all bounds (converts relative to absolute, calculates AutoSize)
             ResolveBounds();

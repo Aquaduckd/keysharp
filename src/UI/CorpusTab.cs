@@ -23,6 +23,7 @@ namespace Keysharp.UI
         private string? loadedCorpusPath = null;
         private Corpus? loadedCorpus = null;
         private Layout? layout = null; // Reference to layout for key sequence conversion
+        private MetricAnalyzer? metricAnalyzer = null;
         private Components.Container? corpusControlsContainer;
         private Components.Container? corpusRowContainer;
         private Components.Container? corpusHeaderContainer;
@@ -73,14 +74,29 @@ namespace Keysharp.UI
         public Core.Corpus? LoadedCorpus => loadedCorpus;
 
         /// <summary>
+        /// Gets the metric analyzer, or null if not available.
+        /// </summary>
+        public MetricAnalyzer? GetMetricAnalyzer()
+        {
+            return metricAnalyzer;
+        }
+
+        /// <summary>
         /// Sets the layout reference for key sequence conversion.
         /// </summary>
         public void SetLayout(Layout? layout)
         {
             this.layout = layout;
+            // Update or create metric analyzer
+            UpdateMetricAnalyzer();
             // Update table to show key sequences if layout is available
             UpdateNgramTable();
         }
+        
+        /// <summary>
+        /// Gets the layout reference.
+        /// </summary>
+        public Layout? GetLayout() => layout;
 
         /// <summary>
         /// Sets a loaded corpus programmatically (e.g., during startup).
@@ -101,6 +117,9 @@ namespace Keysharp.UI
                 corpusDropdown.OnSelectionChanged = oldCallback;
             }
 
+            // Update or create metric analyzer
+            UpdateMetricAnalyzer();
+
             // Update n-gram table with loaded corpus
             UpdateNgramTable();
 
@@ -118,6 +137,7 @@ namespace Keysharp.UI
         }
 
         private Action? onCorpusChanged;
+        public Action? OnMetricAnalyzerUpdated { get; set; }
 
         /// <summary>
         /// Sets a callback to be called when the corpus is loaded, unloaded, or changed.
@@ -125,6 +145,29 @@ namespace Keysharp.UI
         public void SetOnCorpusChanged(Action? callback)
         {
             onCorpusChanged = callback;
+        }
+
+        /// <summary>
+        /// Updates or creates the metric analyzer when layout or corpus changes.
+        /// </summary>
+        private void UpdateMetricAnalyzer()
+        {
+            if (layout != null && loadedCorpus != null && loadedCorpus.IsLoaded)
+            {
+                // Create or recreate analyzer with current layout and corpus
+                metricAnalyzer = new MetricAnalyzer(layout, loadedCorpus);
+                // Compute all metrics
+                metricAnalyzer.ComputeAllMetrics();
+                
+                // Notify that analyzer was updated
+                OnMetricAnalyzerUpdated?.Invoke();
+            }
+            else
+            {
+                // Clear analyzer if layout or corpus is missing
+                metricAnalyzer = null;
+                OnMetricAnalyzerUpdated?.Invoke();
+            }
         }
 
         private void NotifyCorpusChanged()
@@ -273,8 +316,8 @@ namespace Keysharp.UI
             filterNoMetricsCheckbox.OnCheckedChanged = (isChecked) => { filterNoMetrics = isChecked; UpdateNgramTable(); };
             leftControlsContainer.AddChild(filterNoMetricsCheckbox);
 
-            // Set initial visibility of metric controls (hidden for monograms/words, shown for bigrams/skipgrams/trigrams)
-            bool showMetricControls = (selectedNgramSize == "bigram" || selectedNgramSize == "skipgram" || selectedNgramSize == "trigram");
+            // Set initial visibility of metric controls (hidden for words, shown for monograms/bigrams/skipgrams/trigrams)
+            bool showMetricControls = (selectedNgramSize == "monogram" || selectedNgramSize == "bigram" || selectedNgramSize == "skipgram" || selectedNgramSize == "trigram");
             metricSearchLabel.IsVisible = showMetricControls;
             metricSearchInput.IsVisible = showMetricControls;
             filterNoMetricsCheckbox.IsVisible = showMetricControls;
@@ -570,6 +613,9 @@ namespace Keysharp.UI
                     System.Console.WriteLine($"  Skipgrams: {loadedCorpus.GetSkipgrams().UniqueCount} unique, {loadedCorpus.GetSkipgrams().Total:N0} total");
                     System.Console.WriteLine($"  Trigrams: {loadedCorpus.GetTrigrams().UniqueCount} unique, {loadedCorpus.GetTrigrams().Total:N0} total");
 
+                    // Update or create metric analyzer
+                    UpdateMetricAnalyzer();
+
                     // Update n-gram table with loaded corpus
                     UpdateNgramTable();
 
@@ -606,7 +652,7 @@ namespace Keysharp.UI
             selectedNgramSize = ngramSize.ToLower();
             
             // Show/hide metric controls based on ngram size (only show for bigrams, skipgrams, and trigrams)
-            bool showMetricControls = (selectedNgramSize == "bigram" || selectedNgramSize == "skipgram" || selectedNgramSize == "trigram");
+            bool showMetricControls = (selectedNgramSize == "monogram" || selectedNgramSize == "bigram" || selectedNgramSize == "skipgram" || selectedNgramSize == "trigram");
             if (metricSearchLabel != null)
                 metricSearchLabel.IsVisible = showMetricControls;
             if (metricSearchInput != null)
@@ -897,15 +943,15 @@ namespace Keysharp.UI
             int filteredCountBeforeLimit = filteredNgrams.Count;
             long filteredTotalBeforeLimit = filteredTotal;
 
-            // Show/hide metric columns (Key Sequence, Finger Sequence, Metric Matches) only for bigrams, skipgrams, and trigrams
-            bool showMetricColumns = (selectedNgramSize == "bigram" || selectedNgramSize == "skipgram" || selectedNgramSize == "trigram");
+            // Show/hide metric columns (Key Sequence, Finger Sequence, Metric Matches) only for monograms, bigrams, skipgrams, and trigrams
+            bool showMetricColumns = (selectedNgramSize == "monogram" || selectedNgramSize == "bigram" || selectedNgramSize == "skipgram" || selectedNgramSize == "trigram");
             ngramTable.SetColumnVisibility(6, showMetricColumns); // Column 7 (Key Sequence) - 0-indexed
             ngramTable.SetColumnVisibility(7, showMetricColumns); // Column 8 (Finger Sequence) - 0-indexed
             ngramTable.SetColumnVisibility(8, showMetricColumns); // Column 9 (Metric Matches) - 0-indexed
 
             // Compute key sequences, finger sequences, and metric matches for all filtered ngrams
-            // Only compute for bigrams, skipgrams, and trigrams (skip monograms and words for now)
-            bool computeMetrics = layout != null && (selectedNgramSize == "bigram" || selectedNgramSize == "skipgram" || selectedNgramSize == "trigram");
+            // Compute for monograms, bigrams, skipgrams, and trigrams (skip words for now)
+            bool computeMetrics = layout != null && (selectedNgramSize == "monogram" || selectedNgramSize == "bigram" || selectedNgramSize == "skipgram" || selectedNgramSize == "trigram");
             
             // Check if metric filters are applied (after computeMetrics is defined)
             bool hasMetricFilter = computeMetrics && (!string.IsNullOrEmpty(metricSearchText) || filterNoMetrics);
@@ -929,53 +975,15 @@ namespace Keysharp.UI
                 string fingerSequenceStr = "";
                 string metricMatches = "";
 
-                if (computeMetrics)
+                if (computeMetrics && metricAnalyzer != null)
                 {
-                    // Convert ngram to key sequence
-                    var keySequence = layout!.ConvertNgramToKeySequence(ngram.sequence);
-                    if (keySequence != null)
+                    // Get metric result from analyzer
+                    var result = metricAnalyzer.GetNgramResult(ngram.sequence, selectedNgramSize);
+                    if (result != null)
                     {
-                        // Format key sequence
-                        keySequenceStr = FormatKeySequence(keySequence);
-
-                        // Format finger sequence
-                        fingerSequenceStr = FormatFingerSequence(keySequence);
-
-                        // Build metric matches string based on ngram size
-                        var metrics = new List<string>();
-                        
-                        if (selectedNgramSize == "bigram" || selectedNgramSize == "skipgram")
-                        {
-                            // Bigram metrics (skipgrams use bigram metrics)
-                            bool isSFB = Core.Metrics.CheckAnyNgram(keySequence, 2, Core.Metrics.IsSFBPair);
-                            bool isLSB = Core.Metrics.CheckAnyNgram(keySequence, 2, Core.Metrics.IsLSBPair);
-                            bool isFSB = Core.Metrics.CheckAnyNgram(keySequence, 2, Core.Metrics.IsFSBPair);
-                            bool isHSB = Core.Metrics.CheckAnyNgram(keySequence, 2, Core.Metrics.IsHSBPair);
-                            
-                            if (isSFB) metrics.Add("SFB");
-                            if (isLSB) metrics.Add("LSB");
-                            if (isFSB) metrics.Add("FSB");
-                            if (isHSB) metrics.Add("HSB");
-                        }
-                        else if (selectedNgramSize == "trigram")
-                        {
-                            // Trigram metrics
-                            bool isInHand = Core.Metrics.CheckAnyNgram(keySequence, 3, Core.Metrics.IsInHandTrigram);
-                            bool isOutHand = Core.Metrics.CheckAnyNgram(keySequence, 3, Core.Metrics.IsOutHandTrigram);
-                            bool isRedirect = Core.Metrics.CheckAnyNgram(keySequence, 3, Core.Metrics.IsRedirectTrigram);
-                            bool isAlternate = Core.Metrics.CheckAnyNgram(keySequence, 3, Core.Metrics.IsAlternateTrigram);
-                            bool isInRoll = Core.Metrics.CheckAnyNgram(keySequence, 3, Core.Metrics.IsInRollTrigram);
-                            bool isOutRoll = Core.Metrics.CheckAnyNgram(keySequence, 3, Core.Metrics.IsOutRollTrigram);
-                            
-                            if (isInHand) metrics.Add("InHand");
-                            if (isOutHand) metrics.Add("OutHand");
-                            if (isRedirect) metrics.Add("Redirect");
-                            if (isAlternate) metrics.Add("Alternate");
-                            if (isInRoll) metrics.Add("InRoll");
-                            if (isOutRoll) metrics.Add("OutRoll");
-                        }
-                        
-                        metricMatches = string.Join(" ", metrics);
+                        keySequenceStr = result.KeySequenceString;
+                        fingerSequenceStr = result.FingerSequenceString;
+                        metricMatches = string.Join(" ", result.MetricMatches);
                     }
                 }
 
@@ -1234,6 +1242,9 @@ namespace Keysharp.UI
                                     System.Console.WriteLine($"  Trigrams: {loadedCorpus.GetTrigrams().UniqueCount} unique, {loadedCorpus.GetTrigrams().Total:N0} total");
                                     System.Console.WriteLine($"  Words: {loadedCorpus.GetWords().UniqueCount} unique, {loadedCorpus.GetWords().Total:N0} total");
 
+                                    // Update or create metric analyzer
+                                    UpdateMetricAnalyzer();
+
                                     // Update n-gram table with loaded corpus
                                     UpdateNgramTable();
 
@@ -1397,76 +1408,6 @@ namespace Keysharp.UI
             return "..." + path.Substring(path.Length - (maxLength - 3));
         }
 
-        /// <summary>
-        /// Formats a finger sequence as a readable string with shortened finger names (e.g., "LP+LI", "LM+RM").
-        /// </summary>
-        private string FormatFingerSequence(List<Core.PhysicalKey> sequence)
-        {
-            if (sequence == null || sequence.Count == 0)
-                return "";
-
-            var fingerNames = sequence.Select(key => GetShortFingerName(key.Finger)).ToList();
-            return string.Join("+", fingerNames);
-        }
-
-        /// <summary>
-        /// Gets the shortened 2-character name for a finger.
-        /// </summary>
-        private string GetShortFingerName(Core.Finger finger)
-        {
-            return finger switch
-            {
-                Core.Finger.LeftPinky => "LP",
-                Core.Finger.LeftRing => "LR",
-                Core.Finger.LeftMiddle => "LM",
-                Core.Finger.LeftIndex => "LI",
-                Core.Finger.LeftThumb => "LT",
-                Core.Finger.RightThumb => "RT",
-                Core.Finger.RightIndex => "RI",
-                Core.Finger.RightMiddle => "RM",
-                Core.Finger.RightRing => "RR",
-                Core.Finger.RightPinky => "RP",
-                _ => "??"
-            };
-        }
-
-        /// <summary>
-        /// Formats a key sequence as a readable string (e.g., "A", "LShift+A", "Space").
-        /// Truncates to a maximum length to prevent overflow in the table.
-        /// </summary>
-        private string FormatKeySequence(List<PhysicalKey> sequence)
-        {
-            const int MaxLength = 50; // Maximum characters to display before truncation
-
-            if (sequence == null || sequence.Count == 0)
-                return "";
-
-            var parts = new List<string>();
-            foreach (var key in sequence)
-            {
-                // Check if it's a modifier key (LShift)
-                if (key.Identifier == "LShift")
-                {
-                    parts.Add("Shift");
-                }
-                else
-                {
-                    // Use identifier if available, otherwise use primary character
-                    string keyName = !string.IsNullOrEmpty(key.Identifier) ? key.Identifier : key.PrimaryCharacter ?? "?";
-                    parts.Add(keyName);
-                }
-            }
-
-            string result = string.Join("+", parts);
-            
-            // Truncate if too long
-            if (result.Length > MaxLength)
-            {
-                result = result.Substring(0, MaxLength - 3) + "...";
-            }
-
-            return result;
-        }
     }
 }
 

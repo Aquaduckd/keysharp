@@ -30,6 +30,10 @@ namespace Keysharp.Components
         public List<List<string>> Rows { get; set; }
         public List<TableColumn> Columns { get; set; }
         
+        // Optional per-cell colors. If null, uses default text color.
+        // Structure: [rowIndex][columnIndex] -> Color or null
+        public List<List<Color?>>? CellColors { get; set; } = null;
+        
         public int? SelectedRowIndex { get; set; } = null;
         public Action<int>? OnRowSelected { get; set; }
 
@@ -214,7 +218,22 @@ namespace Keysharp.Components
         /// </summary>
         protected virtual void DrawCell(int columnIndex, string cellText, Rectangle cellRect, int rowIndex, int padding)
         {
-            TextContainer.DrawRightAlignedText(font, cellText, cellRect, fontSize - 1, UITheme.TextColor, padding);
+            // Check if there's a custom color for this cell
+            Color textColor = UITheme.TextColor;
+            if (CellColors != null && rowIndex >= 0 && rowIndex < CellColors.Count)
+            {
+                var rowColors = CellColors[rowIndex];
+                if (rowColors != null && columnIndex - 1 >= 0 && columnIndex - 1 < rowColors.Count)
+                {
+                    var cellColor = rowColors[columnIndex - 1];
+                    if (cellColor.HasValue)
+                    {
+                        textColor = cellColor.Value;
+                    }
+                }
+            }
+            
+            TextContainer.DrawRightAlignedText(font, cellText, cellRect, fontSize - 1, textColor, padding);
         }
 
         /// <summary>
