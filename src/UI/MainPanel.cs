@@ -13,7 +13,7 @@ namespace Keysharp.UI
         private const int TabPadding = 15;
         private const int TabSpacing = 2;
 
-        private List<string> tabs = new List<string> { "layout", "corpus", "metrics", "settings" };
+        private List<string> tabs = new List<string> { "layout", "corpus", "settings" };
         private HashSet<string> visibleTabs = new HashSet<string> { "layout", "corpus", "metrics", "settings" };
         private int activeTabIndex = 0;
 
@@ -27,7 +27,6 @@ namespace Keysharp.UI
         // Tab classes
         private LayoutTab? layoutTab;
         private CorpusTab? corpusTab;
-        private MetricsTab? metricsTab;
         private SettingsTab? settingsTab;
 
         // Reference to side panel for key info display
@@ -104,8 +103,6 @@ namespace Keysharp.UI
             // Notify layout tab when corpus changes
             corpusTab.SetOnCorpusChanged(() => {
                 layoutTab?.OnCorpusChanged();
-                // Also update metrics tab when corpus changes
-                metricsTab?.SetCorpus(corpusTab.LoadedCorpus);
             });
 
             // Connect layout to corpus tab for key sequence display
@@ -116,16 +113,8 @@ namespace Keysharp.UI
             corpusTab.SetVisible(activeTabIndex == 1);
             tabContentContainer.AddChild(corpusTab.TabContent);
 
-            metricsTab = new MetricsTab(font);
-            // Connect layout and corpus to metrics tab (must be after creation)
-            metricsTab.SetLayout(layoutTab.Layout);
-            metricsTab.SetCorpus(corpusTab.LoadedCorpus);
-            layoutTab.MetricsTab = metricsTab; // Connect to layout tab for layout change updates
-            metricsTab.SetVisible(activeTabIndex == 2);
-            tabContentContainer.AddChild(metricsTab.TabContent);
-
             settingsTab = new SettingsTab(font);
-            settingsTab.SetVisible(activeTabIndex == 3);
+            settingsTab.SetVisible(activeTabIndex == 2);
             tabContentContainer.AddChild(settingsTab.TabContent);
         }
 
@@ -189,8 +178,7 @@ namespace Keysharp.UI
             // Update tab content visibility based on active tab and visibility state
             layoutTab?.SetVisible(activeTabIndex == 0 && visibleTabs.Contains("layout"));
             corpusTab?.SetVisible(activeTabIndex == 1 && visibleTabs.Contains("corpus"));
-            metricsTab?.SetVisible(activeTabIndex == 2 && visibleTabs.Contains("metrics"));
-            settingsTab?.SetVisible(activeTabIndex == 3 && visibleTabs.Contains("settings"));
+            settingsTab?.SetVisible(activeTabIndex == 2 && visibleTabs.Contains("settings"));
         }
 
         public void Update(Rectangle bounds)
@@ -244,12 +232,10 @@ namespace Keysharp.UI
             // Set tab content bounds (external bounds setting)
             bool isLayoutActive = tabs[activeTabIndex] == "layout";
             bool isCorpusActive = tabs[activeTabIndex] == "corpus";
-            bool isMetricsActive = tabs[activeTabIndex] == "metrics";
             bool isSettingsActive = tabs[activeTabIndex] == "settings";
 
             layoutTab?.Update(contentArea);
             corpusTab?.Update(contentArea, isCorpusActive);
-            metricsTab?.Update(contentArea, isMetricsActive);
             settingsTab?.Update(contentArea);
 
             // Phase 1: Resolve all bounds (converts relative to absolute, calculates AutoSize)
@@ -297,7 +283,6 @@ namespace Keysharp.UI
             // Update fonts in tabs
             layoutTab?.UpdateFont(newFont);
             corpusTab?.UpdateFont(newFont);
-            metricsTab?.UpdateFont(newFont);
             settingsTab?.UpdateFont(newFont);
             // Update fonts in tab elements
             foreach (var tabElement in tabElements)
@@ -312,7 +297,6 @@ namespace Keysharp.UI
             corpusTab?.CorpusDropdown?.DrawDropdown();
             corpusTab?.NgramSizeDropdown?.DrawDropdown();
             layoutTab?.LayoutsDropdown?.DrawDropdown();
-            metricsTab?.NgramSizeDropdown?.DrawDropdown();
         }
 
         public void DrawHelpScreen()
@@ -341,13 +325,6 @@ namespace Keysharp.UI
                 }
 
                 if (corpusTab?.NgramSizeDropdown != null && corpusTab.NgramSizeDropdown.IsHovering(mouseX, mouseY))
-                {
-                    return true;
-                }
-            }
-            else if (tabs[activeTabIndex] == "metrics")
-            {
-                if (metricsTab?.NgramSizeDropdown != null && metricsTab.NgramSizeDropdown.IsHovering(mouseX, mouseY))
                 {
                     return true;
                 }

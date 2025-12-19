@@ -33,7 +33,6 @@ namespace Keysharp.UI
         private SidePanel? sidePanel;
         private Font font;
         private CorpusTab? corpusTab; // Reference to corpus tab for checking loaded corpus
-        private MetricsTab? metricsTab; // Reference to metrics tab for layout change updates
         private LayoutMetadataJson metadata = new LayoutMetadataJson(); // Layout metadata
 
         public Components.TabContent TabContent => tabContent;
@@ -76,11 +75,6 @@ namespace Keysharp.UI
             }
         }
 
-        public MetricsTab? MetricsTab
-        {
-            get => metricsTab;
-            set => metricsTab = value;
-        }
 
         /// <summary>
         /// Gets the current layout metadata.
@@ -99,9 +93,6 @@ namespace Keysharp.UI
         {
             // Update corpus tab with current layout reference
             corpusTab?.SetLayout(layout);
-            
-            // Update metrics tab with current layout reference
-            metricsTab?.SetLayout(layout);
         }
 
         public LayoutTab(Font font)
@@ -744,9 +735,6 @@ namespace Keysharp.UI
 
                 // Update corpus tab with new layout reference
                 corpusTab?.SetLayout(layout);
-                
-                // Update metrics tab with new layout reference
-                metricsTab?.SetLayout(layout);
 
                 // Update dropdown selection if this is a file from the layouts directory
                 // Only update if it's different from what's already selected to avoid infinite recursion

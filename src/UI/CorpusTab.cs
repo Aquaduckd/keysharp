@@ -34,6 +34,7 @@ namespace Keysharp.UI
         private Components.CorpusTable? ngramTable;
         private Components.TextInput? limitInput;
         private Components.TextInput? searchInput;
+        private Components.TextInput? metricSearchInput;
         private Components.Button? regexToggleButton;
         private Components.Button? regexHelpButton;
         private RegexHelpScreen? regexHelpScreen;
@@ -41,13 +42,17 @@ namespace Keysharp.UI
         private Components.Checkbox? ignoreSpaceCheckbox;
         private Components.Checkbox? collapseCaseCheckbox;
         private Components.Checkbox? collapsePunctuationCheckbox;
+        private Components.Checkbox? filterNoMetricsCheckbox;
+        private Components.Label? metricSearchLabel;
         private string selectedNgramSize = "bigram"; // "monogram", "bigram", "trigram", or "words"
         private string searchText = "";
+        private string metricSearchText = "";
         private int? resultLimit = null; // Null means no limit
         private bool useRegex = false;
         private bool ignoreSpace = true;
         private bool collapseCase = true;
         private bool collapsePunctuation = false;
+        private bool filterNoMetrics = false;
         
         // Store filtered n-grams for lazy highlight calculation
         private List<(string displayText, string originalSequence)> storedNgramsForHighlighting = new List<(string, string)>();
@@ -207,61 +212,72 @@ namespace Keysharp.UI
             leftControlsContainer.Bounds = new Rectangle(0, 0, 0, 35);
             ngramSelectorContainer.AddChild(leftControlsContainer);
 
-            // Create label for n-gram selector
-            var ngramLabel = new Components.Label(font, "N-gram Size:", 14);
-            ngramLabel.Bounds = new Rectangle(0, 0, 120, 35);
-            ngramLabel.PositionMode = Components.PositionMode.Absolute;
-            leftControlsContainer.AddChild(ngramLabel);
-
-            // Create n-gram size dropdown
-            List<string> ngramSizes = new List<string> { "Monogram", "Bigram", "Trigram", "Words" };
-            ngramSizeDropdown = new Components.Dropdown(font, ngramSizes, 14);
-            ngramSizeDropdown.SetBounds(new Rectangle(0, 0, 200, 35));
-            ngramSizeDropdown.PositionMode = Components.PositionMode.Absolute;
-            ngramSizeDropdown.OnSelectionChanged = OnNgramSizeSelected;
-            // Set default selection to "Bigram"
-            ngramSizeDropdown.SetSelectedItem("Bigram");
-            leftControlsContainer.AddChild(ngramSizeDropdown);
-
-            // Create limit label
+            // Create limit label (first in bottom container)
             var limitLabel = new Components.Label(font, "Limit:", 14);
             limitLabel.Bounds = new Rectangle(0, 0, 60, 35);
             limitLabel.PositionMode = Components.PositionMode.Absolute;
             leftControlsContainer.AddChild(limitLabel);
 
-            // Create limit input
+            // Create limit input (first in bottom container)
             limitInput = new Components.TextInput(font, "All", 14);
             limitInput.Bounds = new Rectangle(0, 0, 80, 35);
             limitInput.PositionMode = Components.PositionMode.Absolute;
             limitInput.OnTextChanged = OnLimitTextChanged;
             leftControlsContainer.AddChild(limitInput);
 
-            // Create search label
+            // Create search label (ngram search - second in bottom container)
             var searchLabel = new Components.Label(font, "Search:", 14);
             searchLabel.Bounds = new Rectangle(0, 0, 80, 35);
             searchLabel.PositionMode = Components.PositionMode.Absolute;
             leftControlsContainer.AddChild(searchLabel);
 
-            // Create search input
+            // Create search input (ngram search - second in bottom container)
             searchInput = new Components.TextInput(font, "Enter search term...", 14);
             searchInput.Bounds = new Rectangle(0, 0, 300, 35);
             searchInput.PositionMode = Components.PositionMode.Absolute;
             searchInput.OnTextChanged = OnSearchTextChanged;
             leftControlsContainer.AddChild(searchInput);
 
-            // Create regex toggle button
+            // Create regex toggle button (follows search bar)
             regexToggleButton = new Components.Button(font, "Regex: Off", 12);
             regexToggleButton.Bounds = new Rectangle(0, 0, 100, 35);
             regexToggleButton.PositionMode = Components.PositionMode.Absolute;
             regexToggleButton.OnClick = ToggleRegexMode;
             leftControlsContainer.AddChild(regexToggleButton);
 
-            // Create regex help button
+            // Create regex help button (follows search bar)
             regexHelpButton = new Components.Button(font, "?", 12);
             regexHelpButton.Bounds = new Rectangle(0, 0, 35, 35);
             regexHelpButton.PositionMode = Components.PositionMode.Absolute;
             regexHelpButton.OnClick = ShowRegexHelp;
             leftControlsContainer.AddChild(regexHelpButton);
+
+            // Create metric search label (third in bottom container)
+            metricSearchLabel = new Components.Label(font, "Metric Search:", 14);
+            metricSearchLabel.Bounds = new Rectangle(0, 0, 110, 35);
+            metricSearchLabel.PositionMode = Components.PositionMode.Absolute;
+            leftControlsContainer.AddChild(metricSearchLabel);
+
+            // Create metric search input (third in bottom container)
+            metricSearchInput = new Components.TextInput(font, "Enter metric search (e.g., SFB)...", 14);
+            metricSearchInput.Bounds = new Rectangle(0, 0, 250, 35);
+            metricSearchInput.PositionMode = Components.PositionMode.Absolute;
+            metricSearchInput.OnTextChanged = OnMetricSearchTextChanged;
+            leftControlsContainer.AddChild(metricSearchInput);
+
+            // Create filter no metrics checkbox (fourth in bottom container)
+            filterNoMetricsCheckbox = new Components.Checkbox(font, "Filter No Metrics", 14);
+            filterNoMetricsCheckbox.Bounds = new Rectangle(0, 0, 150, 35);
+            filterNoMetricsCheckbox.PositionMode = Components.PositionMode.Absolute;
+            filterNoMetricsCheckbox.IsChecked = false; // Unchecked by default
+            filterNoMetricsCheckbox.OnCheckedChanged = (isChecked) => { filterNoMetrics = isChecked; UpdateNgramTable(); };
+            leftControlsContainer.AddChild(filterNoMetricsCheckbox);
+
+            // Set initial visibility of metric controls (hidden for monograms/words, shown for bigrams/trigrams)
+            bool showMetricControls = (selectedNgramSize == "bigram" || selectedNgramSize == "trigram");
+            metricSearchLabel.IsVisible = showMetricControls;
+            metricSearchInput.IsVisible = showMetricControls;
+            filterNoMetricsCheckbox.IsVisible = showMetricControls;
 
             // Create regex help screen
             // Note: Not added as a child to tabContent because it uses absolute screen coordinates
@@ -275,8 +291,8 @@ namespace Keysharp.UI
             totalCountLabel.PositionMode = Components.PositionMode.Absolute;
             ngramSelectorContainer.AddChild(totalCountLabel);
 
-            // Create n-gram table (Rank, N-gram, Frequency, Count, Global Rank, Rel. Freq.)
-            ngramTable = new Components.CorpusTable(font, 14, "Rank", "N-gram", "Frequency", "Count", "Global Rank", "Rel. Freq.");
+            // Create n-gram table (Rank, N-gram, Frequency, Count, Global Rank, Rel. Freq., Key Sequence, Finger Sequence, Metric Matches)
+            ngramTable = new Components.CorpusTable(font, 14, "Rank", "N-gram", "Frequency", "Count", "Global Rank", "Rel. Freq.", "Key Sequence", "Finger Sequence", "Metric Matches");
             ngramTable.Bounds = new Rectangle(0, 0, 0, 0); // Will be set by Update
             ngramTable.AutoSize = false;
             ngramTable.FillRemaining = true; // Fill remaining space after selector
@@ -307,6 +323,16 @@ namespace Keysharp.UI
             corpusDropdown.PositionMode = Components.PositionMode.Absolute; // Will be positioned by container's auto-layout
             corpusDropdown.OnSelectionChanged = OnCorpusSelected;
             corpusControlsContainer.AddChild(corpusDropdown);
+
+            // Create n-gram size dropdown (moved to top container)
+            List<string> ngramSizes = new List<string> { "Monogram", "Bigram", "Trigram", "Words" };
+            ngramSizeDropdown = new Components.Dropdown(font, ngramSizes, 14);
+            ngramSizeDropdown.SetBounds(new Rectangle(0, 0, 200, 35));
+            ngramSizeDropdown.PositionMode = Components.PositionMode.Absolute;
+            ngramSizeDropdown.OnSelectionChanged = OnNgramSizeSelected;
+            // Set default selection to "Bigram"
+            ngramSizeDropdown.SetSelectedItem("Bigram");
+            corpusControlsContainer.AddChild(ngramSizeDropdown);
 
             // Create checkboxes for filtering/transforming n-grams
             ignoreSpaceCheckbox = new Components.Checkbox(font, "Ignore Space", 14);
@@ -577,6 +603,16 @@ namespace Keysharp.UI
         private void OnNgramSizeSelected(string ngramSize)
         {
             selectedNgramSize = ngramSize.ToLower();
+            
+            // Show/hide metric controls based on ngram size (only show for bigrams and trigrams)
+            bool showMetricControls = (selectedNgramSize == "bigram" || selectedNgramSize == "trigram");
+            if (metricSearchLabel != null)
+                metricSearchLabel.IsVisible = showMetricControls;
+            if (metricSearchInput != null)
+                metricSearchInput.IsVisible = showMetricControls;
+            if (filterNoMetricsCheckbox != null)
+                filterNoMetricsCheckbox.IsVisible = showMetricControls;
+            
             UpdateNgramTable();
         }
 
@@ -607,6 +643,17 @@ namespace Keysharp.UI
         private void OnSearchTextChanged(string text)
         {
             searchText = text;
+            // Reset scroll when search changes
+            if (ngramTable != null)
+            {
+                ngramTable.ResetScroll();
+            }
+            UpdateNgramTable();
+        }
+
+        private void OnMetricSearchTextChanged(string text)
+        {
+            metricSearchText = text;
             // Reset scroll when search changes
             if (ngramTable != null)
             {
@@ -826,29 +873,117 @@ namespace Keysharp.UI
                 }
             }).ToList();
 
-            // Calculate filtered total for relative frequency (only when filtered)
+            // Create a list to store rows with metrics before final filtering
+            var rowsWithMetrics = new List<((string sequence, long count, double frequency) ngram, string keySequenceStr, string fingerSequenceStr, string metricMatches)>();
+
+            // Calculate filtered total for relative frequency (only when filtered or limited)
             bool isFiltered = !string.IsNullOrEmpty(searchText);
+            bool hasLimit = resultLimit.HasValue && resultLimit.Value > 0;
+            bool showConditionalColumns = isFiltered || hasLimit; // Show when filtered or limited
+            
             long filteredTotal = 0;
-            if (isFiltered && filteredNgrams.Count > 0)
+            if (showConditionalColumns && filteredNgrams.Count > 0)
             {
                 filteredTotal = filteredNgrams.Sum(ng => ng.count);
             }
 
             // Store counts before applying limit (for display in total label)
+            // Note: filteredCountBeforeLimit and filteredTotalBeforeLimit are calculated before limit,
+            // but the actual limit will be applied after metric filtering
             int filteredCountBeforeLimit = filteredNgrams.Count;
             long filteredTotalBeforeLimit = filteredTotal;
 
-            // Apply limit if specified
-            if (resultLimit.HasValue && resultLimit.Value > 0)
+            // Show/hide conditional columns (Global Rank and Relative Frequency)
+            ngramTable.SetColumnVisibility(4, showConditionalColumns); // Column 5 (Global Rank) - 0-indexed
+            ngramTable.SetColumnVisibility(5, showConditionalColumns); // Column 6 (Relative Frequency) - 0-indexed
+
+            // Show/hide metric columns (Key Sequence, Finger Sequence, Metric Matches) only for bigrams and trigrams
+            bool showMetricColumns = (selectedNgramSize == "bigram" || selectedNgramSize == "trigram");
+            ngramTable.SetColumnVisibility(6, showMetricColumns); // Column 7 (Key Sequence) - 0-indexed
+            ngramTable.SetColumnVisibility(7, showMetricColumns); // Column 8 (Finger Sequence) - 0-indexed
+            ngramTable.SetColumnVisibility(8, showMetricColumns); // Column 9 (Metric Matches) - 0-indexed
+
+            // Compute key sequences, finger sequences, and metric matches for all filtered ngrams
+            // Only compute for bigrams and trigrams (skip monograms and words for now)
+            bool computeMetrics = layout != null && (selectedNgramSize == "bigram" || selectedNgramSize == "trigram");
+            
+            foreach (var ngram in filteredNgrams)
             {
-                filteredNgrams = filteredNgrams.Take(resultLimit.Value).ToList();
-                // Recalculate filtered total based on limited results
-                filteredTotal = filteredNgrams.Sum(ng => ng.count);
+                string keySequenceStr = "";
+                string fingerSequenceStr = "";
+                string metricMatches = "";
+
+                if (computeMetrics)
+                {
+                    // Convert ngram to key sequence
+                    var keySequence = layout!.ConvertNgramToKeySequence(ngram.sequence);
+                    if (keySequence != null)
+                    {
+                        // Format key sequence
+                        keySequenceStr = FormatKeySequence(keySequence);
+
+                        // Format finger sequence
+                        fingerSequenceStr = FormatFingerSequence(keySequence);
+
+                        // Build metric matches string based on ngram size
+                        var metrics = new List<string>();
+                        
+                        if (selectedNgramSize == "bigram")
+                        {
+                            // Bigram metrics
+                            bool isSFB = Core.Metrics.CheckAnyNgram(keySequence, 2, Core.Metrics.IsSFBPair);
+                            bool isLSB = Core.Metrics.CheckAnyNgram(keySequence, 2, Core.Metrics.IsLSBPair);
+                            bool isFSB = Core.Metrics.CheckAnyNgram(keySequence, 2, Core.Metrics.IsFSBPair);
+                            bool isHSB = Core.Metrics.CheckAnyNgram(keySequence, 2, Core.Metrics.IsHSBPair);
+                            
+                            if (isSFB) metrics.Add("SFB");
+                            if (isLSB) metrics.Add("LSB");
+                            if (isFSB) metrics.Add("FSB");
+                            if (isHSB) metrics.Add("HSB");
+                        }
+                        else if (selectedNgramSize == "trigram")
+                        {
+                            // Trigram metrics
+                            bool isInHand = Core.Metrics.CheckAnyNgram(keySequence, 3, Core.Metrics.IsInHandTrigram);
+                            bool isOutHand = Core.Metrics.CheckAnyNgram(keySequence, 3, Core.Metrics.IsOutHandTrigram);
+                            bool isRedirect = Core.Metrics.CheckAnyNgram(keySequence, 3, Core.Metrics.IsRedirectTrigram);
+                            bool isAlternate = Core.Metrics.CheckAnyNgram(keySequence, 3, Core.Metrics.IsAlternateTrigram);
+                            bool isInRoll = Core.Metrics.CheckAnyNgram(keySequence, 3, Core.Metrics.IsInRollTrigram);
+                            bool isOutRoll = Core.Metrics.CheckAnyNgram(keySequence, 3, Core.Metrics.IsOutRollTrigram);
+                            
+                            if (isInHand) metrics.Add("InHand");
+                            if (isOutHand) metrics.Add("OutHand");
+                            if (isRedirect) metrics.Add("Redirect");
+                            if (isAlternate) metrics.Add("Alternate");
+                            if (isInRoll) metrics.Add("InRoll");
+                            if (isOutRoll) metrics.Add("OutRoll");
+                        }
+                        
+                        metricMatches = string.Join(" ", metrics);
+                    }
+                }
+
+                // Apply metric search filter (only if metrics are being computed)
+                if (computeMetrics && !string.IsNullOrEmpty(metricSearchText))
+                {
+                    if (!metricMatches.Contains(metricSearchText, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                }
+
+                // Apply filter no metrics checkbox (only if metrics are being computed)
+                if (computeMetrics && filterNoMetrics && string.IsNullOrEmpty(metricMatches))
+                    continue;
+
+                rowsWithMetrics.Add(((ngram.sequence, ngram.count, ngram.frequency), keySequenceStr, fingerSequenceStr, metricMatches));
             }
 
-            // Show/hide conditional columns
-            ngramTable.SetColumnVisibility(4, isFiltered); // Column 5 (Global Rank) - 0-indexed
-            ngramTable.SetColumnVisibility(5, isFiltered); // Column 6 (Relative Frequency) - 0-indexed
+            // Apply limit AFTER all metric filtering (limit should be applied last)
+            if (hasLimit && rowsWithMetrics.Count > resultLimit.Value)
+            {
+                rowsWithMetrics = rowsWithMetrics.Take(resultLimit.Value).ToList();
+                // Recalculate filtered total based on limited results
+                filteredTotal = rowsWithMetrics.Sum(row => row.ngram.count);
+            }
 
             // Update table rows
             ngramTable.Rows.Clear();
@@ -857,9 +992,10 @@ namespace Keysharp.UI
             // Store filtered n-grams for lazy highlight calculation
             storedNgramsForHighlighting.Clear();
             
-            for (int i = 0; i < filteredNgrams.Count; i++)
+            for (int i = 0; i < rowsWithMetrics.Count; i++)
             {
-                var ngram = filteredNgrams[i];
+                var row = rowsWithMetrics[i];
+                var ngram = row.ngram;
                 // Rank is relative rank within filtered results (1-based)
                 string rank = (i + 1).ToString();
                 string ngramText = $"\"{EscapeSpecialChars(ngram.sequence)}\""; // Add quotation marks around n-gram and escape special chars
@@ -880,16 +1016,16 @@ namespace Keysharp.UI
                     globalRank = actualRank.ToString();
                 }
 
-                // Calculate relative frequency (count / filtered total) if filtered (conditional)
+                // Calculate relative frequency (count / filtered total) if filtered or limited (conditional)
                 string relativeFreq = "";
-                if (isFiltered && filteredTotal > 0)
+                if (showConditionalColumns && filteredTotal > 0)
                 {
                     double relFreq = (double)ngram.count / filteredTotal;
                     relativeFreq = $"{relFreq * 100:F3}%";
                 }
 
-                // Column order: Rank, N-gram, Frequency, Count, Global Rank, Rel. Freq.
-                ngramTable.Rows.Add(new List<string> { rank, ngramText, frequency, count, globalRank, relativeFreq });
+                // Column order: Rank, N-gram, Frequency, Count, Global Rank, Rel. Freq., Key Sequence, Finger Sequence, Metric Matches
+                ngramTable.Rows.Add(new List<string> { rank, ngramText, frequency, count, globalRank, relativeFreq, row.keySequenceStr, row.fingerSequenceStr, row.metricMatches });
             }
             
             // Set up callback for lazy highlight calculation
@@ -1236,6 +1372,39 @@ namespace Keysharp.UI
 
             // Fallback: just show end of path
             return "..." + path.Substring(path.Length - (maxLength - 3));
+        }
+
+        /// <summary>
+        /// Formats a finger sequence as a readable string with shortened finger names (e.g., "LP+LI", "LM+RM").
+        /// </summary>
+        private string FormatFingerSequence(List<Core.PhysicalKey> sequence)
+        {
+            if (sequence == null || sequence.Count == 0)
+                return "";
+
+            var fingerNames = sequence.Select(key => GetShortFingerName(key.Finger)).ToList();
+            return string.Join("+", fingerNames);
+        }
+
+        /// <summary>
+        /// Gets the shortened 2-character name for a finger.
+        /// </summary>
+        private string GetShortFingerName(Core.Finger finger)
+        {
+            return finger switch
+            {
+                Core.Finger.LeftPinky => "LP",
+                Core.Finger.LeftRing => "LR",
+                Core.Finger.LeftMiddle => "LM",
+                Core.Finger.LeftIndex => "LI",
+                Core.Finger.LeftThumb => "LT",
+                Core.Finger.RightThumb => "RT",
+                Core.Finger.RightIndex => "RI",
+                Core.Finger.RightMiddle => "RM",
+                Core.Finger.RightRing => "RR",
+                Core.Finger.RightPinky => "RP",
+                _ => "??"
+            };
         }
 
         /// <summary>
