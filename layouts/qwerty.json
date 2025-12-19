@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "displayName": "Qwerty",
+    "displayName": "QWERTY ",
     "authors": [
       "Christopher Latham Sholes"
     ],
@@ -14,10 +14,11 @@
       "width": 1,
       "height": 1,
       "finger": 0,
-      "identifier": "\u0060",
+      "identifier": "Key1",
       "primaryCharacter": "\u0060",
       "shiftCharacter": "~",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 1,
@@ -25,43 +26,47 @@
       "width": 1,
       "height": 1,
       "finger": 0,
-      "identifier": "1",
+      "identifier": "Key2",
       "primaryCharacter": "1",
       "shiftCharacter": "!",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 2,
       "y": 0,
       "width": 1,
       "height": 1,
-      "finger": 1,
-      "identifier": "2",
+      "finger": 0,
+      "identifier": "Key3",
       "primaryCharacter": "2",
       "shiftCharacter": "@",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 3,
       "y": 0,
       "width": 1,
       "height": 1,
-      "finger": 2,
-      "identifier": "3",
+      "finger": 1,
+      "identifier": "Key4",
       "primaryCharacter": "3",
       "shiftCharacter": "#",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 4,
       "y": 0,
       "width": 1,
       "height": 1,
-      "finger": 3,
-      "identifier": "4",
+      "finger": 2,
+      "identifier": "Key5",
       "primaryCharacter": "4",
       "shiftCharacter": "$",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 5,
@@ -69,21 +74,23 @@
       "width": 1,
       "height": 1,
       "finger": 3,
-      "identifier": "5",
+      "identifier": "Key6",
       "primaryCharacter": "5",
       "shiftCharacter": "%",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 6,
       "y": 0,
       "width": 1,
       "height": 1,
-      "finger": 6,
-      "identifier": "6",
+      "finger": 3,
+      "identifier": "Key7",
       "primaryCharacter": "6",
       "shiftCharacter": "^",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 7,
@@ -91,43 +98,47 @@
       "width": 1,
       "height": 1,
       "finger": 6,
-      "identifier": "7",
+      "identifier": "Key8",
       "primaryCharacter": "7",
       "shiftCharacter": "\u0026",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 8,
       "y": 0,
       "width": 1,
       "height": 1,
-      "finger": 7,
-      "identifier": "8",
+      "finger": 6,
+      "identifier": "Key9",
       "primaryCharacter": "8",
       "shiftCharacter": "*",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 9,
       "y": 0,
       "width": 1,
       "height": 1,
-      "finger": 8,
-      "identifier": "9",
+      "finger": 7,
+      "identifier": "Key10",
       "primaryCharacter": "9",
       "shiftCharacter": "(",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 10,
       "y": 0,
       "width": 1,
       "height": 1,
-      "finger": 9,
-      "identifier": "0",
+      "finger": 8,
+      "identifier": "Key11",
       "primaryCharacter": "0",
       "shiftCharacter": ")",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 11,
@@ -135,10 +146,11 @@
       "width": 1,
       "height": 1,
       "finger": 9,
-      "identifier": "-",
+      "identifier": "Key12",
       "primaryCharacter": "-",
       "shiftCharacter": "_",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 12,
@@ -146,10 +158,11 @@
       "width": 1,
       "height": 1,
       "finger": 9,
-      "identifier": "=",
+      "identifier": "Key13",
       "primaryCharacter": "=",
       "shiftCharacter": "\u002B",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 13,
@@ -160,7 +173,8 @@
       "identifier": "Backspace",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 0,
@@ -171,7 +185,8 @@
       "identifier": "Tab",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 1.5,
@@ -179,10 +194,11 @@
       "width": 1,
       "height": 1,
       "finger": 0,
-      "identifier": "Q",
+      "identifier": "Key16",
       "primaryCharacter": "q",
       "shiftCharacter": "Q",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 2.5,
@@ -190,10 +206,11 @@
       "width": 1,
       "height": 1,
       "finger": 1,
-      "identifier": "W",
+      "identifier": "Key17",
       "primaryCharacter": "w",
       "shiftCharacter": "W",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 3.5,
@@ -201,10 +218,11 @@
       "width": 1,
       "height": 1,
       "finger": 2,
-      "identifier": "E",
+      "identifier": "Key18",
       "primaryCharacter": "e",
       "shiftCharacter": "E",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 4.5,
@@ -212,10 +230,11 @@
       "width": 1,
       "height": 1,
       "finger": 3,
-      "identifier": "R",
+      "identifier": "Key19",
       "primaryCharacter": "r",
       "shiftCharacter": "R",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 5.5,
@@ -223,10 +242,11 @@
       "width": 1,
       "height": 1,
       "finger": 3,
-      "identifier": "T",
+      "identifier": "Key20",
       "primaryCharacter": "t",
       "shiftCharacter": "T",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 6.5,
@@ -234,10 +254,11 @@
       "width": 1,
       "height": 1,
       "finger": 6,
-      "identifier": "Y",
+      "identifier": "Key21",
       "primaryCharacter": "y",
       "shiftCharacter": "Y",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 7.5,
@@ -245,10 +266,11 @@
       "width": 1,
       "height": 1,
       "finger": 6,
-      "identifier": "U",
+      "identifier": "Key22",
       "primaryCharacter": "u",
       "shiftCharacter": "U",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 8.5,
@@ -256,10 +278,11 @@
       "width": 1,
       "height": 1,
       "finger": 7,
-      "identifier": "I",
+      "identifier": "Key23",
       "primaryCharacter": "i",
       "shiftCharacter": "I",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 9.5,
@@ -267,10 +290,11 @@
       "width": 1,
       "height": 1,
       "finger": 8,
-      "identifier": "O",
+      "identifier": "Key24",
       "primaryCharacter": "o",
       "shiftCharacter": "O",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 10.5,
@@ -278,10 +302,11 @@
       "width": 1,
       "height": 1,
       "finger": 9,
-      "identifier": "P",
+      "identifier": "Key25",
       "primaryCharacter": "p",
       "shiftCharacter": "P",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 11.5,
@@ -289,10 +314,11 @@
       "width": 1,
       "height": 1,
       "finger": 9,
-      "identifier": "[",
+      "identifier": "Key26",
       "primaryCharacter": "[",
       "shiftCharacter": "{",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 12.5,
@@ -300,10 +326,11 @@
       "width": 1,
       "height": 1,
       "finger": 9,
-      "identifier": "]",
+      "identifier": "Key27",
       "primaryCharacter": "]",
       "shiftCharacter": "}",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 13.5,
@@ -311,10 +338,11 @@
       "width": 1.5,
       "height": 1,
       "finger": 9,
-      "identifier": "\\",
+      "identifier": "Key28",
       "primaryCharacter": "\\",
       "shiftCharacter": "|",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 0,
@@ -325,7 +353,8 @@
       "identifier": "Caps",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 1.75,
@@ -333,10 +362,11 @@
       "width": 1,
       "height": 1,
       "finger": 0,
-      "identifier": "A",
+      "identifier": "Key30",
       "primaryCharacter": "a",
       "shiftCharacter": "A",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 2.75,
@@ -344,10 +374,11 @@
       "width": 1,
       "height": 1,
       "finger": 1,
-      "identifier": "S",
+      "identifier": "Key31",
       "primaryCharacter": "s",
       "shiftCharacter": "S",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 3.75,
@@ -355,10 +386,11 @@
       "width": 1,
       "height": 1,
       "finger": 2,
-      "identifier": "D",
+      "identifier": "Key32",
       "primaryCharacter": "d",
       "shiftCharacter": "D",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 4.75,
@@ -366,10 +398,11 @@
       "width": 1,
       "height": 1,
       "finger": 3,
-      "identifier": "F",
+      "identifier": "Key33",
       "primaryCharacter": "f",
       "shiftCharacter": "F",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 5.75,
@@ -377,10 +410,11 @@
       "width": 1,
       "height": 1,
       "finger": 3,
-      "identifier": "G",
+      "identifier": "Key34",
       "primaryCharacter": "g",
       "shiftCharacter": "G",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 6.75,
@@ -388,10 +422,11 @@
       "width": 1,
       "height": 1,
       "finger": 6,
-      "identifier": "H",
+      "identifier": "Key35",
       "primaryCharacter": "h",
       "shiftCharacter": "H",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 7.75,
@@ -399,10 +434,11 @@
       "width": 1,
       "height": 1,
       "finger": 6,
-      "identifier": "J",
+      "identifier": "Key36",
       "primaryCharacter": "j",
       "shiftCharacter": "J",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 8.75,
@@ -410,10 +446,11 @@
       "width": 1,
       "height": 1,
       "finger": 7,
-      "identifier": "K",
+      "identifier": "Key37",
       "primaryCharacter": "k",
       "shiftCharacter": "K",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 9.75,
@@ -421,10 +458,11 @@
       "width": 1,
       "height": 1,
       "finger": 8,
-      "identifier": "L",
+      "identifier": "Key38",
       "primaryCharacter": "l",
       "shiftCharacter": "L",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 10.75,
@@ -432,10 +470,11 @@
       "width": 1,
       "height": 1,
       "finger": 9,
-      "identifier": ";",
+      "identifier": "Key39",
       "primaryCharacter": ";",
       "shiftCharacter": ":",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 11.75,
@@ -443,10 +482,11 @@
       "width": 1,
       "height": 1,
       "finger": 9,
-      "identifier": "\u0027",
+      "identifier": "Key40",
       "primaryCharacter": "\u0027",
       "shiftCharacter": "\u0022",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 12.75,
@@ -457,7 +497,8 @@
       "identifier": "Enter",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 0,
@@ -468,7 +509,8 @@
       "identifier": "LShift",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 2.25,
@@ -476,10 +518,11 @@
       "width": 1,
       "height": 1,
       "finger": 0,
-      "identifier": "Z",
+      "identifier": "Key43",
       "primaryCharacter": "z",
       "shiftCharacter": "Z",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 3.25,
@@ -487,10 +530,11 @@
       "width": 1,
       "height": 1,
       "finger": 1,
-      "identifier": "X",
+      "identifier": "Key44",
       "primaryCharacter": "x",
       "shiftCharacter": "X",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 4.25,
@@ -498,10 +542,11 @@
       "width": 1,
       "height": 1,
       "finger": 2,
-      "identifier": "C",
+      "identifier": "Key45",
       "primaryCharacter": "c",
       "shiftCharacter": "C",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 5.25,
@@ -509,10 +554,11 @@
       "width": 1,
       "height": 1,
       "finger": 3,
-      "identifier": "V",
+      "identifier": "Key46",
       "primaryCharacter": "v",
       "shiftCharacter": "V",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 6.25,
@@ -520,10 +566,11 @@
       "width": 1,
       "height": 1,
       "finger": 3,
-      "identifier": "B",
+      "identifier": "Key47",
       "primaryCharacter": "b",
       "shiftCharacter": "B",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 7.25,
@@ -531,10 +578,11 @@
       "width": 1,
       "height": 1,
       "finger": 6,
-      "identifier": "N",
+      "identifier": "Key48",
       "primaryCharacter": "n",
       "shiftCharacter": "N",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 8.25,
@@ -542,10 +590,11 @@
       "width": 1,
       "height": 1,
       "finger": 6,
-      "identifier": "M",
+      "identifier": "Key49",
       "primaryCharacter": "m",
       "shiftCharacter": "M",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 9.25,
@@ -553,10 +602,11 @@
       "width": 1,
       "height": 1,
       "finger": 7,
-      "identifier": ",",
+      "identifier": "Key50",
       "primaryCharacter": ",",
       "shiftCharacter": "\u003C",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 10.25,
@@ -564,10 +614,11 @@
       "width": 1,
       "height": 1,
       "finger": 8,
-      "identifier": ".",
+      "identifier": "Key51",
       "primaryCharacter": ".",
       "shiftCharacter": "\u003E",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 11.25,
@@ -575,10 +626,11 @@
       "width": 1,
       "height": 1,
       "finger": 9,
-      "identifier": "/",
+      "identifier": "Key52",
       "primaryCharacter": "/",
       "shiftCharacter": "?",
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 12.25,
@@ -586,10 +638,11 @@
       "width": 2.75,
       "height": 1,
       "finger": 9,
-      "identifier": "RShift",
+      "identifier": "Shift",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 0,
@@ -600,18 +653,20 @@
       "identifier": "LCtrl",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 1.25,
       "y": 4,
       "width": 1.25,
       "height": 1,
-      "finger": 1,
-      "identifier": "LWin",
+      "finger": 0,
+      "identifier": "Win",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 2.5,
@@ -619,21 +674,11 @@
       "width": 1.25,
       "height": 1,
       "finger": 4,
-      "identifier": "LAlt",
+      "identifier": "Alt",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
-    },
-    {
-      "x": 3.75,
-      "y": 4,
-      "width": 6.25,
-      "height": 1,
-      "finger": 5,
-      "identifier": "Space",
-      "primaryCharacter": " ",
-      "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 10,
@@ -641,32 +686,35 @@
       "width": 1.25,
       "height": 1,
       "finger": 5,
-      "identifier": "RAlt",
+      "identifier": "AltGr",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 11.25,
       "y": 4,
       "width": 1.25,
       "height": 1,
-      "finger": 8,
-      "identifier": "Menu",
+      "finger": 5,
+      "identifier": "Win",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 12.5,
       "y": 4,
       "width": 1.25,
       "height": 1,
-      "finger": 8,
-      "identifier": "Fn",
+      "finger": 9,
+      "identifier": "Menu",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 13.75,
@@ -677,340 +725,354 @@
       "identifier": "RCtrl",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
+    },
+    {
+      "x": 3.75,
+      "y": 4,
+      "width": 6.25,
+      "height": 1,
+      "finger": 4,
+      "identifier": "Space",
+      "primaryCharacter": " ",
+      "shiftCharacter": " ",
+      "disabled": false,
+      "rotation": 0
     }
   ],
   "mappings": {
     "\u0060": [
-      "\u0060"
+      "Key1"
     ],
     "~": [
       "LShift",
-      "\u0060"
+      "Key1"
     ],
     "1": [
-      "1"
+      "Key2"
     ],
     "!": [
       "LShift",
-      "1"
+      "Key2"
     ],
     "2": [
-      "2"
+      "Key3"
     ],
     "@": [
       "LShift",
-      "2"
+      "Key3"
     ],
     "3": [
-      "3"
+      "Key4"
     ],
     "#": [
       "LShift",
-      "3"
+      "Key4"
     ],
     "4": [
-      "4"
+      "Key5"
     ],
     "$": [
       "LShift",
-      "4"
+      "Key5"
     ],
     "5": [
-      "5"
+      "Key6"
     ],
     "%": [
       "LShift",
-      "5"
+      "Key6"
     ],
     "6": [
-      "6"
+      "Key7"
     ],
     "^": [
       "LShift",
-      "6"
+      "Key7"
     ],
     "7": [
-      "7"
+      "Key8"
     ],
     "\u0026": [
       "LShift",
-      "7"
+      "Key8"
     ],
     "8": [
-      "8"
+      "Key9"
     ],
     "*": [
       "LShift",
-      "8"
+      "Key9"
     ],
     "9": [
-      "9"
+      "Key10"
     ],
     "(": [
       "LShift",
-      "9"
+      "Key10"
     ],
     "0": [
-      "0"
+      "Key11"
     ],
     ")": [
       "LShift",
-      "0"
+      "Key11"
     ],
     "-": [
-      "-"
+      "Key12"
     ],
     "_": [
       "LShift",
-      "-"
+      "Key12"
     ],
     "=": [
-      "="
+      "Key13"
     ],
     "\u002B": [
       "LShift",
-      "="
+      "Key13"
     ],
     "q": [
-      "Q"
+      "Key16"
     ],
     "Q": [
       "LShift",
-      "Q"
+      "Key16"
     ],
     "w": [
-      "W"
+      "Key17"
     ],
     "W": [
       "LShift",
-      "W"
+      "Key17"
     ],
     "e": [
-      "E"
+      "Key18"
     ],
     "E": [
       "LShift",
-      "E"
+      "Key18"
     ],
     "r": [
-      "R"
+      "Key19"
     ],
     "R": [
       "LShift",
-      "R"
+      "Key19"
     ],
     "t": [
-      "T"
+      "Key20"
     ],
     "T": [
       "LShift",
-      "T"
+      "Key20"
     ],
     "y": [
-      "Y"
+      "Key21"
     ],
     "Y": [
       "LShift",
-      "Y"
+      "Key21"
     ],
     "u": [
-      "U"
+      "Key22"
     ],
     "U": [
       "LShift",
-      "U"
+      "Key22"
     ],
     "i": [
-      "I"
+      "Key23"
     ],
     "I": [
       "LShift",
-      "I"
+      "Key23"
     ],
     "o": [
-      "O"
+      "Key24"
     ],
     "O": [
       "LShift",
-      "O"
+      "Key24"
     ],
     "p": [
-      "P"
+      "Key25"
     ],
     "P": [
       "LShift",
-      "P"
+      "Key25"
     ],
     "[": [
-      "["
+      "Key26"
     ],
     "{": [
       "LShift",
-      "["
+      "Key26"
     ],
     "]": [
-      "]"
+      "Key27"
     ],
     "}": [
       "LShift",
-      "]"
+      "Key27"
     ],
     "\\": [
-      "\\"
+      "Key28"
     ],
     "|": [
       "LShift",
-      "\\"
+      "Key28"
     ],
     "a": [
-      "A"
+      "Key30"
     ],
     "A": [
       "LShift",
-      "A"
+      "Key30"
     ],
     "s": [
-      "S"
+      "Key31"
     ],
     "S": [
       "LShift",
-      "S"
+      "Key31"
     ],
     "d": [
-      "D"
+      "Key32"
     ],
     "D": [
       "LShift",
-      "D"
+      "Key32"
     ],
     "f": [
-      "F"
+      "Key33"
     ],
     "F": [
       "LShift",
-      "F"
+      "Key33"
     ],
     "g": [
-      "G"
+      "Key34"
     ],
     "G": [
       "LShift",
-      "G"
+      "Key34"
     ],
     "h": [
-      "H"
+      "Key35"
     ],
     "H": [
       "LShift",
-      "H"
+      "Key35"
     ],
     "j": [
-      "J"
+      "Key36"
     ],
     "J": [
       "LShift",
-      "J"
+      "Key36"
     ],
     "k": [
-      "K"
+      "Key37"
     ],
     "K": [
       "LShift",
-      "K"
+      "Key37"
     ],
     "l": [
-      "L"
+      "Key38"
     ],
     "L": [
       "LShift",
-      "L"
+      "Key38"
     ],
     ";": [
-      ";"
+      "Key39"
     ],
     ":": [
       "LShift",
-      ";"
+      "Key39"
     ],
     "\u0027": [
-      "\u0027"
+      "Key40"
     ],
     "\u0022": [
       "LShift",
-      "\u0027"
+      "Key40"
     ],
     "z": [
-      "Z"
+      "Key43"
     ],
     "Z": [
       "LShift",
-      "Z"
+      "Key43"
     ],
     "x": [
-      "X"
+      "Key44"
     ],
     "X": [
       "LShift",
-      "X"
+      "Key44"
     ],
     "c": [
-      "C"
+      "Key45"
     ],
     "C": [
       "LShift",
-      "C"
+      "Key45"
     ],
     "v": [
-      "V"
+      "Key46"
     ],
     "V": [
       "LShift",
-      "V"
+      "Key46"
     ],
     "b": [
-      "B"
+      "Key47"
     ],
     "B": [
       "LShift",
-      "B"
+      "Key47"
     ],
     "n": [
-      "N"
+      "Key48"
     ],
     "N": [
       "LShift",
-      "N"
+      "Key48"
     ],
     "m": [
-      "M"
+      "Key49"
     ],
     "M": [
       "LShift",
-      "M"
+      "Key49"
     ],
     ",": [
-      ","
+      "Key50"
     ],
     "\u003C": [
       "LShift",
-      ","
+      "Key50"
     ],
     ".": [
-      "."
+      "Key51"
     ],
     "\u003E": [
       "LShift",
-      "."
+      "Key51"
     ],
     "/": [
-      "/"
+      "Key52"
     ],
     "?": [
       "LShift",
-      "/"
+      "Key52"
     ],
     " ": [
+      "LShift",
       "Space"
     ]
   }
