@@ -407,6 +407,142 @@ namespace Keysharp.Core
             return true;
         }
 
+        /// <summary>
+        /// Checks if a trigram (3 keys) is an InRoll.
+        /// An InRoll occurs when:
+        /// 1. The first and third keys are on different hands
+        /// 2. The fingers of the bigram pair that are on the same hand are different
+        /// 3. The direction of the rolling bigram is towards the center of the keyboard
+        /// </summary>
+        public static bool IsInRollTrigram(List<PhysicalKey> trigram)
+        {
+            if (trigram == null || trigram.Count != 3)
+                return false;
+
+            var firstKey = trigram[0];
+            var secondKey = trigram[1];
+            var thirdKey = trigram[2];
+
+            // First and third keys must be on different hands
+            if (firstKey.HandIndex == thirdKey.HandIndex)
+                return false;
+
+            // Check the bigram pair that is on the same hand
+            // Either (first, second) are on same hand, or (second, third) are on same hand
+            PhysicalKey? rollingHandKey1 = null;
+            PhysicalKey? rollingHandKey2 = null;
+            int rollingHandIndex = -1;
+
+            if (firstKey.HandIndex == secondKey.HandIndex)
+            {
+                // First and second are on same hand
+                if (firstKey.Finger == secondKey.Finger)
+                    return false; // Must have different fingers
+                rollingHandKey1 = firstKey;
+                rollingHandKey2 = secondKey;
+                rollingHandIndex = firstKey.HandIndex;
+            }
+            else if (secondKey.HandIndex == thirdKey.HandIndex)
+            {
+                // Second and third are on same hand
+                if (secondKey.Finger == thirdKey.Finger)
+                    return false; // Must have different fingers
+                rollingHandKey1 = secondKey;
+                rollingHandKey2 = thirdKey;
+                rollingHandIndex = secondKey.HandIndex;
+            }
+            else
+            {
+                // All three keys are on different hands (impossible with only 2 hands)
+                return false;
+            }
+
+            // Determine direction towards center
+            // Left hand (HandIndex == 0): increasing indices = towards center (right)
+            // Right hand (HandIndex == 1): decreasing indices = towards center (left)
+            int a = rollingHandKey1.FingerIndex;
+            int b = rollingHandKey2.FingerIndex;
+
+            if (rollingHandIndex == 0)
+            {
+                // Left hand: InRoll = increasing indices (a < b)
+                return a < b;
+            }
+            else
+            {
+                // Right hand: InRoll = decreasing indices (a > b)
+                return a > b;
+            }
+        }
+
+        /// <summary>
+        /// Checks if a trigram (3 keys) is an OutRoll.
+        /// An OutRoll occurs when:
+        /// 1. The first and third keys are on different hands
+        /// 2. The fingers of the bigram pair that are on the same hand are different
+        /// 3. The direction of the rolling bigram is towards the outside of the keyboard
+        /// </summary>
+        public static bool IsOutRollTrigram(List<PhysicalKey> trigram)
+        {
+            if (trigram == null || trigram.Count != 3)
+                return false;
+
+            var firstKey = trigram[0];
+            var secondKey = trigram[1];
+            var thirdKey = trigram[2];
+
+            // First and third keys must be on different hands
+            if (firstKey.HandIndex == thirdKey.HandIndex)
+                return false;
+
+            // Check the bigram pair that is on the same hand
+            // Either (first, second) are on same hand, or (second, third) are on same hand
+            PhysicalKey? rollingHandKey1 = null;
+            PhysicalKey? rollingHandKey2 = null;
+            int rollingHandIndex = -1;
+
+            if (firstKey.HandIndex == secondKey.HandIndex)
+            {
+                // First and second are on same hand
+                if (firstKey.Finger == secondKey.Finger)
+                    return false; // Must have different fingers
+                rollingHandKey1 = firstKey;
+                rollingHandKey2 = secondKey;
+                rollingHandIndex = firstKey.HandIndex;
+            }
+            else if (secondKey.HandIndex == thirdKey.HandIndex)
+            {
+                // Second and third are on same hand
+                if (secondKey.Finger == thirdKey.Finger)
+                    return false; // Must have different fingers
+                rollingHandKey1 = secondKey;
+                rollingHandKey2 = thirdKey;
+                rollingHandIndex = secondKey.HandIndex;
+            }
+            else
+            {
+                // All three keys are on different hands (impossible with only 2 hands)
+                return false;
+            }
+
+            // Determine direction towards outside
+            // Left hand (HandIndex == 0): decreasing indices = towards outside (left)
+            // Right hand (HandIndex == 1): increasing indices = towards outside (right)
+            int a = rollingHandKey1.FingerIndex;
+            int b = rollingHandKey2.FingerIndex;
+
+            if (rollingHandIndex == 0)
+            {
+                // Left hand: OutRoll = decreasing indices (a > b)
+                return a > b;
+            }
+            else
+            {
+                // Right hand: OutRoll = increasing indices (a < b)
+                return a < b;
+            }
+        }
+
     }
 }
 

@@ -378,10 +378,18 @@ namespace Keysharp.UI
                     // Check if it's an Alternate (first and third on same hand, middle on other hand)
                     bool isAlternate = Core.Metrics.CheckAnyNgram(keySequence, 3, Core.Metrics.IsAlternateTrigram);
                     
+                    // Check if it's an InRoll (first and third on different hands, rolling bigram towards center)
+                    bool isInRoll = Core.Metrics.CheckAnyNgram(keySequence, 3, Core.Metrics.IsInRollTrigram);
+                    
+                    // Check if it's an OutRoll (first and third on different hands, rolling bigram towards outside)
+                    bool isOutRoll = Core.Metrics.CheckAnyNgram(keySequence, 3, Core.Metrics.IsOutRollTrigram);
+                    
                     if (isInHand) metrics.Add("InHand");
                     if (isOutHand) metrics.Add("OutHand");
                     if (isRedirect) metrics.Add("Redirect");
                     if (isAlternate) metrics.Add("Alternate");
+                    if (isInRoll) metrics.Add("InRoll");
+                    if (isOutRoll) metrics.Add("OutRoll");
                 }
                 
                 string metricMatches = string.Join(" ", metrics);
