@@ -102,6 +102,40 @@ namespace Keysharp.Core
             {
                 layout.RebuildMappings();
             }
+            else
+            {
+                // Even if mappings exist, fix space mapping to ensure it's correct (never Shift+Space)
+                // Find the space key and ensure space maps directly to it
+                PhysicalKey? spaceKey = null;
+                foreach (var key in layout.GetPhysicalKeys())
+                {
+                    if (key.PrimaryCharacter == " " || key.ShiftCharacter == " ")
+                    {
+                        spaceKey = key;
+                        break;
+                    }
+                }
+                if (spaceKey != null)
+                {
+                    // Force space to map directly to the space key, not as Shift+Space
+                    layout.AddMapping(" ", new List<PhysicalKey> { spaceKey });
+                }
+
+                // Map newline character (\n) to Enter key
+                PhysicalKey? enterKey = null;
+                foreach (var key in layout.GetPhysicalKeys())
+                {
+                    if (key.Identifier == "Enter")
+                    {
+                        enterKey = key;
+                        break;
+                    }
+                }
+                if (enterKey != null)
+                {
+                    layout.AddMapping("\n", new List<PhysicalKey> { enterKey });
+                }
+            }
 
             return layout;
         }

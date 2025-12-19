@@ -22,6 +22,7 @@ namespace Keysharp.UI
         private Components.Button? saveCsvButton;
         private string? loadedCorpusPath = null;
         private Corpus? loadedCorpus = null;
+        private Layout? layout = null; // Reference to layout for key sequence conversion
         private Components.Container? corpusControlsContainer;
         private Components.Container? corpusRowContainer;
         private Components.Container? corpusHeaderContainer;
@@ -65,6 +66,16 @@ namespace Keysharp.UI
         /// Gets the loaded corpus, or null if no corpus is loaded.
         /// </summary>
         public Core.Corpus? LoadedCorpus => loadedCorpus;
+
+        /// <summary>
+        /// Sets the layout reference for key sequence conversion.
+        /// </summary>
+        public void SetLayout(Layout? layout)
+        {
+            this.layout = layout;
+            // Update table to show key sequences if layout is available
+            UpdateNgramTable();
+        }
 
         /// <summary>
         /// Sets a loaded corpus programmatically (e.g., during startup).
@@ -264,8 +275,8 @@ namespace Keysharp.UI
             totalCountLabel.PositionMode = Components.PositionMode.Absolute;
             ngramSelectorContainer.AddChild(totalCountLabel);
 
-            // Create n-gram table (Rank, N-gram, Frequency, Count, Global Rank, Rel. Freq.)
-            ngramTable = new Components.Table(font, "Rank", "N-gram", "Frequency", "Count", "Global Rank", "Rel. Freq.", 14);
+            // Create n-gram table (Rank, N-gram, Frequency, Count, Global Rank, Rel. Freq., Key Sequence)
+            ngramTable = new Components.Table(font, "Rank", "N-gram", "Frequency", "Count", "Global Rank", "Rel. Freq.", "Key Sequence", 14);
             ngramTable.Bounds = new Rectangle(0, 0, 0, 0); // Will be set by Update
             ngramTable.AutoSize = false;
             ngramTable.FillRemaining = true; // Fill remaining space after selector
@@ -835,9 +846,10 @@ namespace Keysharp.UI
                 filteredTotal = filteredNgrams.Sum(ng => ng.count);
             }
 
-            // Show/hide conditional columns based on whether we're filtered
+            // Show/hide conditional columns
             ngramTable.ShowColumn5 = isFiltered; // Global Rank
-            ngramTable.ShowColumn6 = isFiltered; // Relative Frequency
+            ngramTable.ShowColumn6 = isFiltered; // Relative Frequency (show when filtered)
+            ngramTable.ShowColumn7 = layout != null; // Key Sequence (show when layout is available)
 
             // Update table rows
             ngramTable.Rows.Clear();
@@ -869,7 +881,7 @@ namespace Keysharp.UI
                     globalRank = actualRank.ToString();
                 }
 
-                // Calculate relative frequency (count / filtered total) if filtered (conditional, last column)
+                // Calculate relative frequency (count / filtered total) if filtered (conditional)
                 string relativeFreq = "";
                 if (isFiltered && filteredTotal > 0)
                 {
@@ -877,8 +889,23 @@ namespace Keysharp.UI
                     relativeFreq = $"{relFreq * 100:F3}%";
                 }
 
-                // Column order: Rank, N-gram, Frequency, Count, Global Rank, Relative Frequency
-                ngramTable.Rows.Add((rank, ngramText, frequency, count, globalRank, relativeFreq));
+                // Calculate key sequence (conditional, last column)
+                string keySequence = "";
+                if (layout != null)
+                {
+                    var sequence = layout.ConvertNgramToKeySequence(ngram.sequence);
+                    if (sequence != null)
+                    {
+                        keySequence = FormatKeySequence(sequence);
+                    }
+                    else
+                    {
+                        keySequence = "N/A"; // Cannot be mapped
+                    }
+                }
+
+                // Column order: Rank, N-gram, Frequency, Count, Global Rank, Rel. Freq., Key Sequence
+                ngramTable.Rows.Add((rank, ngramText, frequency, count, globalRank, relativeFreq, keySequence));
             }
             
             // Set up callback for lazy highlight calculation
@@ -967,6 +994,10 @@ namespace Keysharp.UI
                             {
                                 headers.Add(ngramTable.Column6Header);
                             }
+                            if (ngramTable.ShowColumn7)
+                            {
+                                headers.Add(ngramTable.Column7Header);
+                            }
                             writer.WriteLine(string.Join(",", headers.Select(h => EscapeCsvField(h))));
 
                             // Write data rows
@@ -980,6 +1011,10 @@ namespace Keysharp.UI
                                 if (ngramTable.ShowColumn6)
                                 {
                                     fields.Add(row.column6);
+                                }
+                                if (ngramTable.ShowColumn7)
+                                {
+                                    fields.Add(row.column7);
                                 }
                                 writer.WriteLine(string.Join(",", fields.Select(f => EscapeCsvField(f))));
                             }
@@ -1227,6 +1262,44 @@ namespace Keysharp.UI
 
             // Fallback: just show end of path
             return "..." + path.Substring(path.Length - (maxLength - 3));
+        }
+
+        /// <summary>
+        /// Formats a key sequence as a readable string (e.g., "A", "LShift+A", "Space").
+        /// Truncates to a maximum length to prevent overflow in the table.
+        /// </summary>
+        private string FormatKeySequence(List<PhysicalKey> sequence)
+        {
+            const int MaxLength = 50; // Maximum characters to display before truncation
+
+            if (sequence == null || sequence.Count == 0)
+                return "";
+
+            var parts = new List<string>();
+            foreach (var key in sequence)
+            {
+                // Check if it's a modifier key (LShift)
+                if (key.Identifier == "LShift")
+                {
+                    parts.Add("Shift");
+                }
+                else
+                {
+                    // Use identifier if available, otherwise use primary character
+                    string keyName = !string.IsNullOrEmpty(key.Identifier) ? key.Identifier : key.PrimaryCharacter ?? "?";
+                    parts.Add(keyName);
+                }
+            }
+
+            string result = string.Join("+", parts);
+            
+            // Truncate if too long
+            if (result.Length > MaxLength)
+            {
+                result = result.Substring(0, MaxLength - 3) + "...";
+            }
+
+            return result;
         }
     }
 }

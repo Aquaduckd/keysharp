@@ -80,6 +80,11 @@ namespace Keysharp.UI
         /// </summary>
         public LayoutMetadataJson Metadata => metadata;
 
+        /// <summary>
+        /// Gets the current layout.
+        /// </summary>
+        public Layout Layout => layout;
+
         public LayoutTab(Font font)
         {
             this.font = font;
@@ -712,6 +717,9 @@ namespace Keysharp.UI
                     sidePanel?.SetLayout(layout);
                     sidePanel?.SetLayoutMetadata(metadata);
                 }
+
+                // Update corpus tab with new layout reference
+                corpusTab?.SetLayout(layout);
 
                 // Update dropdown selection if this is a file from the layouts directory
                 // Only update if it's different from what's already selected to avoid infinite recursion

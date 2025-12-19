@@ -27,15 +27,17 @@ namespace Keysharp.Components
             scrollOffset = 0;
         }
 
-        public List<(string column1, string column2, string column3, string column4, string column5, string column6)> Rows { get; set; }
+        public List<(string column1, string column2, string column3, string column4, string column5, string column6, string column7)> Rows { get; set; }
         public string Column1Header { get; set; }
         public string Column2Header { get; set; }
         public string Column3Header { get; set; }
         public string Column4Header { get; set; }
         public string Column5Header { get; set; }
         public string Column6Header { get; set; }
+        public string Column7Header { get; set; }
         public bool ShowColumn5 { get; set; } = false; // Global Rank
         public bool ShowColumn6 { get; set; } = false; // Relative Frequency
+        public bool ShowColumn7 { get; set; } = false; // Key Sequence
         
         // Store match positions for highlighting in column 2 (n-gram column)
         // Maps row index to list of (start, length) match positions in the display text
@@ -44,7 +46,7 @@ namespace Keysharp.Components
         // Callback to calculate match positions for a row (used for lazy calculation during drawing)
         public Func<int, string, List<(int start, int length)>>? CalculateMatchPositionsCallback { get; set; }
 
-        public Table(Font font, string column1Header, string column2Header, string column3Header, string column4Header, string column5Header, string column6Header, int fontSize = 12) 
+        public Table(Font font, string column1Header, string column2Header, string column3Header, string column4Header, string column5Header, string column6Header, string column7Header, int fontSize = 12) 
             : base("Table")
         {
             this.font = font;
@@ -55,7 +57,8 @@ namespace Keysharp.Components
             this.Column4Header = column4Header;
             this.Column5Header = column5Header;
             this.Column6Header = column6Header;
-            this.Rows = new List<(string, string, string, string, string, string)>();
+            this.Column7Header = column7Header;
+            this.Rows = new List<(string, string, string, string, string, string, string)>();
 
             // Tables are interactive for scrolling
             IsClickable = true;
@@ -68,7 +71,10 @@ namespace Keysharp.Components
                 return;
             
             if (Rows == null)
-                Rows = new List<(string, string, string, string, string, string)>();
+                Rows = new List<(string, string, string, string, string, string, string)>();
+
+            // Use smaller padding for first column to reduce gap between rank and ngram
+            const int FirstColumnPadding = 5;
 
             int x = (int)Bounds.X;
             int y = (int)Bounds.Y;
@@ -86,17 +92,18 @@ namespace Keysharp.Components
             }
             
             // Calculate column widths based on whether conditional columns are shown
-            // Column order: Rank, N-gram, Frequency, Count, Global Rank (conditional), Relative Frequency (conditional)
-            int col1Width, col2Width, col3Width, col4Width, col5Width, col6Width;
-            bool showConditional = ShowColumn5 || ShowColumn6;
+            // Column order: Rank, N-gram, Frequency, Count, Global Rank (conditional), Relative Frequency (conditional), Key Sequence (conditional)
+            int col1Width, col2Width, col3Width, col4Width, col5Width, col6Width, col7Width;
+            bool showConditional = ShowColumn5 || ShowColumn6 || ShowColumn7;
             if (showConditional)
             {
-                col1Width = (int)(tableWidth * 0.08f); // Rank
-                col2Width = (int)(tableWidth * 0.35f); // N-gram
-                col3Width = (int)(tableWidth * 0.12f); // Frequency
-                col4Width = (int)(tableWidth * 0.15f); // Count
-                col5Width = ShowColumn5 ? (int)(tableWidth * 0.10f) : 0; // Global Rank
-                col6Width = ShowColumn6 ? (int)(tableWidth * 0.20f) : 0; // Relative Frequency
+                col1Width = (int)(tableWidth * 0.07f); // Rank
+                col2Width = (int)(tableWidth * 0.20f); // N-gram
+                col3Width = (int)(tableWidth * 0.10f); // Frequency
+                col4Width = (int)(tableWidth * 0.12f); // Count
+                col5Width = ShowColumn5 ? (int)(tableWidth * 0.08f) : 0; // Global Rank
+                col6Width = ShowColumn6 ? (int)(tableWidth * 0.15f) : 0; // Relative Frequency
+                col7Width = ShowColumn7 ? (int)(tableWidth * 0.28f) : 0; // Key Sequence
             }
             else
             {
@@ -106,6 +113,7 @@ namespace Keysharp.Components
                 col4Width = (int)(tableWidth * 0.20f); // Count
                 col5Width = 0;
                 col6Width = 0;
+                col7Width = 0;
             }
 
             // Draw header background
@@ -114,9 +122,9 @@ namespace Keysharp.Components
             Raylib.DrawRectangleLinesEx(headerRect, 1, UITheme.BorderColor);
 
             // Draw header text (all right-aligned)
-            // Column order: Rank, N-gram, Frequency, Count, Global Rank (conditional), Relative Frequency (conditional)
+            // Column order: Rank, N-gram, Frequency, Count, Global Rank (conditional), Relative Frequency (conditional), Key Sequence (conditional)
             float currentX = x;
-            TextContainer.DrawRightAlignedText(font, Column1Header, new Rectangle(currentX, y, col1Width, HeaderHeight), fontSize, UITheme.TextColor, Padding);
+            TextContainer.DrawRightAlignedText(font, Column1Header, new Rectangle(currentX, y, col1Width, HeaderHeight), fontSize, UITheme.TextColor, FirstColumnPadding);
             currentX += col1Width;
             TextContainer.DrawRightAlignedText(font, Column2Header, new Rectangle(currentX, y, col2Width, HeaderHeight), fontSize, UITheme.TextColor, Padding);
             currentX += col2Width;
@@ -133,6 +141,11 @@ namespace Keysharp.Components
             {
                 TextContainer.DrawRightAlignedText(font, Column6Header, new Rectangle(currentX, y, col6Width, HeaderHeight), fontSize, UITheme.TextColor, Padding);
                 currentX += col6Width;
+            }
+            if (ShowColumn7)
+            {
+                TextContainer.DrawRightAlignedText(font, Column7Header, new Rectangle(currentX, y, col7Width, HeaderHeight), fontSize, UITheme.TextColor, Padding);
+                currentX += col7Width;
             }
 
             // Draw rows
@@ -161,9 +174,9 @@ namespace Keysharp.Components
                 Raylib.DrawRectangleRec(rowRect, rowColor);
 
                 // Draw row text (all right-aligned)
-                // Column order: Rank, N-gram, Frequency, Count, Global Rank (conditional), Relative Frequency (conditional)
+                // Column order: Rank, N-gram, Frequency, Count, Global Rank (conditional), Relative Frequency (conditional), Key Sequence (conditional)
                 float rowCurrentX = x;
-                TextContainer.DrawRightAlignedText(font, row.column1, new Rectangle(rowCurrentX, rowY, col1Width, RowHeight), fontSize - 1, UITheme.TextColor, Padding);
+                TextContainer.DrawRightAlignedText(font, row.column1, new Rectangle(rowCurrentX, rowY, col1Width, RowHeight), fontSize - 1, UITheme.TextColor, FirstColumnPadding);
                 rowCurrentX += col1Width;
                 
                 // Draw column 2 (n-gram) with potential highlighting
@@ -208,6 +221,11 @@ namespace Keysharp.Components
                 {
                     TextContainer.DrawRightAlignedText(font, row.column6, new Rectangle(rowCurrentX, rowY, col6Width, RowHeight), fontSize - 1, UITheme.TextColor, Padding);
                     rowCurrentX += col6Width;
+                }
+                if (ShowColumn7)
+                {
+                    TextContainer.DrawRightAlignedText(font, row.column7, new Rectangle(rowCurrentX, rowY, col7Width, RowHeight), fontSize - 1, UITheme.TextColor, Padding);
+                    rowCurrentX += col7Width;
                 }
 
                 rowY += RowHeight;

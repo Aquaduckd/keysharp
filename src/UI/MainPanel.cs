@@ -104,6 +104,9 @@ namespace Keysharp.UI
             corpusTab.SetOnCorpusChanged(() => {
                 layoutTab?.OnCorpusChanged();
             });
+
+            // Connect layout to corpus tab for key sequence display
+            corpusTab.SetLayout(layoutTab.Layout);
             
             layoutTab.SetVisible(activeTabIndex == 0);
             tabContentContainer.AddChild(layoutTab.TabContent);

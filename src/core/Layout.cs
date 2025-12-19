@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Keysharp.Core
 {
@@ -58,6 +59,61 @@ namespace Keysharp.Core
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Converts an ngram (string of characters) to a sequence of physical key presses.
+        /// Each character in the ngram is converted to its corresponding key sequence,
+        /// and the sequences are concatenated together.
+        /// </summary>
+        /// <param name="ngram">The ngram string to convert (e.g., "the", "he", "a")</param>
+        /// <returns>A list of physical keys representing the sequence to type the ngram, or null if any character cannot be mapped</returns>
+        public List<PhysicalKey>? ConvertNgramToKeySequence(string ngram)
+        {
+            if (ngram == null)
+                return null;
+
+            var result = new List<PhysicalKey>();
+
+            foreach (char c in ngram)
+            {
+                string charStr = c.ToString();
+                var charSequence = GetKeySequence(charStr);
+                
+                if (charSequence == null)
+                {
+                    // Character cannot be mapped, return null to indicate failure
+                    return null;
+                }
+
+                result.AddRange(charSequence);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Converts all ngrams from a Grams object to their corresponding key sequences.
+        /// Only ngrams where all characters can be mapped are included in the result.
+        /// </summary>
+        /// <param name="grams">The Grams object containing ngram strings and their counts</param>
+        /// <returns>A dictionary mapping ngram strings to their key sequences, only including successfully converted ngrams</returns>
+        public Dictionary<string, List<PhysicalKey>> ConvertNgramsToKeySequences(Grams grams)
+        {
+            var result = new Dictionary<string, List<PhysicalKey>>();
+
+            foreach (var kvp in grams.Counts)
+            {
+                string ngram = kvp.Key;
+                var sequence = ConvertNgramToKeySequence(ngram);
+                
+                if (sequence != null)
+                {
+                    result[ngram] = sequence;
+                }
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -257,20 +313,73 @@ namespace Keysharp.Core
                 }
             }
 
-            // Build mappings from keys
+            // First pass: Add all primary character mappings
+            // Also handle special case: if ShiftCharacter=" " but PrimaryCharacter is not " ", treat space as primary
+            // This handles cases where autoshift incorrectly placed space in the shift field
             foreach (var key in _physicalKeys)
             {
-                // Add primary character mapping
-                if (!string.IsNullOrEmpty(key.PrimaryCharacter))
+                // Handle space character specially: if it's in ShiftCharacter but not PrimaryCharacter, treat it as PrimaryCharacter
+                if (key.ShiftCharacter == " " && key.PrimaryCharacter != " ")
+                {
+                    _stringToKeys[" "] = new List<PhysicalKey> { key };
+                }
+                else if (!string.IsNullOrEmpty(key.PrimaryCharacter))
                 {
                     _stringToKeys[key.PrimaryCharacter] = new List<PhysicalKey> { key };
                 }
+            }
 
-                // Add shift character mapping (if LShift exists)
+            // Second pass: Add shift character mappings (only if not already mapped by a primary character)
+            // This ensures primary mappings always take precedence, regardless of key processing order
+            foreach (var key in _physicalKeys)
+            {
                 if (!string.IsNullOrEmpty(key.ShiftCharacter) && lShiftKey != null)
                 {
-                    _stringToKeys[key.ShiftCharacter] = new List<PhysicalKey> { lShiftKey, key };
+                    // Skip space character - it should always be a primary mapping, never shift
+                    if (key.ShiftCharacter == " ")
+                    {
+                        continue;
+                    }
+
+                    // Only add shift mapping if this character isn't already mapped by a primary character
+                    // This prevents shift mappings from overwriting primary character mappings
+                    if (!_stringToKeys.ContainsKey(key.ShiftCharacter))
+                    {
+                        _stringToKeys[key.ShiftCharacter] = new List<PhysicalKey> { lShiftKey, key };
+                    }
                 }
+            }
+
+            // Final safeguard: Ensure space is always mapped as a primary mapping, never as shift
+            // Find any key with PrimaryCharacter=" " or ShiftCharacter=" " and ensure space maps directly to it
+            PhysicalKey? spaceKey = null;
+            foreach (var key in _physicalKeys)
+            {
+                if (key.PrimaryCharacter == " " || key.ShiftCharacter == " ")
+                {
+                    spaceKey = key;
+                    break;
+                }
+            }
+            if (spaceKey != null)
+            {
+                // Force space to map directly to the space key, not as Shift+Space
+                _stringToKeys[" "] = new List<PhysicalKey> { spaceKey };
+            }
+
+            // Map newline character (\n) to Enter key
+            PhysicalKey? enterKey = null;
+            foreach (var key in _physicalKeys)
+            {
+                if (key.Identifier == "Enter")
+                {
+                    enterKey = key;
+                    break;
+                }
+            }
+            if (enterKey != null)
+            {
+                _stringToKeys["\n"] = new List<PhysicalKey> { enterKey };
             }
         }
 
