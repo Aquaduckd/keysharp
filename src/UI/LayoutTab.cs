@@ -102,16 +102,16 @@ namespace Keysharp.UI
             // Initialize default metadata
             metadata = new LayoutMetadataJson();
             
-            // Try to load qwerty.json layout, fallback to programmatic creation if it doesn't exist
+            // Try to load pinev4.json layout, fallback to programmatic creation if it doesn't exist
             string layoutDir = Path.Combine(Directory.GetCurrentDirectory(), "layouts");
-            string qwertyPath = Path.Combine(layoutDir, "qwerty.json");
+            string pinev4Path = Path.Combine(layoutDir, "pinev4.json");
             
-            if (File.Exists(qwertyPath))
+            if (File.Exists(pinev4Path))
             {
                 try
                 {
-                    initialLayoutFile = "qwerty.json";
-                    LoadLayoutFromPath(qwertyPath, skipSidePanelUpdate: true); // Skip side panel update since it's not connected yet
+                    initialLayoutFile = "pinev4.json";
+                    LoadLayoutFromPath(pinev4Path, skipSidePanelUpdate: true); // Skip side panel update since it's not connected yet
                     // Ensure layout is initialized (fallback if load failed)
                     if (layout == null)
                     {

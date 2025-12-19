@@ -912,9 +912,16 @@ namespace Keysharp.UI
             // Update showConditionalColumns to include metric filters
             showConditionalColumns = isFiltered || hasLimit || hasMetricFilter;
             
+            // Global Rank should only show when there's actual filtering (not just a limit), 
+            // since with just a limit, global rank = rank and provides no new information
+            bool showGlobalRank = isFiltered || hasMetricFilter;
+            
+            // Relative Frequency shows when filtered, limited, or metric filters applied
+            bool showRelativeFrequency = showConditionalColumns;
+            
             // Show/hide conditional columns (Global Rank and Relative Frequency)
-            ngramTable.SetColumnVisibility(4, showConditionalColumns); // Column 5 (Global Rank) - 0-indexed
-            ngramTable.SetColumnVisibility(5, showConditionalColumns); // Column 6 (Relative Frequency) - 0-indexed
+            ngramTable.SetColumnVisibility(4, showGlobalRank); // Column 5 (Global Rank) - 0-indexed
+            ngramTable.SetColumnVisibility(5, showRelativeFrequency); // Column 6 (Relative Frequency) - 0-indexed
             
             foreach (var ngram in filteredNgrams)
             {
@@ -1024,9 +1031,9 @@ namespace Keysharp.UI
                 // Format count with thousand separators
                 string count = ngram.count.ToString("N0");
 
-                // Get global rank from all n-grams (conditional)
+                // Get global rank from all n-grams (only show when there's actual filtering, not just a limit)
                 string globalRank = "";
-                if (isFiltered && actualRankMap.TryGetValue(ngram.sequence, out int actualRank))
+                if (showGlobalRank && actualRankMap.TryGetValue(ngram.sequence, out int actualRank))
                 {
                     globalRank = actualRank.ToString();
                 }

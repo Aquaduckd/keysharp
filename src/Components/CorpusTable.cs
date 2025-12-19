@@ -43,7 +43,7 @@ namespace Keysharp.Components
                 float ngramBaseRatio = 0.40f; // N-gram reduced to give more space to key/finger sequences
                 float frequencyBaseRatio = 0.20f;
                 float countBaseRatio = 0.25f;
-                float globalRankBaseRatio = col4Visible ? 0.08f : 0f;
+                float globalRankBaseRatio = col4Visible ? 0.10f : 0f; // Increased from 0.08f
                 float relativeFreqBaseRatio = col5Visible ? 0.10f : 0f;
                 float keySeqBaseRatio = col6Visible ? 0.25f : 0f; // Increased from 0.20f
                 float fingerSeqBaseRatio = col7Visible ? 0.17f : 0f; // Increased from 0.12f
