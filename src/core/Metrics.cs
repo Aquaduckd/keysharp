@@ -46,23 +46,8 @@ namespace Keysharp.Core
             if (firstKey.Finger != secondKey.Finger)
                 return false;
 
-            // Check if not the same key (compare by identifier if available, otherwise by position)
-            bool isSameKey;
-            if (!string.IsNullOrEmpty(firstKey.Identifier) && !string.IsNullOrEmpty(secondKey.Identifier))
-            {
-                isSameKey = firstKey.Identifier == secondKey.Identifier;
-            }
-            else
-            {
-                // Compare by position (X, Y, Width, Height)
-                isSameKey = firstKey.X == secondKey.X &&
-                           firstKey.Y == secondKey.Y &&
-                           firstKey.Width == secondKey.Width &&
-                           firstKey.Height == secondKey.Height;
-            }
-
             // SFB if same finger but different key
-            return !isSameKey;
+            return !IsSameKey(firstKey, secondKey);
         }
 
 
@@ -335,6 +320,65 @@ namespace Keysharp.Core
                 // Right hand: OutHand = increasing indices (a < b < c)
                 return a < b && b < c;
             }
+        }
+
+        /// <summary>
+        /// Checks if two PhysicalKey objects represent the same key.
+        /// Compares by identifier if available, otherwise by position.
+        /// </summary>
+        private static bool IsSameKey(PhysicalKey key1, PhysicalKey key2)
+        {
+            if (!string.IsNullOrEmpty(key1.Identifier) && !string.IsNullOrEmpty(key2.Identifier))
+            {
+                return key1.Identifier == key2.Identifier;
+            }
+            else
+            {
+                // Compare by position (X, Y, Width, Height)
+                return key1.X == key2.X &&
+                       key1.Y == key2.Y &&
+                       key1.Width == key2.Width &&
+                       key1.Height == key2.Height;
+            }
+        }
+
+        /// <summary>
+        /// Checks if a trigram (3 keys) is a Redirect.
+        /// A Redirect occurs when all three keys are:
+        /// 1. On the same hand
+        /// 2. The directions of the two bigrams that make up the trigram are opposite
+        /// 3. Neither of the two bigrams uses the same key (a.key != b.key and b.key != c.key)
+        /// (This automatically excludes Onehands, as they require a continuous rolling direction)
+        /// </summary>
+        public static bool IsRedirectTrigram(List<PhysicalKey> trigram)
+        {
+            if (trigram == null || trigram.Count != 3)
+                return false;
+
+            var firstKey = trigram[0];
+            var secondKey = trigram[1];
+            var thirdKey = trigram[2];
+
+            // Check if all keys are on the same hand
+            if (firstKey.HandIndex != secondKey.HandIndex || secondKey.HandIndex != thirdKey.HandIndex)
+                return false;
+
+            // Check that neither bigram uses the same key
+            if (IsSameKey(firstKey, secondKey) || IsSameKey(secondKey, thirdKey))
+                return false;
+
+            int a = firstKey.FingerIndex;
+            int b = secondKey.FingerIndex;
+            int c = thirdKey.FingerIndex;
+
+            // Check if the two bigrams have opposite directions:
+            // Bigram 1: (a, b) - direction: increasing if a < b, decreasing if a > b
+            // Bigram 2: (b, c) - direction: increasing if b < c, decreasing if b > c
+            // They are opposite if one is increasing and the other is decreasing
+            bool firstBigramIncreasing = a < b;
+            bool secondBigramIncreasing = b < c;
+
+            return firstBigramIncreasing != secondBigramIncreasing;
         }
 
     }

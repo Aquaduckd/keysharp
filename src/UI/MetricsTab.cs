@@ -372,8 +372,12 @@ namespace Keysharp.UI
                     // Check if it's an OutHand (roll towards outside)
                     bool isOutHand = Core.Metrics.CheckAnyNgram(keySequence, 3, Core.Metrics.IsOutHandTrigram);
                     
+                    // Check if it's a Redirect (opposite directions, not a continuous roll)
+                    bool isRedirect = Core.Metrics.CheckAnyNgram(keySequence, 3, Core.Metrics.IsRedirectTrigram);
+                    
                     if (isInHand) metrics.Add("InHand");
                     if (isOutHand) metrics.Add("OutHand");
+                    if (isRedirect) metrics.Add("Redirect");
                 }
                 
                 string metricMatches = string.Join(" ", metrics);
