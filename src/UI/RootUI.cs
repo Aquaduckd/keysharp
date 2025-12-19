@@ -79,6 +79,9 @@ namespace Keysharp.UI
             mainPanel.Update(layoutRect.MainPanel);
             
             // Phase 2: Layout and input handling
+            // Reset dropdown click consumed flag at the start of each frame
+            Components.Dropdown.ResetClickConsumed();
+            
             menuBar.Update();
             sidePanel.Update();
             bottomPanel.Update();

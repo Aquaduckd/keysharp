@@ -12,6 +12,9 @@ namespace Keysharp.Components
         private const int Padding = 5;
         private const int MinWidth = 200;
 
+        // Static flag to track if a click was consumed by a dropdown this frame
+        private static bool clickConsumedThisFrame = false;
+
         private Font font;
         private List<string> items;
         private int selectedIndex = -1;
@@ -21,6 +24,7 @@ namespace Keysharp.Components
 
         public string? SelectedItem => selectedIndex >= 0 && selectedIndex < items.Count ? items[selectedIndex] : null;
         public Action<string>? OnSelectionChanged { get; set; }
+        public bool IsOpen => isOpen;
 
         public override bool IsHovering(int mouseX, int mouseY)
         {
@@ -105,11 +109,20 @@ namespace Keysharp.Components
             // Check if clicking on dropdown
             if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT))
             {
+                // Don't process if another dropdown already consumed the click
+                if (clickConsumedThisFrame)
+                {
+                    return;
+                }
+
+                bool handledClick = false;
+
                 // Check if clicking on the dropdown button
                 if (mouseX >= Bounds.X && mouseX <= Bounds.X + Bounds.Width &&
                     mouseY >= Bounds.Y && mouseY <= Bounds.Y + Bounds.Height)
                 {
                     isOpen = !isOpen;
+                    handledClick = true;
                 }
                 // Check if clicking on dropdown items
                 else if (isOpen)
@@ -126,17 +139,46 @@ namespace Keysharp.Components
                             selectedIndex = itemIndex;
                             OnSelectionChanged?.Invoke(items[itemIndex]);
                             isOpen = false;
+                            handledClick = true;
                         }
                     }
-                    else
+                    else if (ContainsPoint(mouseX, mouseY))
                     {
-                        // Clicked outside, close dropdown
+                        // Clicked on dropdown area (even if not on an item), close it
                         isOpen = false;
+                        handledClick = true;
                     }
+                }
+
+                // Mark click as consumed if we handled it
+                if (handledClick)
+                {
+                    clickConsumedThisFrame = true;
                 }
             }
 
             // Note: Cursor is set centrally in Program.cs based on hover state
+        }
+
+        /// <summary>
+        /// Checks if a click was consumed by any dropdown this frame.
+        /// Components should check this before processing clicks to prevent click-through.
+        /// This should be called at the start of each frame before processing any clicks.
+        /// </summary>
+        public static bool WasClickConsumed()
+        {
+            return clickConsumedThisFrame;
+        }
+
+        /// <summary>
+        /// Resets the consumed flag. Should be called once per frame before processing UI updates.
+        /// </summary>
+        public static void ResetClickConsumed()
+        {
+            if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT))
+            {
+                clickConsumedThisFrame = false;
+            }
         }
 
         protected override void DrawSelf()
@@ -230,6 +272,47 @@ namespace Keysharp.Components
                     itemY += ItemHeight;
                 }
             }
+        }
+
+        /// <summary>
+        /// Checks if a point is over this dropdown (button or open dropdown list).
+        /// </summary>
+        public bool ContainsPoint(int x, int y)
+        {
+            // Check if point is over the button
+            if (x >= Bounds.X && x <= Bounds.X + Bounds.Width &&
+                y >= Bounds.Y && y <= Bounds.Y + Bounds.Height)
+            {
+                return true;
+            }
+
+            // Check if point is over the open dropdown list
+            if (isOpen)
+            {
+                int dropdownY = (int)(Bounds.Y + Bounds.Height);
+                int dropdownHeight = items.Count * ItemHeight + Padding * 2;
+                int dropdownWidth = MinWidth;
+                foreach (var item in items)
+                {
+                    int textWidth = (int)FontManager.MeasureText(font, item, fontSize);
+                    if (textWidth + Padding * 2 > dropdownWidth)
+                    {
+                        dropdownWidth = textWidth + Padding * 2;
+                    }
+                }
+                if (dropdownWidth < (int)Bounds.Width)
+                {
+                    dropdownWidth = (int)Bounds.Width;
+                }
+
+                if (x >= Bounds.X && x <= Bounds.X + dropdownWidth &&
+                    y >= dropdownY && y <= dropdownY + dropdownHeight)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }

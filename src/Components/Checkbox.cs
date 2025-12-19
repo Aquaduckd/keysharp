@@ -54,6 +54,12 @@ namespace Keysharp.Components
             // Check if clicking
             if (IsHovered && Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT))
             {
+                // Don't process if click was consumed by a dropdown
+                if (Dropdown.WasClickConsumed())
+                {
+                    return;
+                }
+
                 IsChecked = !IsChecked;
                 OnCheckedChanged?.Invoke(IsChecked);
             }

@@ -269,6 +269,15 @@ namespace Keysharp.Components
                 int mouseX = Raylib.GetMouseX();
                 int mouseY = Raylib.GetMouseY();
 
+                // Check if click is over an open dropdown - if so, don't process clicks
+                // Find root element to check all dropdowns
+                UIElement? root = this;
+                while (root.Parent != null)
+                {
+                    root = root.Parent;
+                }
+                bool clickOverOpenDropdown = root.IsPointOverOpenDropdown(mouseX, mouseY);
+
                 // Check if mouse is over a key
                 PhysicalKey? hoveredKey = null;
                 foreach (var key in layout.GetPhysicalKeys())
@@ -291,6 +300,12 @@ namespace Keysharp.Components
                 // Handle mouse button press (start drag or select)
                 if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT))
                 {
+                    // Don't process clicks if they were consumed by a dropdown
+                    if (Dropdown.WasClickConsumed())
+                    {
+                        return;
+                    }
+
                     bool leftShift = Raylib.IsKeyDown(KeyboardKey.KEY_LEFT_SHIFT);
                     bool rightShift = Raylib.IsKeyDown(KeyboardKey.KEY_RIGHT_SHIFT);
                     bool shiftDown = leftShift || rightShift;

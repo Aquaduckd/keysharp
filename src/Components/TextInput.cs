@@ -380,6 +380,12 @@ namespace Keysharp.Components
             // Handle focus and mouse selection
             if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT))
             {
+                // Don't process if click was consumed by a dropdown
+                if (Dropdown.WasClickConsumed())
+                {
+                    return;
+                }
+
                 bool wasFocused = IsFocused;
                 // Only allow focus if enabled
                 IsFocused = isHovered && IsEnabled;

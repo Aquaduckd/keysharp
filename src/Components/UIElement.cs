@@ -773,6 +773,33 @@ namespace Keysharp.Components
         {
             Bounds = new Rectangle(Bounds.X, Bounds.Y, width, height);
         }
+
+        /// <summary>
+        /// Recursively checks if a point is over any open dropdown in this element's subtree.
+        /// This is used to block clicks from passing through open dropdowns.
+        /// </summary>
+        public bool IsPointOverOpenDropdown(int x, int y)
+        {
+            // Check if this element is a dropdown and if it's open and contains the point
+            if (this is Dropdown dropdown && dropdown.IsOpen)
+            {
+                if (dropdown.ContainsPoint(x, y))
+                {
+                    return true;
+                }
+            }
+
+            // Recursively check children
+            foreach (var child in Children)
+            {
+                if (child.IsPointOverOpenDropdown(x, y))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
     }
 }
 
