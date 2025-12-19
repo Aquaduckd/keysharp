@@ -266,7 +266,7 @@ namespace Keysharp.UI
             leftControlsContainer.AddChild(metricSearchInput);
 
             // Create filter no metrics checkbox (fourth in bottom container)
-            filterNoMetricsCheckbox = new Components.Checkbox(font, "Filter No Metrics", 14);
+            filterNoMetricsCheckbox = new Components.Checkbox(font, "Show Metrics Only", 14);
             filterNoMetricsCheckbox.Bounds = new Rectangle(0, 0, 150, 35);
             filterNoMetricsCheckbox.PositionMode = Components.PositionMode.Absolute;
             filterNoMetricsCheckbox.IsChecked = false; // Unchecked by default
