@@ -1,5 +1,9 @@
 using Raylib_cs;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Keysharp.Components;
+using Keysharp.Core;
 
 namespace Keysharp.UI
 {
@@ -14,8 +18,37 @@ namespace Keysharp.UI
         private Components.Container? metricsControlsContainer;
         private Components.Container? metricsContentContainer;
         private Components.Label? metricsHeaderLabel;
+        private Components.Table? metricsTable;
+        private Components.TextInput? ngramSearchInput;
+        private Components.TextInput? metricSearchInput;
+
+        // Data references
+        private Layout? layout = null;
+        private Corpus? corpus = null;
+
+        // Search state
+        private string ngramSearchText = "";
+        private string metricSearchText = "";
 
         public Components.TabContent TabContent => tabContent;
+
+        /// <summary>
+        /// Sets the layout reference for key sequence conversion.
+        /// </summary>
+        public void SetLayout(Layout? layout)
+        {
+            this.layout = layout;
+            UpdateMetricsTable();
+        }
+
+        /// <summary>
+        /// Sets the corpus reference for bigram data.
+        /// </summary>
+        public void SetCorpus(Corpus? corpus)
+        {
+            this.corpus = corpus;
+            UpdateMetricsTable();
+        }
 
         public MetricsTab(Font font)
         {
@@ -60,16 +93,50 @@ namespace Keysharp.UI
             metricsControlsContainer.ChildPadding = 0;
             metricsMainContainer.AddChild(metricsControlsContainer);
 
+            // Create ngram search label
+            var ngramSearchLabel = new Components.Label(font, "Ngram Search:", 14);
+            ngramSearchLabel.Bounds = new Rectangle(0, 0, 120, 35);
+            ngramSearchLabel.PositionMode = Components.PositionMode.Absolute;
+            metricsControlsContainer.AddChild(ngramSearchLabel);
+
+            // Create ngram search input
+            ngramSearchInput = new Components.TextInput(font, "Enter ngram search term...", 14);
+            ngramSearchInput.Bounds = new Rectangle(0, 0, 300, 35);
+            ngramSearchInput.PositionMode = Components.PositionMode.Absolute;
+            ngramSearchInput.OnTextChanged = OnNgramSearchTextChanged;
+            metricsControlsContainer.AddChild(ngramSearchInput);
+
+            // Create metric search label
+            var metricSearchLabel = new Components.Label(font, "Metric Search:", 14);
+            metricSearchLabel.Bounds = new Rectangle(0, 0, 120, 35);
+            metricSearchLabel.PositionMode = Components.PositionMode.Absolute;
+            metricsControlsContainer.AddChild(metricSearchLabel);
+
+            // Create metric search input
+            metricSearchInput = new Components.TextInput(font, "Enter metric search (e.g., SFB)...", 14);
+            metricSearchInput.Bounds = new Rectangle(0, 0, 300, 35);
+            metricSearchInput.PositionMode = Components.PositionMode.Absolute;
+            metricSearchInput.OnTextChanged = OnMetricSearchTextChanged;
+            metricsControlsContainer.AddChild(metricSearchInput);
+
             // Create content container for the rest of the metrics tab content
             metricsContentContainer = new Components.Container("MetricsContent");
-            metricsContentContainer.AutoSize = false; // Size will be set explicitly in Update
+            metricsContentContainer.AutoSize = false; // Size will be set by parent's fill-remaining logic
             metricsContentContainer.PositionMode = Components.PositionMode.Relative;
-            metricsContentContainer.AutoLayoutChildren = false; // Will be set up as needed
+            metricsContentContainer.AutoLayoutChildren = true; // Enable auto-layout for table
             metricsContentContainer.LayoutDirection = Components.LayoutDirection.Vertical;
             metricsContentContainer.ChildGap = 10;
             metricsContentContainer.ChildPadding = 0;
             metricsContentContainer.FillRemaining = true; // Fill remaining space in parent container
             metricsMainContainer.AddChild(metricsContentContainer);
+
+            // Create metrics table (Bigram, Frequency, Key Sequence, Finger Sequence, Metric Matches)
+            metricsTable = new Components.Table(font, 14, "Bigram", "Frequency", "Key Sequence", "Finger Sequence", "Metric Matches");
+            metricsTable.Bounds = new Rectangle(0, 0, 0, 0); // Will be set by Update
+            metricsTable.AutoSize = false;
+            metricsTable.FillRemaining = true;
+            metricsTable.PositionMode = Components.PositionMode.Relative;
+            metricsContentContainer.AddChild(metricsTable);
         }
 
         public void Update(Rectangle contentArea, bool isActive)
@@ -128,11 +195,36 @@ namespace Keysharp.UI
                     metricsControlsContainer.IsVisible = true;
                 }
 
-                // Content container will fill remaining space via FillRemaining
-                if (metricsContentContainer != null)
+                // Set content container width and target height for auto-layout
+                if (metricsContentContainer != null && metricsMainContainer != null)
                 {
-                    metricsContentContainer.Bounds = new Rectangle(0, 0, availableWidth, 0); // Height calculated by FillRemaining
+                    // Calculate available height for the content container
+                    // Account for: top padding, header, gap, controls, gap, and bottom padding
+                    int actualHeaderHeight = metricsHeaderContainer != null && metricsHeaderContainer.Bounds.Height > 0 ? (int)metricsHeaderContainer.Bounds.Height : headerHeight;
+                    int actualControlsHeight = metricsControlsContainer != null && metricsControlsContainer.Bounds.Height > 0 ? (int)metricsControlsContainer.Bounds.Height : 35;
+                    int gaps = (int)metricsMainContainer.ChildGap * 2; // Gap between header->controls and controls->content
+                    int availableHeight = (int)contentArea.Height - (int)(metricsMainContainer.ChildPadding * 2) - actualHeaderHeight - actualControlsHeight - gaps;
+
+                    metricsContentContainer.Bounds = new Rectangle(
+                        0, 0,
+                        availableWidth, // Width accounts for parent padding
+                        availableHeight // Set initial height
+                    );
+                    metricsContentContainer.TargetHeight = (float)availableHeight; // Set target for FillRemaining children
                     metricsContentContainer.IsVisible = true;
+                }
+
+                // Table bounds will be set automatically by container's auto-layout since it has FillRemaining = true
+                if (metricsTable != null)
+                {
+                    // Only set width - height and position will be handled by auto-layout
+                    metricsTable.Bounds = new Rectangle(
+                        metricsTable.Bounds.X,
+                        metricsTable.Bounds.Y,
+                        availableWidth,
+                        metricsTable.Bounds.Height // Height will be set by FillRemaining logic
+                    );
+                    metricsTable.IsVisible = true;
                 }
             }
             else
@@ -152,6 +244,226 @@ namespace Keysharp.UI
         {
             font = newFont;
             // Update fonts in components if needed
+        }
+
+        private void UpdateMetricsTable()
+        {
+            if (metricsTable == null)
+                return;
+
+            metricsTable.Rows.Clear();
+
+            if (corpus == null || layout == null || !corpus.IsLoaded)
+                return;
+
+            // Get bigrams from corpus
+            var bigrams = corpus.GetBigrams();
+            var allBigrams = bigrams.GetAllSorted();
+
+            foreach (var (sequence, count, frequency) in allBigrams)
+            {
+                // Convert bigram to key sequence
+                var keySequence = layout.ConvertNgramToKeySequence(sequence);
+                if (keySequence == null)
+                    continue; // Skip if can't be mapped
+
+                // Format key sequence
+                string keySequenceStr = FormatKeySequence(keySequence);
+
+                // Format finger sequence
+                string fingerSequenceStr = FormatFingerSequence(keySequence);
+
+                // Check if it's an SFB (Same Finger Bigram)
+                bool isSFB = IsSameFingerBigram(keySequence);
+                string metricMatches = isSFB ? "SFB" : "";
+
+                // Apply ngram search filter
+                if (!string.IsNullOrEmpty(ngramSearchText))
+                {
+                    if (!sequence.Contains(ngramSearchText, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                }
+
+                // Apply metric search filter
+                if (!string.IsNullOrEmpty(metricSearchText))
+                {
+                    if (!metricMatches.Contains(metricSearchText, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                }
+
+                // Format bigram with escape characters (like corpus tab)
+                string bigramText = $"\"{EscapeSpecialChars(sequence)}\"";
+                
+                // Format frequency as percentage with 3 decimal places
+                string frequencyText = $"{frequency * 100:F3}%";
+                
+                metricsTable.Rows.Add(new List<string> { bigramText, frequencyText, keySequenceStr, fingerSequenceStr, metricMatches });
+            }
+        }
+
+        /// <summary>
+        /// Formats a finger sequence as a readable string with shortened finger names (e.g., "LP+LI", "LM+RM").
+        /// </summary>
+        private string FormatFingerSequence(List<PhysicalKey> sequence)
+        {
+            if (sequence == null || sequence.Count == 0)
+                return "";
+
+            var fingerNames = sequence.Select(key => GetShortFingerName(key.Finger)).ToList();
+            return string.Join("+", fingerNames);
+        }
+
+        /// <summary>
+        /// Gets the shortened 2-character name for a finger.
+        /// </summary>
+        private string GetShortFingerName(Core.Finger finger)
+        {
+            return finger switch
+            {
+                Core.Finger.LeftPinky => "LP",
+                Core.Finger.LeftRing => "LR",
+                Core.Finger.LeftMiddle => "LM",
+                Core.Finger.LeftIndex => "LI",
+                Core.Finger.LeftThumb => "LT",
+                Core.Finger.RightThumb => "RT",
+                Core.Finger.RightIndex => "RI",
+                Core.Finger.RightMiddle => "RM",
+                Core.Finger.RightRing => "RR",
+                Core.Finger.RightPinky => "RP",
+                _ => "??"
+            };
+        }
+
+        /// <summary>
+        /// Formats a key sequence as a readable string (e.g., "A", "Shift+A", "Space").
+        /// </summary>
+        private string FormatKeySequence(List<PhysicalKey> sequence)
+        {
+            if (sequence == null || sequence.Count == 0)
+                return "";
+
+            var parts = new List<string>();
+            foreach (var key in sequence)
+            {
+                // Check if it's a modifier key (LShift)
+                if (key.Identifier == "LShift")
+                {
+                    parts.Add("Shift");
+                }
+                else
+                {
+                    // Use identifier if available, otherwise use primary character
+                    string keyName = !string.IsNullOrEmpty(key.Identifier) ? key.Identifier : key.PrimaryCharacter ?? "?";
+                    parts.Add(keyName);
+                }
+            }
+
+            return string.Join("+", parts);
+        }
+
+        /// <summary>
+        /// Determines if a key sequence represents a Same Finger Bigram (SFB).
+        /// For sequences longer than 2 keys, splits into overlapping bigrams and checks if ANY bigram is an SFB.
+        /// An SFB occurs when two keys are:
+        /// 1. On the same finger
+        /// 2. Not the same key
+        /// </summary>
+        private bool IsSameFingerBigram(List<PhysicalKey> sequence)
+        {
+            if (sequence == null || sequence.Count < 2)
+                return false;
+
+            // Need at least 2 keys
+            if (sequence.Count < 2)
+                return false;
+
+            // Check all overlapping bigrams in the sequence
+            for (int i = 0; i < sequence.Count - 1; i++)
+            {
+                var firstKey = sequence[i];
+                var secondKey = sequence[i + 1];
+
+                // Check if this bigram is an SFB
+                if (IsSFBPair(firstKey, secondKey))
+                {
+                    return true; // If any bigram is an SFB, return true
+                }
+            }
+
+            return false; // No SFB found in any bigram
+        }
+
+        /// <summary>
+        /// Checks if two keys form a Same Finger Bigram (SFB).
+        /// Returns true if the keys are on the same finger but are different keys.
+        /// </summary>
+        private bool IsSFBPair(PhysicalKey firstKey, PhysicalKey secondKey)
+        {
+            // Check if same finger
+            if (firstKey.Finger != secondKey.Finger)
+                return false;
+
+            // Check if not the same key (compare by identifier if available, otherwise by position)
+            bool isSameKey;
+            if (!string.IsNullOrEmpty(firstKey.Identifier) && !string.IsNullOrEmpty(secondKey.Identifier))
+            {
+                isSameKey = firstKey.Identifier == secondKey.Identifier;
+            }
+            else
+            {
+                // Compare by position (X, Y, Width, Height)
+                isSameKey = firstKey.X == secondKey.X &&
+                           firstKey.Y == secondKey.Y &&
+                           firstKey.Width == secondKey.Width &&
+                           firstKey.Height == secondKey.Height;
+            }
+
+            // SFB if same finger but different key
+            return !isSameKey;
+        }
+
+        /// <summary>
+        /// Handles ngram search text changes.
+        /// </summary>
+        private void OnNgramSearchTextChanged(string text)
+        {
+            ngramSearchText = text;
+            // Reset scroll when search changes
+            if (metricsTable != null)
+            {
+                metricsTable.ResetScroll();
+            }
+            UpdateMetricsTable();
+        }
+
+        /// <summary>
+        /// Handles metric search text changes.
+        /// </summary>
+        private void OnMetricSearchTextChanged(string text)
+        {
+            metricSearchText = text;
+            // Reset scroll when search changes
+            if (metricsTable != null)
+            {
+                metricsTable.ResetScroll();
+            }
+            UpdateMetricsTable();
+        }
+
+        /// <summary>
+        /// Escapes special characters for display (like newline, tab, etc.).
+        /// </summary>
+        private string EscapeSpecialChars(string text)
+        {
+            // Escape special characters for display
+            return text
+                .Replace("\r", "\\r")
+                .Replace("\n", "\\n")
+                .Replace("\t", "\\t")
+                .Replace("\0", "\\0")
+                .Replace("\b", "\\b")
+                .Replace("\f", "\\f")
+                .Replace("\v", "\\v");
         }
     }
 }

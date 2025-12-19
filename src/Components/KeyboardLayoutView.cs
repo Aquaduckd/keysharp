@@ -99,6 +99,7 @@ namespace Keysharp.Components
 
         public Action<HashSet<PhysicalKey>>? OnSelectedKeysChanged { get; set; }
         public Action<PhysicalKey?>? OnSelectedKeyChanged { get; set; } // Legacy callback for backwards compatibility
+        public Action? OnKeysSwapped { get; set; } // Called when keys are swapped
 
         public KeyboardViewMode ViewMode
         {
@@ -409,6 +410,9 @@ namespace Keysharp.Components
                         OnSelectedKeysChanged?.Invoke(selectedKeys);
                         // After swap, we have single selection
                         OnSelectedKeyChanged?.Invoke(hoveredKey);
+                        
+                        // Notify that keys were swapped (layout mappings were rebuilt)
+                        OnKeysSwapped?.Invoke();
                     }
                     
                     // End shift+drag selection if active

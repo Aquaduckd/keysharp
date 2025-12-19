@@ -33,6 +33,7 @@ namespace Keysharp.UI
         private SidePanel? sidePanel;
         private Font font;
         private CorpusTab? corpusTab; // Reference to corpus tab for checking loaded corpus
+        private MetricsTab? metricsTab; // Reference to metrics tab for layout change updates
         private LayoutMetadataJson metadata = new LayoutMetadataJson(); // Layout metadata
 
         public Components.TabContent TabContent => tabContent;
@@ -75,6 +76,12 @@ namespace Keysharp.UI
             }
         }
 
+        public MetricsTab? MetricsTab
+        {
+            get => metricsTab;
+            set => metricsTab = value;
+        }
+
         /// <summary>
         /// Gets the current layout metadata.
         /// </summary>
@@ -84,6 +91,18 @@ namespace Keysharp.UI
         /// Gets the current layout.
         /// </summary>
         public Layout Layout => layout;
+
+        /// <summary>
+        /// Notifies dependent tabs that the layout has changed (e.g., keys swapped, mappings rebuilt).
+        /// </summary>
+        public void NotifyLayoutChanged()
+        {
+            // Update corpus tab with current layout reference
+            corpusTab?.SetLayout(layout);
+            
+            // Update metrics tab with current layout reference
+            metricsTab?.SetLayout(layout);
+        }
 
         public LayoutTab(Font font)
         {
@@ -325,6 +344,11 @@ namespace Keysharp.UI
                     currentSidePanel.SetLayout(layout);
                     currentSidePanel.SetSelectedKey(key);
                 }
+            };
+            
+            // Notify when keys are swapped
+            keyboardView.OnKeysSwapped = () => {
+                NotifyLayoutChanged();
             };
             
             keyboardCanvas.AddChild(keyboardView);
@@ -720,6 +744,9 @@ namespace Keysharp.UI
 
                 // Update corpus tab with new layout reference
                 corpusTab?.SetLayout(layout);
+                
+                // Update metrics tab with new layout reference
+                metricsTab?.SetLayout(layout);
 
                 // Update dropdown selection if this is a file from the layouts directory
                 // Only update if it's different from what's already selected to avoid infinite recursion

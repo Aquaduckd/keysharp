@@ -23,10 +23,10 @@ namespace Keysharp.Components
         {
             var widths = new List<int>();
             
-            // Only apply custom widths if we have exactly 7 columns (the corpus table format)
-            if (Columns.Count == 7)
+            // Only apply custom widths if we have exactly 6 columns (the corpus table format)
+            if (Columns.Count == 6)
             {
-                bool showConditional = GetColumnVisibility(4) || GetColumnVisibility(5) || GetColumnVisibility(6); // Columns 5, 6, 7 (0-indexed: 4, 5, 6)
+                bool showConditional = GetColumnVisibility(4) || GetColumnVisibility(5); // Columns 5, 6 (0-indexed: 4, 5)
                 
                 if (showConditional)
                 {
@@ -35,8 +35,7 @@ namespace Keysharp.Components
                     widths.Add((int)(tableWidth * 0.10f)); // Column 2 (Frequency)
                     widths.Add((int)(tableWidth * 0.12f)); // Column 3 (Count)
                     widths.Add(GetColumnVisibility(4) ? (int)(tableWidth * 0.08f) : 0); // Column 4 (Global Rank)
-                    widths.Add(GetColumnVisibility(5) ? (int)(tableWidth * 0.15f) : 0); // Column 5 (Relative Frequency)
-                    widths.Add(GetColumnVisibility(6) ? (int)(tableWidth * 0.28f) : 0); // Column 6 (Key Sequence)
+                    widths.Add(GetColumnVisibility(5) ? (int)(tableWidth * 0.43f) : 0); // Column 5 (Relative Frequency) - increased width since Key Sequence removed
                 }
                 else
                 {
@@ -46,7 +45,6 @@ namespace Keysharp.Components
                     widths.Add((int)(tableWidth * 0.20f)); // Column 3 (Count)
                     widths.Add(0); // Column 4
                     widths.Add(0); // Column 5
-                    widths.Add(0); // Column 6
                 }
             }
             else

@@ -104,6 +104,8 @@ namespace Keysharp.UI
             // Notify layout tab when corpus changes
             corpusTab.SetOnCorpusChanged(() => {
                 layoutTab?.OnCorpusChanged();
+                // Also update metrics tab when corpus changes
+                metricsTab?.SetCorpus(corpusTab.LoadedCorpus);
             });
 
             // Connect layout to corpus tab for key sequence display
@@ -115,6 +117,10 @@ namespace Keysharp.UI
             tabContentContainer.AddChild(corpusTab.TabContent);
 
             metricsTab = new MetricsTab(font);
+            // Connect layout and corpus to metrics tab (must be after creation)
+            metricsTab.SetLayout(layoutTab.Layout);
+            metricsTab.SetCorpus(corpusTab.LoadedCorpus);
+            layoutTab.MetricsTab = metricsTab; // Connect to layout tab for layout change updates
             metricsTab.SetVisible(activeTabIndex == 2);
             tabContentContainer.AddChild(metricsTab.TabContent);
 

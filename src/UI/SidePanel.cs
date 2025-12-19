@@ -581,6 +581,8 @@ namespace Keysharp.UI
                         }
                     }
                     layout?.RebuildMappings();
+                    // Notify layout tab that layout has changed
+                    layoutTab?.NotifyLayoutChanged();
                 }
             };
             keyInfoContainer.AddChild(primaryCharacterRowContainer);
@@ -619,6 +621,8 @@ namespace Keysharp.UI
                         }
                     }
                     layout?.RebuildMappings();
+                    // Notify layout tab that layout has changed
+                    layoutTab?.NotifyLayoutChanged();
                 }
             };
             keyInfoContainer.AddChild(shiftCharacterRowContainer);
@@ -648,6 +652,8 @@ namespace Keysharp.UI
                         // Update shift input display
                         UpdateShiftInputDisplay();
                         layout?.RebuildMappings();
+                    // Notify layout tab that layout has changed
+                    layoutTab?.NotifyLayoutChanged();
                     }
                     // Update shift input enabled state
                     if (shiftCharacterInput != null)
@@ -1294,6 +1300,8 @@ namespace Keysharp.UI
                 }
                 // Rebuild mappings after removing keys
                 layout.RebuildMappings();
+                // Notify layout tab that layout has changed
+                layoutTab?.NotifyLayoutChanged();
                 // Clear selection
                 selectedKeys.Clear();
                 // Notify keyboard view to clear selection

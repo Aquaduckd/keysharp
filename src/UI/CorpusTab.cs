@@ -275,8 +275,8 @@ namespace Keysharp.UI
             totalCountLabel.PositionMode = Components.PositionMode.Absolute;
             ngramSelectorContainer.AddChild(totalCountLabel);
 
-            // Create n-gram table (Rank, N-gram, Frequency, Count, Global Rank, Rel. Freq., Key Sequence)
-            ngramTable = new Components.CorpusTable(font, 14, "Rank", "N-gram", "Frequency", "Count", "Global Rank", "Rel. Freq.", "Key Sequence");
+            // Create n-gram table (Rank, N-gram, Frequency, Count, Global Rank, Rel. Freq.)
+            ngramTable = new Components.CorpusTable(font, 14, "Rank", "N-gram", "Frequency", "Count", "Global Rank", "Rel. Freq.");
             ngramTable.Bounds = new Rectangle(0, 0, 0, 0); // Will be set by Update
             ngramTable.AutoSize = false;
             ngramTable.FillRemaining = true; // Fill remaining space after selector
@@ -849,7 +849,6 @@ namespace Keysharp.UI
             // Show/hide conditional columns
             ngramTable.SetColumnVisibility(4, isFiltered); // Column 5 (Global Rank) - 0-indexed
             ngramTable.SetColumnVisibility(5, isFiltered); // Column 6 (Relative Frequency) - 0-indexed
-            ngramTable.SetColumnVisibility(6, layout != null); // Column 7 (Key Sequence) - 0-indexed
 
             // Update table rows
             ngramTable.Rows.Clear();
@@ -889,23 +888,8 @@ namespace Keysharp.UI
                     relativeFreq = $"{relFreq * 100:F3}%";
                 }
 
-                // Calculate key sequence (conditional, last column)
-                string keySequence = "";
-                if (layout != null)
-                {
-                    var sequence = layout.ConvertNgramToKeySequence(ngram.sequence);
-                    if (sequence != null)
-                    {
-                        keySequence = FormatKeySequence(sequence);
-                    }
-                    else
-                    {
-                        keySequence = "N/A"; // Cannot be mapped
-                    }
-                }
-
-                // Column order: Rank, N-gram, Frequency, Count, Global Rank, Rel. Freq., Key Sequence
-                ngramTable.Rows.Add(new List<string> { rank, ngramText, frequency, count, globalRank, relativeFreq, keySequence });
+                // Column order: Rank, N-gram, Frequency, Count, Global Rank, Rel. Freq.
+                ngramTable.Rows.Add(new List<string> { rank, ngramText, frequency, count, globalRank, relativeFreq });
             }
             
             // Set up callback for lazy highlight calculation

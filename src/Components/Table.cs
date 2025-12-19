@@ -29,6 +29,9 @@ namespace Keysharp.Components
 
         public List<List<string>> Rows { get; set; }
         public List<TableColumn> Columns { get; set; }
+        
+        public int? SelectedRowIndex { get; set; } = null;
+        public Action<int>? OnRowSelected { get; set; }
 
         public Table(Font font, params string[] columnHeaders) 
             : base("Table")
@@ -155,13 +158,23 @@ namespace Keysharp.Components
             {
                 int rowIndex = scrollOffset + i;
                 var row = Rows[rowIndex];
+                bool isSelected = SelectedRowIndex.HasValue && SelectedRowIndex.Value == rowIndex;
                 bool isEven = i % 2 == 0;
-                Color rowColor = isEven ? UITheme.MainPanelColor : new Color(
-                    (byte)(UITheme.MainPanelColor.R * 0.95f),
-                    (byte)(UITheme.MainPanelColor.G * 0.95f),
-                    (byte)(UITheme.MainPanelColor.B * 0.95f),
-                    UITheme.MainPanelColor.A
-                );
+                Color rowColor;
+                if (isSelected)
+                {
+                    // Highlight selected row with a distinct color
+                    rowColor = new Color(60, 120, 200, 100); // Semi-transparent blue
+                }
+                else
+                {
+                    rowColor = isEven ? UITheme.MainPanelColor : new Color(
+                        (byte)(UITheme.MainPanelColor.R * 0.95f),
+                        (byte)(UITheme.MainPanelColor.G * 0.95f),
+                        (byte)(UITheme.MainPanelColor.B * 0.95f),
+                        UITheme.MainPanelColor.A
+                    );
+                }
 
                 Rectangle rowRect = new Rectangle(x, rowY, tableWidth, RowHeight);
                 Raylib.DrawRectangleRec(rowRect, rowColor);
@@ -290,6 +303,38 @@ namespace Keysharp.Components
                 scrollOffset = Math.Clamp(scrollOffset - (int)wheelMove, 0, maxScroll);
             }
 
+            // Handle row clicks first (before scrollbar check)
+            if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT))
+            {
+                // Check if click is within table content area (not header)
+                if (mouseY >= Bounds.Y + HeaderHeight && mouseY < Bounds.Y + Bounds.Height)
+                {
+                    // Calculate if we're clicking on scrollbar
+                    bool hoveringScrollbar = false;
+                    if (needsScrollbar)
+                    {
+                        int tableWidth = (int)Bounds.Width - ScrollbarWidth;
+                        int scrollbarX = (int)Bounds.X + tableWidth;
+                        int scrollbarY = (int)Bounds.Y + HeaderHeight;
+                        Rectangle scrollbarArea = new Rectangle(scrollbarX, scrollbarY, ScrollbarWidth, availableHeight);
+                        hoveringScrollbar = mouseX >= scrollbarArea.X && mouseX <= scrollbarArea.X + scrollbarArea.Width &&
+                                            mouseY >= scrollbarArea.Y && mouseY <= scrollbarArea.Y + scrollbarArea.Height;
+                    }
+                    
+                    if (!hoveringScrollbar)
+                    {
+                        int clickRelativeY = mouseY - (int)(Bounds.Y + HeaderHeight);
+                        int clickedRowIndex = scrollOffset + (clickRelativeY / RowHeight);
+                        
+                        if (clickedRowIndex >= 0 && clickedRowIndex < Rows.Count)
+                        {
+                            SelectedRowIndex = clickedRowIndex;
+                            OnRowSelected?.Invoke(clickedRowIndex);
+                        }
+                    }
+                }
+            }
+
             // Handle scrollbar dragging
             if (needsScrollbar)
             {
@@ -300,6 +345,23 @@ namespace Keysharp.Components
                 Rectangle scrollbarArea = new Rectangle(scrollbarX, scrollbarY, ScrollbarWidth, availableHeight);
                 bool hoveringScrollbar = mouseX >= scrollbarArea.X && mouseX <= scrollbarArea.X + scrollbarArea.Width &&
                                         mouseY >= scrollbarArea.Y && mouseY <= scrollbarArea.Y + scrollbarArea.Height;
+
+                // Handle row clicks (but not when clicking on scrollbar)
+                if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT) && !hoveringScrollbar)
+                {
+                    // Check if click is within table content area (not header)
+                    if (mouseY >= Bounds.Y + HeaderHeight && mouseY < Bounds.Y + Bounds.Height)
+                    {
+                        int clickRelativeY = mouseY - (int)(Bounds.Y + HeaderHeight);
+                        int clickedRowIndex = scrollOffset + (clickRelativeY / RowHeight);
+                        
+                        if (clickedRowIndex >= 0 && clickedRowIndex < Rows.Count)
+                        {
+                            SelectedRowIndex = clickedRowIndex;
+                            OnRowSelected?.Invoke(clickedRowIndex);
+                        }
+                    }
+                }
 
                 if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT) && hoveringScrollbar)
                 {
