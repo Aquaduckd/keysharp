@@ -381,6 +381,32 @@ namespace Keysharp.Core
             return firstBigramIncreasing != secondBigramIncreasing;
         }
 
+        /// <summary>
+        /// Checks if a trigram (3 keys) is an Alternate.
+        /// An Alternate occurs when:
+        /// 1. The first and third keys are on the same hand
+        /// 2. The middle (second) key is on the other hand
+        /// </summary>
+        public static bool IsAlternateTrigram(List<PhysicalKey> trigram)
+        {
+            if (trigram == null || trigram.Count != 3)
+                return false;
+
+            var firstKey = trigram[0];
+            var secondKey = trigram[1];
+            var thirdKey = trigram[2];
+
+            // First and third keys must be on the same hand
+            if (firstKey.HandIndex != thirdKey.HandIndex)
+                return false;
+
+            // Middle key must be on the other hand
+            if (secondKey.HandIndex == firstKey.HandIndex)
+                return false;
+
+            return true;
+        }
+
     }
 }
 

@@ -375,9 +375,13 @@ namespace Keysharp.UI
                     // Check if it's a Redirect (opposite directions, not a continuous roll)
                     bool isRedirect = Core.Metrics.CheckAnyNgram(keySequence, 3, Core.Metrics.IsRedirectTrigram);
                     
+                    // Check if it's an Alternate (first and third on same hand, middle on other hand)
+                    bool isAlternate = Core.Metrics.CheckAnyNgram(keySequence, 3, Core.Metrics.IsAlternateTrigram);
+                    
                     if (isInHand) metrics.Add("InHand");
                     if (isOutHand) metrics.Add("OutHand");
                     if (isRedirect) metrics.Add("Redirect");
+                    if (isAlternate) metrics.Add("Alternate");
                 }
                 
                 string metricMatches = string.Join(" ", metrics);
