@@ -44,7 +44,7 @@ namespace Keysharp.UI
         private Components.Checkbox? collapsePunctuationCheckbox;
         private Components.Checkbox? filterNoMetricsCheckbox;
         private Components.Label? metricSearchLabel;
-        private string selectedNgramSize = "bigram"; // "monogram", "bigram", "trigram", or "words"
+        private string selectedNgramSize = "bigram"; // "monogram", "bigram", "skipgram", "trigram", or "words"
         private string searchText = "";
         private string metricSearchText = "";
         private int? resultLimit = null; // Null means no limit
@@ -273,8 +273,8 @@ namespace Keysharp.UI
             filterNoMetricsCheckbox.OnCheckedChanged = (isChecked) => { filterNoMetrics = isChecked; UpdateNgramTable(); };
             leftControlsContainer.AddChild(filterNoMetricsCheckbox);
 
-            // Set initial visibility of metric controls (hidden for monograms/words, shown for bigrams/trigrams)
-            bool showMetricControls = (selectedNgramSize == "bigram" || selectedNgramSize == "trigram");
+            // Set initial visibility of metric controls (hidden for monograms/words, shown for bigrams/skipgrams/trigrams)
+            bool showMetricControls = (selectedNgramSize == "bigram" || selectedNgramSize == "skipgram" || selectedNgramSize == "trigram");
             metricSearchLabel.IsVisible = showMetricControls;
             metricSearchInput.IsVisible = showMetricControls;
             filterNoMetricsCheckbox.IsVisible = showMetricControls;
@@ -325,7 +325,7 @@ namespace Keysharp.UI
             corpusControlsContainer.AddChild(corpusDropdown);
 
             // Create n-gram size dropdown (moved to top container)
-            List<string> ngramSizes = new List<string> { "Monogram", "Bigram", "Trigram", "Words" };
+            List<string> ngramSizes = new List<string> { "Monogram", "Bigram", "Skipgram", "Trigram", "Words" };
             ngramSizeDropdown = new Components.Dropdown(font, ngramSizes, 14);
             ngramSizeDropdown.SetBounds(new Rectangle(0, 0, 200, 35));
             ngramSizeDropdown.PositionMode = Components.PositionMode.Absolute;
@@ -567,6 +567,7 @@ namespace Keysharp.UI
                     System.Console.WriteLine($"  Characters: {loadedCorpus.CharacterCount:N0}");
                     System.Console.WriteLine($"  Monograms: {loadedCorpus.GetMonograms().UniqueCount} unique, {loadedCorpus.GetMonograms().Total:N0} total");
                     System.Console.WriteLine($"  Bigrams: {loadedCorpus.GetBigrams().UniqueCount} unique, {loadedCorpus.GetBigrams().Total:N0} total");
+                    System.Console.WriteLine($"  Skipgrams: {loadedCorpus.GetSkipgrams().UniqueCount} unique, {loadedCorpus.GetSkipgrams().Total:N0} total");
                     System.Console.WriteLine($"  Trigrams: {loadedCorpus.GetTrigrams().UniqueCount} unique, {loadedCorpus.GetTrigrams().Total:N0} total");
 
                     // Update n-gram table with loaded corpus
@@ -604,8 +605,8 @@ namespace Keysharp.UI
         {
             selectedNgramSize = ngramSize.ToLower();
             
-            // Show/hide metric controls based on ngram size (only show for bigrams and trigrams)
-            bool showMetricControls = (selectedNgramSize == "bigram" || selectedNgramSize == "trigram");
+            // Show/hide metric controls based on ngram size (only show for bigrams, skipgrams, and trigrams)
+            bool showMetricControls = (selectedNgramSize == "bigram" || selectedNgramSize == "skipgram" || selectedNgramSize == "trigram");
             if (metricSearchLabel != null)
                 metricSearchLabel.IsVisible = showMetricControls;
             if (metricSearchInput != null)
@@ -809,6 +810,9 @@ namespace Keysharp.UI
                 case "bigram":
                     grams = loadedCorpus.GetBigrams();
                     break;
+                case "skipgram":
+                    grams = loadedCorpus.GetSkipgrams();
+                    break;
                 case "trigram":
                     grams = loadedCorpus.GetTrigrams();
                     break;
@@ -893,15 +897,15 @@ namespace Keysharp.UI
             int filteredCountBeforeLimit = filteredNgrams.Count;
             long filteredTotalBeforeLimit = filteredTotal;
 
-            // Show/hide metric columns (Key Sequence, Finger Sequence, Metric Matches) only for bigrams and trigrams
-            bool showMetricColumns = (selectedNgramSize == "bigram" || selectedNgramSize == "trigram");
+            // Show/hide metric columns (Key Sequence, Finger Sequence, Metric Matches) only for bigrams, skipgrams, and trigrams
+            bool showMetricColumns = (selectedNgramSize == "bigram" || selectedNgramSize == "skipgram" || selectedNgramSize == "trigram");
             ngramTable.SetColumnVisibility(6, showMetricColumns); // Column 7 (Key Sequence) - 0-indexed
             ngramTable.SetColumnVisibility(7, showMetricColumns); // Column 8 (Finger Sequence) - 0-indexed
             ngramTable.SetColumnVisibility(8, showMetricColumns); // Column 9 (Metric Matches) - 0-indexed
 
             // Compute key sequences, finger sequences, and metric matches for all filtered ngrams
-            // Only compute for bigrams and trigrams (skip monograms and words for now)
-            bool computeMetrics = layout != null && (selectedNgramSize == "bigram" || selectedNgramSize == "trigram");
+            // Only compute for bigrams, skipgrams, and trigrams (skip monograms and words for now)
+            bool computeMetrics = layout != null && (selectedNgramSize == "bigram" || selectedNgramSize == "skipgram" || selectedNgramSize == "trigram");
             
             // Check if metric filters are applied (after computeMetrics is defined)
             bool hasMetricFilter = computeMetrics && (!string.IsNullOrEmpty(metricSearchText) || filterNoMetrics);
@@ -933,9 +937,9 @@ namespace Keysharp.UI
                         // Build metric matches string based on ngram size
                         var metrics = new List<string>();
                         
-                        if (selectedNgramSize == "bigram")
+                        if (selectedNgramSize == "bigram" || selectedNgramSize == "skipgram")
                         {
-                            // Bigram metrics
+                            // Bigram metrics (skipgrams use bigram metrics)
                             bool isSFB = Core.Metrics.CheckAnyNgram(keySequence, 2, Core.Metrics.IsSFBPair);
                             bool isLSB = Core.Metrics.CheckAnyNgram(keySequence, 2, Core.Metrics.IsLSBPair);
                             bool isFSB = Core.Metrics.CheckAnyNgram(keySequence, 2, Core.Metrics.IsFSBPair);
@@ -1219,6 +1223,7 @@ namespace Keysharp.UI
                                     System.Console.WriteLine($"  Characters: {loadedCorpus.CharacterCount:N0}");
                                     System.Console.WriteLine($"  Monograms: {loadedCorpus.GetMonograms().UniqueCount} unique, {loadedCorpus.GetMonograms().Total:N0} total");
                                     System.Console.WriteLine($"  Bigrams: {loadedCorpus.GetBigrams().UniqueCount} unique, {loadedCorpus.GetBigrams().Total:N0} total");
+                                    System.Console.WriteLine($"  Skipgrams: {loadedCorpus.GetSkipgrams().UniqueCount} unique, {loadedCorpus.GetSkipgrams().Total:N0} total");
                                     System.Console.WriteLine($"  Trigrams: {loadedCorpus.GetTrigrams().UniqueCount} unique, {loadedCorpus.GetTrigrams().Total:N0} total");
                                     System.Console.WriteLine($"  Words: {loadedCorpus.GetWords().UniqueCount} unique, {loadedCorpus.GetWords().Total:N0} total");
 
