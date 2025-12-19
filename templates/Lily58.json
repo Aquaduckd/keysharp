@@ -15,7 +15,8 @@
       "identifier": "Esc",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 1,
@@ -26,7 +27,8 @@
       "identifier": "Key2",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 2,
@@ -37,7 +39,8 @@
       "identifier": "Key3",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 3,
@@ -48,7 +51,8 @@
       "identifier": "Key4",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 4,
@@ -59,7 +63,8 @@
       "identifier": "Key5",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 5,
@@ -70,7 +75,8 @@
       "identifier": "Key6",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 11,
@@ -81,7 +87,8 @@
       "identifier": "Key9",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 12,
@@ -92,7 +99,8 @@
       "identifier": "Key10",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 13,
@@ -103,7 +111,8 @@
       "identifier": "Key11",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 14,
@@ -114,7 +123,8 @@
       "identifier": "Key12",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 0,
@@ -125,7 +135,8 @@
       "identifier": "Tab",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 1,
@@ -136,7 +147,8 @@
       "identifier": "Key14",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 2,
@@ -147,7 +159,8 @@
       "identifier": "Key15",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 3,
@@ -158,7 +171,8 @@
       "identifier": "Key16",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 4,
@@ -169,7 +183,8 @@
       "identifier": "Key17",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 5,
@@ -180,7 +195,8 @@
       "identifier": "Key18",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 11,
@@ -191,7 +207,8 @@
       "identifier": "Key21",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 12,
@@ -202,7 +219,8 @@
       "identifier": "Key22",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 13,
@@ -213,7 +231,8 @@
       "identifier": "Key23",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 14,
@@ -224,7 +243,8 @@
       "identifier": "Key24",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 0,
@@ -235,7 +255,8 @@
       "identifier": "Ctrl",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 1,
@@ -246,7 +267,8 @@
       "identifier": "Key26",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 2,
@@ -257,7 +279,8 @@
       "identifier": "Key27",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 3,
@@ -268,7 +291,8 @@
       "identifier": "Key28",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 4,
@@ -279,7 +303,8 @@
       "identifier": "Key29",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 5,
@@ -290,7 +315,8 @@
       "identifier": "Key30",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 11,
@@ -301,7 +327,8 @@
       "identifier": "Key33",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 12,
@@ -312,7 +339,8 @@
       "identifier": "Key34",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 13,
@@ -323,7 +351,8 @@
       "identifier": "Key35",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 14,
@@ -334,7 +363,8 @@
       "identifier": "Key36",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 0,
@@ -345,7 +375,8 @@
       "identifier": "Shift",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 1,
@@ -356,7 +387,8 @@
       "identifier": "Key38",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 2,
@@ -367,7 +399,8 @@
       "identifier": "Key39",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 3,
@@ -378,7 +411,8 @@
       "identifier": "Key40",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 4,
@@ -389,7 +423,8 @@
       "identifier": "Key41",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 5,
@@ -400,7 +435,8 @@
       "identifier": "Key42",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 11,
@@ -411,7 +447,8 @@
       "identifier": "Key45",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 12,
@@ -422,7 +459,8 @@
       "identifier": "Key46",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 13,
@@ -433,7 +471,8 @@
       "identifier": "Key47",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 14,
@@ -444,7 +483,8 @@
       "identifier": "Key48",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 6,
@@ -455,7 +495,8 @@
       "identifier": "Key49",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 2.5,
@@ -466,7 +507,8 @@
       "identifier": "Key51",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 3.5,
@@ -477,7 +519,8 @@
       "identifier": "Key52",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 4.5,
@@ -488,29 +531,32 @@
       "identifier": "Key53",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 6,
-      "y": 3.88,
+      "y": 4.13,
       "width": 1,
       "height": 1.5,
       "finger": 4,
       "identifier": "Key54",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 20
     },
     {
       "x": 8,
-      "y": 3.88,
+      "y": 4.13,
       "width": 1,
       "height": 1.5,
       "finger": 5,
       "identifier": "Key55",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": -20
     },
     {
       "x": 9.5,
@@ -521,7 +567,8 @@
       "identifier": "Key56",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 10.5,
@@ -532,7 +579,8 @@
       "identifier": "Key57",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 11.5,
@@ -543,7 +591,8 @@
       "identifier": "Key58",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 9,
@@ -554,7 +603,8 @@
       "identifier": "Key7",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 10,
@@ -565,7 +615,8 @@
       "identifier": "Key8",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 9,
@@ -576,7 +627,8 @@
       "identifier": "Key19",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 10,
@@ -587,7 +639,8 @@
       "identifier": "Key20",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 9,
@@ -598,7 +651,8 @@
       "identifier": "Key31",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 10,
@@ -609,7 +663,8 @@
       "identifier": "Key32",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 9,
@@ -620,7 +675,8 @@
       "identifier": "Key43",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 10,
@@ -631,7 +687,8 @@
       "identifier": "Key44",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     },
     {
       "x": 8,
@@ -642,7 +699,8 @@
       "identifier": "Key50",
       "primaryCharacter": null,
       "shiftCharacter": null,
-      "disabled": false
+      "disabled": false,
+      "rotation": 0
     }
   ],
   "mappings": {}

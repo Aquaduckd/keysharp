@@ -19,6 +19,8 @@ namespace Keysharp.UI
         private Components.Label? sizeLabel;
         private Components.TextInput? sizeWidthInput;
         private Components.TextInput? sizeHeightInput;
+        private Components.Label? rotationLabel;
+        private Components.TextInput? rotationInput;
         private Components.Label? fingerLabel;
         private Components.Dropdown? fingerDropdown;
         private Components.Label? primaryCharacterLabel;
@@ -369,6 +371,116 @@ namespace Keysharp.UI
             sizeRowContainer.AddChild(sizeLabel);
             sizeRowContainer.AddChild(sizeContainer);
             keyInfoContainer.AddChild(sizeRowContainer);
+
+            // Create rotation row with input
+            rotationLabel = new Components.Label(font, "Rotation:", 14);
+            rotationLabel.AutoSize = false;
+            rotationLabel.Bounds = new Rectangle(0, 0, 90, 18);
+            rotationLabel.PositionMode = Components.PositionMode.Relative;
+            
+            rotationInput = new Components.TextInput(font, "0.00", 14);
+            rotationInput.Bounds = new Rectangle(0, 0, 80, 24);
+            rotationInput.AutoSize = false;
+            rotationInput.InputConstraint = Components.InputType.Decimal; // Constrain to decimal values
+            rotationInput.EnableScrollIncrement = true; // Enable scroll wheel increment/decrement
+            rotationInput.ScrollIncrementAmount = 5.0f; // Increment by 5 degrees
+            rotationInput.MinValue = -90.0f; // Minimum rotation angle
+            rotationInput.MaxValue = 90.0f; // Maximum rotation angle
+            rotationInput.OnTextChanged = (text) => {
+                if (!isUpdatingFromKey && selectedKeys.Count > 0 && float.TryParse(text, out float value))
+                {
+                    // Clamp to -90 to 90 degree range
+                    value = System.Math.Clamp(value, -90.0f, 90.0f);
+                    
+                    if (selectedKeys.Count == 1)
+                    {
+                        // Single selection: just update rotation
+                        var key = selectedKeys.First();
+                        key.Rotation = value;
+                        keyboardView?.InvalidateKeyCache(key);
+                    }
+                    else
+                    {
+                        // Multi-selection: rotate keys around the center key
+                        // Find center key (top-leftmost key)
+                        PhysicalKey? centerKey = null;
+                        float minX = float.MaxValue;
+                        float minY = float.MaxValue;
+                        foreach (var key in selectedKeys)
+                        {
+                            if (key.X < minX || (key.X == minX && key.Y < minY))
+                            {
+                                minX = key.X;
+                                minY = key.Y;
+                                centerKey = key;
+                            }
+                        }
+                        
+                        if (centerKey != null)
+                        {
+                            float centerX = centerKey.X + centerKey.Width / 2.0f;
+                            float centerY = centerKey.Y + centerKey.Height / 2.0f;
+                            
+                            // Convert rotation to radians
+                            float rotationRad = value * (float)(System.Math.PI / 180.0);
+                            float cos = (float)System.Math.Cos(rotationRad);
+                            float sin = (float)System.Math.Sin(rotationRad);
+                            
+                            // Get the original (unrotated) rotation to reverse it
+                            float oldRotationRad = centerKey.Rotation * (float)(System.Math.PI / 180.0);
+                            float oldCos = (float)System.Math.Cos(-oldRotationRad); // Reverse rotation
+                            float oldSin = (float)System.Math.Sin(-oldRotationRad);
+                            
+                            // Update all keys
+                            foreach (var key in selectedKeys)
+                            {
+                                if (key == centerKey)
+                                {
+                                    // Center key: only update rotation, position stays fixed
+                                    key.Rotation = value;
+                                }
+                                else
+                                {
+                                    // Other keys: rotate around center key
+                                    // First, get the current offset from center (already rotated by old rotation)
+                                    float offsetX = (key.X + key.Width / 2.0f) - centerX;
+                                    float offsetY = (key.Y + key.Height / 2.0f) - centerY;
+                                    
+                                    // Reverse the old rotation to get original offset
+                                    float origOffsetX = offsetX * oldCos - offsetY * oldSin;
+                                    float origOffsetY = offsetX * oldSin + offsetY * oldCos;
+                                    
+                                    // Apply new rotation to original offset
+                                    float newOffsetX = origOffsetX * cos - origOffsetY * sin;
+                                    float newOffsetY = origOffsetX * sin + origOffsetY * cos;
+                                    
+                                    // Update key position (center the key at the new offset position)
+                                    key.X = centerX + newOffsetX - key.Width / 2.0f;
+                                    key.Y = centerY + newOffsetY - key.Height / 2.0f;
+                                    key.Rotation = value;
+                                    keyboardView?.InvalidateKeyCache(key);
+                                }
+                            }
+                            
+                            // Also invalidate center key cache
+                            keyboardView?.InvalidateKeyCache(centerKey);
+                        }
+                    }
+                }
+            };
+            
+            var rotationRowContainer = new Components.Container("RotationRowContainer");
+            rotationRowContainer.AutoLayoutChildren = true;
+            rotationRowContainer.LayoutDirection = Components.LayoutDirection.Horizontal;
+            rotationRowContainer.AutoSize = false;
+            rotationRowContainer.Bounds = new Rectangle(0, 0, 0, 24);
+            rotationRowContainer.ChildPadding = 0;
+            rotationRowContainer.ChildGap = 8;
+            rotationRowContainer.ChildJustification = Components.ChildJustification.Left;
+            rotationRowContainer.PositionMode = Components.PositionMode.Relative;
+            rotationRowContainer.AddChild(rotationLabel);
+            rotationRowContainer.AddChild(rotationInput);
+            keyInfoContainer.AddChild(rotationRowContainer);
 
             // Create finger row with dropdown
             var fingerRow = CreateInfoRowWithDropdown(font, "Finger:", GetFingerNames());
@@ -1040,6 +1152,19 @@ namespace Keysharp.UI
                     isUpdatingFromKey = true;
                     sizeWidthInput.SetText(topLeftKey.Width.ToString("F2"));
                     sizeHeightInput.SetText(topLeftKey.Height.ToString("F2"));
+                    isUpdatingFromKey = false;
+                }
+            }
+
+            // Rotation: show first key's rotation, apply to all when edited
+            if (rotationLabel != null && rotationInput != null)
+            {
+                rotationLabel.IsVisible = hasKey;
+                rotationInput.IsVisible = hasKey;
+                if (hasKey && topLeftKey != null)
+                {
+                    isUpdatingFromKey = true;
+                    rotationInput.SetText(topLeftKey.Rotation.ToString("F2"));
                     isUpdatingFromKey = false;
                 }
             }

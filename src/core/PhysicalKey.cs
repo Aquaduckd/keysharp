@@ -51,6 +51,11 @@ namespace Keysharp.Core
         /// </summary>
         public bool Disabled { get; set; } = false;
 
+        /// <summary>
+        /// The rotation angle of the key in degrees (0 = no rotation, positive = clockwise).
+        /// </summary>
+        public float Rotation { get; set; } = 0.0f;
+
         public PhysicalKey(float x, float y, float width, float height, Finger finger, string? identifier = null)
         {
             X = x;

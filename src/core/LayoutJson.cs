@@ -157,6 +157,9 @@ namespace Keysharp.Core
         [JsonPropertyName("disabled")]
         public bool Disabled { get; set; }
 
+        [JsonPropertyName("rotation")]
+        public float Rotation { get; set; }
+
         public static PhysicalKeyJson FromPhysicalKey(PhysicalKey key, string? identifier)
         {
             return new PhysicalKeyJson
@@ -169,7 +172,8 @@ namespace Keysharp.Core
                 Identifier = identifier ?? key.Identifier,
                 PrimaryCharacter = key.PrimaryCharacter,
                 ShiftCharacter = key.ShiftCharacter,
-                Disabled = key.Disabled
+                Disabled = key.Disabled,
+                Rotation = key.Rotation
             };
         }
 
@@ -179,7 +183,8 @@ namespace Keysharp.Core
             {
                 PrimaryCharacter = PrimaryCharacter,
                 ShiftCharacter = ShiftCharacter,
-                Disabled = Disabled
+                Disabled = Disabled,
+                Rotation = Rotation
             };
         }
     }

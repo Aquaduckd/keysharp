@@ -562,9 +562,44 @@ namespace Keysharp.Components
             // Apply opacity to disabled keys
             byte alpha = isDisabled ? (byte)77 : (byte)255; // 30% opacity for disabled keys
             
+            // Calculate center for rotation (this is where we want the visual center to be)
+            float centerX = x + width / 2.0f;
+            float centerY = y + height / 2.0f;
+            
+            // Convert rotation from degrees to radians for Raylib (Raylib uses degrees)
+            float rotationDegrees = key.Rotation;
+            float rotationRadians = rotationDegrees * (float)(Math.PI / 180.0);
+            
+            // Pre-calculate sin/cos for rotation calculations (needed for both rectangle and border drawing)
+            float cos = 1.0f;
+            float sin = 0.0f;
+            if (Math.Abs(rotationDegrees) > 0.001f)
+            {
+                cos = (float)Math.Cos(rotationRadians);
+                sin = (float)Math.Sin(rotationRadians);
+            }
+            
             // Draw key background (apply opacity for disabled keys)
             Color backgroundColor = new Color(keyColor.R, keyColor.G, keyColor.B, alpha);
-            Raylib.DrawRectangleRec(keyRect, backgroundColor);
+            if (Math.Abs(rotationDegrees) > 0.001f)
+            {
+                // Use DrawRectanglePro - position rectangle so its center is at (centerX, centerY)
+                // The origin is (width/2, height/2) relative to the rectangle's top-left corner
+                Rectangle rotatedRect = new Rectangle(
+                    centerX,
+                    centerY,
+                    width,
+                    height
+                );
+                System.Numerics.Vector2 rotationOrigin = new System.Numerics.Vector2(width / 2.0f, height / 2.0f);
+                
+                Raylib.DrawRectanglePro(rotatedRect, rotationOrigin, rotationDegrees, backgroundColor);
+            }
+            else
+            {
+                // No rotation, use regular rectangle draw for better performance
+                Raylib.DrawRectangleRec(keyRect, backgroundColor);
+            }
             
             // Draw key border - use different colors/thickness for selection and drag states
             Color borderColor = UITheme.BorderColor;
@@ -590,8 +625,100 @@ namespace Keysharp.Components
             
             // Apply opacity to border color
             borderColor = new Color(borderColor.R, borderColor.G, borderColor.B, alpha);
-            Raylib.DrawRectangleLinesEx(keyRect, borderWidth, borderColor);
+            
+            // Draw border - for rotated rectangles, draw using DrawRectanglePro with a slightly larger size
+            // to create the border effect, or draw lines manually
+            if (Math.Abs(rotationDegrees) > 0.001f)
+            {
+                // Draw border by drawing a slightly larger rectangle in border color, then drawing
+                // the key again on top. Actually, a better approach is to draw the border as
+                // a hollow rectangle using multiple DrawRectanglePro calls.
+                // For simplicity, we'll draw the border as 4 rectangles (one for each edge)
+                // Actually, let's use a simpler approach: draw a larger rectangle in border color,
+                // then draw the key rectangle on top (but this is inefficient)
+                
+                // Better: draw the border by drawing 4 lines using DrawLinePro
+                // But DrawLinePro might not exist. Let's use DrawRectanglePro to draw border outline
+                // by drawing the border as a slightly larger rectangle and subtracting the inner rectangle
+                
+                // Actually, the simplest approach: draw border rectangle first (larger), then key on top
+                // But we already drew the key. So we need to draw border before key, or use a different method.
+                
+                // Let's use a polygon approach: draw 4 lines to create the border
+                // Calculate the 4 corners of the rotated rectangle
+                float halfW = width / 2.0f;
+                float halfH = height / 2.0f;
+                
+                // Corner offsets relative to center
+                System.Numerics.Vector2[] corners = new System.Numerics.Vector2[]
+                {
+                    new System.Numerics.Vector2(-halfW, -halfH), // Top-left
+                    new System.Numerics.Vector2(halfW, -halfH),  // Top-right
+                    new System.Numerics.Vector2(halfW, halfH),   // Bottom-right
+                    new System.Numerics.Vector2(-halfW, halfH)   // Bottom-left
+                };
+                
+                // Rotate corners
+                for (int i = 0; i < 4; i++)
+                {
+                    float cx = corners[i].X;
+                    float cy = corners[i].Y;
+                    corners[i] = new System.Numerics.Vector2(
+                        cx * cos - cy * sin,
+                        cx * sin + cy * cos
+                    );
+                    // Translate to world position
+                    corners[i] = new System.Numerics.Vector2(
+                        corners[i].X + centerX,
+                        corners[i].Y + centerY
+                    );
+                }
+                
+                // Draw border as 4 lines connecting the corners
+                for (int i = 0; i < 4; i++)
+                {
+                    int next = (i + 1) % 4;
+                    Raylib.DrawLineEx(corners[i], corners[next], borderWidth, borderColor);
+                }
+            }
+            else
+            {
+                // No rotation, use regular border drawing
+                Raylib.DrawRectangleLinesEx(keyRect, borderWidth, borderColor);
+            }
 
+            // Helper function to draw rotated text
+            void DrawRotatedText(string text, float relX, float relY, int fontSize, Color textColor)
+            {
+                if (string.IsNullOrEmpty(text))
+                    return;
+                    
+                float textWidth = FontManager.MeasureText(font, text, fontSize);
+                float textHeight = fontSize;
+                
+                // Calculate position relative to key center
+                float textCenterX = centerX + relX;
+                float textCenterY = centerY + relY;
+                
+                // Calculate text origin (center of text bounding box)
+                System.Numerics.Vector2 textOrigin = new System.Numerics.Vector2(textWidth / 2.0f, textHeight / 2.0f);
+                
+                // Position for text (center of where text should appear)
+                System.Numerics.Vector2 textPosition = new System.Numerics.Vector2(textCenterX, textCenterY);
+                
+                // Draw text with rotation
+                if (Math.Abs(rotationDegrees) > 0.001f)
+                {
+                    // Use DrawTextPro for rotated text
+                    Raylib.DrawTextPro(font, text, textPosition, textOrigin, rotationDegrees, fontSize, 0f, textColor);
+                }
+                else
+                {
+                    // No rotation, use regular text drawing
+                    FontManager.DrawText(font, text, (int)(textCenterX - textWidth / 2.0f), (int)(textCenterY - textHeight / 2.0f), fontSize, textColor);
+                }
+            }
+            
             // Draw key labels (primary and shift characters)
             if (layout != null)
             {
@@ -604,53 +731,46 @@ namespace Keysharp.Components
                     int smallFontSize = 10;
                     
                     // Draw primary character (bottom-center, like standard keyboards)
+                    // Original position: (x + (width - textWidth)/2, y + height - fontSize - 4)
+                    // Text center relative to key center: (0, height/2 - fontSize/2 - 4)
                     if (!string.IsNullOrEmpty(primary))
                     {
-                        float primaryWidth = FontManager.MeasureText(font, primary, fontSize);
-                        int primaryX = (int)(x + (width - primaryWidth) / 2);
-                        int primaryY = (int)(y + height - fontSize - 4); // Bottom with padding
-                        
+                        float primaryTextHeight = fontSize;
+                        float primaryRelY = height / 2.0f - primaryTextHeight / 2.0f - 4; // Bottom with padding
                         Color textColor = new Color(UITheme.TextColor.R, UITheme.TextColor.G, UITheme.TextColor.B, alpha);
-                        FontManager.DrawText(font, primary, primaryX, primaryY, fontSize, textColor);
+                        DrawRotatedText(primary, 0, primaryRelY, fontSize, textColor);
                     }
                     
                     // Draw shift character (top-left, like standard keyboards)
+                    // Original position: (x + 4, y + 2)
+                    // Text center relative to key center: need to calculate text center position
                     if (!string.IsNullOrEmpty(shift))
                     {
-                        float shiftWidth = FontManager.MeasureText(font, shift, smallFontSize);
-                        int shiftX = (int)(x + 4); // Left edge with padding
-                        int shiftY = (int)(y + 2); // Top with padding
-                        
+                        float shiftTextWidth = FontManager.MeasureText(font, shift, smallFontSize);
+                        float shiftTextHeight = smallFontSize;
+                        // Original top-left corner: (x + 4, y + 2)
+                        // Text center: (x + 4 + shiftTextWidth/2, y + 2 + shiftTextHeight/2)
+                        // Relative to key center: (4 + shiftTextWidth/2 - width/2, 2 + shiftTextHeight/2 - height/2)
+                        float shiftRelX = 4.0f + shiftTextWidth / 2.0f - width / 2.0f;
+                        float shiftRelY = 2.0f + shiftTextHeight / 2.0f - height / 2.0f;
                         Color secondaryTextColor = new Color(UITheme.TextSecondaryColor.R, UITheme.TextSecondaryColor.G, UITheme.TextSecondaryColor.B, alpha);
-                        FontManager.DrawText(font, shift, shiftX, shiftY, smallFontSize, secondaryTextColor);
+                        DrawRotatedText(shift, shiftRelX, shiftRelY, smallFontSize, secondaryTextColor);
                     }
                 }
                 // Fallback: show identifier for keys without character mappings (like Caps, Tab, Backspace, etc.)
                 else if (!string.IsNullOrEmpty(key.Identifier))
                 {
                     int fontSize = 12;
-                    float textWidth = FontManager.MeasureText(font, key.Identifier, fontSize);
-                    
-                    // Center the text in the key
-                    int textX = (int)(x + (width - textWidth) / 2);
-                    int textY = (int)(y + (height - fontSize) / 2);
-                    
                     Color textColor = new Color(UITheme.TextColor.R, UITheme.TextColor.G, UITheme.TextColor.B, alpha);
-                    FontManager.DrawText(font, key.Identifier, textX, textY, fontSize, textColor);
+                    DrawRotatedText(key.Identifier, 0, 0, fontSize, textColor); // Center
                 }
             }
             else if (!string.IsNullOrEmpty(key.Identifier))
             {
                 // Fallback: draw identifier if layout not available
                 int fontSize = 14;
-                float textWidth = FontManager.MeasureText(font, key.Identifier, fontSize);
-                
-                // Center the text in the key
-                int textX = (int)(x + (width - textWidth) / 2);
-                int textY = (int)(y + (height - fontSize) / 2);
-                
                 Color textColor = new Color(UITheme.TextColor.R, UITheme.TextColor.G, UITheme.TextColor.B, alpha);
-                FontManager.DrawText(font, key.Identifier, textX, textY, fontSize, textColor);
+                DrawRotatedText(key.Identifier, 0, 0, fontSize, textColor); // Center
             }
         }
 
