@@ -335,8 +335,8 @@ namespace Keysharp.UI
             corpusControlsContainer.AddChild(ngramSizeDropdown);
 
             // Create checkboxes for filtering/transforming n-grams
-            ignoreSpaceCheckbox = new Components.Checkbox(font, "Ignore Space", 14);
-            ignoreSpaceCheckbox.Bounds = new Rectangle(0, 0, 120, 35);
+            ignoreSpaceCheckbox = new Components.Checkbox(font, "Ignore Whitespace", 14);
+            ignoreSpaceCheckbox.Bounds = new Rectangle(0, 0, 155, 35);
             ignoreSpaceCheckbox.PositionMode = Components.PositionMode.Absolute;
             ignoreSpaceCheckbox.IsChecked = true; // Checked by default
             ignoreSpaceCheckbox.OnCheckedChanged = (isChecked) => { ignoreSpace = isChecked; UpdateNgramTable(); };
@@ -713,8 +713,8 @@ namespace Keysharp.UI
                 string sequence = kvp.Key;
                 long count = kvp.Value;
 
-                // Ignore space: filter out grams that contain space
-                if (ignoreSpace && sequence.Contains(' '))
+                // Ignore whitespace: filter out grams that contain any whitespace character
+                if (ignoreSpace && sequence.Any(c => char.IsWhiteSpace(c)))
                 {
                     continue;
                 }
@@ -876,10 +876,10 @@ namespace Keysharp.UI
             // Create a list to store rows with metrics before final filtering
             var rowsWithMetrics = new List<((string sequence, long count, double frequency) ngram, string keySequenceStr, string fingerSequenceStr, string metricMatches)>();
 
-            // Calculate filtered total for relative frequency (only when filtered or limited)
+            // Calculate filtered total for relative frequency (when filtered, limited, or metric filters applied)
             bool isFiltered = !string.IsNullOrEmpty(searchText);
             bool hasLimit = resultLimit.HasValue && resultLimit.Value > 0;
-            bool showConditionalColumns = isFiltered || hasLimit; // Show when filtered or limited
+            bool showConditionalColumns = isFiltered || hasLimit; // Will be updated after computing metrics
             
             long filteredTotal = 0;
             if (showConditionalColumns && filteredNgrams.Count > 0)
@@ -893,10 +893,6 @@ namespace Keysharp.UI
             int filteredCountBeforeLimit = filteredNgrams.Count;
             long filteredTotalBeforeLimit = filteredTotal;
 
-            // Show/hide conditional columns (Global Rank and Relative Frequency)
-            ngramTable.SetColumnVisibility(4, showConditionalColumns); // Column 5 (Global Rank) - 0-indexed
-            ngramTable.SetColumnVisibility(5, showConditionalColumns); // Column 6 (Relative Frequency) - 0-indexed
-
             // Show/hide metric columns (Key Sequence, Finger Sequence, Metric Matches) only for bigrams and trigrams
             bool showMetricColumns = (selectedNgramSize == "bigram" || selectedNgramSize == "trigram");
             ngramTable.SetColumnVisibility(6, showMetricColumns); // Column 7 (Key Sequence) - 0-indexed
@@ -906,6 +902,15 @@ namespace Keysharp.UI
             // Compute key sequences, finger sequences, and metric matches for all filtered ngrams
             // Only compute for bigrams and trigrams (skip monograms and words for now)
             bool computeMetrics = layout != null && (selectedNgramSize == "bigram" || selectedNgramSize == "trigram");
+            
+            // Check if metric filters are applied (after computeMetrics is defined)
+            bool hasMetricFilter = computeMetrics && (!string.IsNullOrEmpty(metricSearchText) || filterNoMetrics);
+            // Update showConditionalColumns to include metric filters
+            showConditionalColumns = isFiltered || hasLimit || hasMetricFilter;
+            
+            // Show/hide conditional columns (Global Rank and Relative Frequency)
+            ngramTable.SetColumnVisibility(4, showConditionalColumns); // Column 5 (Global Rank) - 0-indexed
+            ngramTable.SetColumnVisibility(5, showConditionalColumns); // Column 6 (Relative Frequency) - 0-indexed
             
             foreach (var ngram in filteredNgrams)
             {
@@ -975,6 +980,12 @@ namespace Keysharp.UI
                     continue;
 
                 rowsWithMetrics.Add(((ngram.sequence, ngram.count, ngram.frequency), keySequenceStr, fingerSequenceStr, metricMatches));
+            }
+
+            // Recalculate filtered total after metric filtering (if conditional columns should be shown)
+            if (showConditionalColumns && rowsWithMetrics.Count > 0)
+            {
+                filteredTotal = rowsWithMetrics.Sum(row => row.ngram.count);
             }
 
             // Apply limit AFTER all metric filtering (limit should be applied last)
@@ -1052,12 +1063,12 @@ namespace Keysharp.UI
                 long totalCount = grams.Total;
                 string countText;
 
-                // Calculate what we're actually showing (after limit)
-                long showingTotal = filteredNgrams.Sum(ng => ng.count);
+                // Calculate what we're actually showing (after all filtering including metrics)
+                long showingTotal = rowsWithMetrics.Sum(row => row.ngram.count);
 
-                if (showingTotal == totalCount && (string.IsNullOrEmpty(searchText) && !resultLimit.HasValue))
+                if (showingTotal == totalCount && !showConditionalColumns)
                 {
-                    // Showing everything, no filters or limits
+                    // Showing everything, no filters, limits, or metric filters
                     countText = $"Total: {totalCount:N0}";
                 }
                 else
