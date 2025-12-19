@@ -275,7 +275,15 @@ namespace Keysharp.UI
 
                 // Check if it's an SFB (Same Finger Bigram)
                 bool isSFB = IsSameFingerBigram(keySequence);
-                string metricMatches = isSFB ? "SFB" : "";
+                
+                // Check if it's an LSB (Lateral Stretch Bigram)
+                bool isLSB = IsLateralStretchBigram(keySequence);
+                
+                // Build metric matches string
+                var metrics = new List<string>();
+                if (isSFB) metrics.Add("SFB");
+                if (isLSB) metrics.Add("LSB");
+                string metricMatches = string.Join(" ", metrics);
 
                 // Apply ngram search filter
                 if (!string.IsNullOrEmpty(ngramSearchText))
@@ -420,6 +428,83 @@ namespace Keysharp.UI
 
             // SFB if same finger but different key
             return !isSameKey;
+        }
+
+        /// <summary>
+        /// Determines if a key sequence represents a Lateral Stretch Bigram (LSB).
+        /// An LSB occurs when two keys are:
+        /// 1. On the same hand
+        /// 2. On adjacent fingers (excluding thumb)
+        /// 3. Have a horizontal distance of 2U or greater
+        /// </summary>
+        private bool IsLateralStretchBigram(List<PhysicalKey> sequence)
+        {
+            if (sequence == null || sequence.Count < 2)
+                return false;
+
+            // Check all overlapping bigrams in the sequence
+            for (int i = 0; i < sequence.Count - 1; i++)
+            {
+                var firstKey = sequence[i];
+                var secondKey = sequence[i + 1];
+
+                if (IsLSBPair(firstKey, secondKey))
+                {
+                    return true; // If any bigram is an LSB, return true
+                }
+            }
+
+            return false; // No LSB found in any bigram
+        }
+
+        /// <summary>
+        /// Checks if two keys form a Lateral Stretch Bigram (LSB).
+        /// Returns true if they are on the same hand, adjacent fingers (excluding thumb), and 2U+ apart horizontally.
+        /// </summary>
+        private bool IsLSBPair(PhysicalKey firstKey, PhysicalKey secondKey)
+        {
+            // Check if on same hand
+            if (firstKey.HandIndex != secondKey.HandIndex)
+                return false;
+
+            // Check if adjacent fingers (excluding thumb)
+            // Adjacent means finger index difference is 1
+            int fingerIndexDiff = Math.Abs(firstKey.FingerIndex - secondKey.FingerIndex);
+            if (fingerIndexDiff != 1)
+                return false;
+
+            // Exclude thumb: index 0 on right hand, index 4 on left hand
+            // Since both keys are on the same hand (already checked), we can use either key's HandIndex
+            if (firstKey.HandIndex == 0)
+            {
+                // Left hand: exclude thumb at index 4
+                if (firstKey.FingerIndex == 4 || secondKey.FingerIndex == 4)
+                    return false;
+            }
+            else
+            {
+                // Right hand: exclude thumb at index 0
+                if (firstKey.FingerIndex == 0 || secondKey.FingerIndex == 0)
+                    return false;
+            }
+
+            // Check horizontal distance >= 2U
+            float horizontalDistance = CalculateHorizontalDistance(firstKey, secondKey);
+            if (horizontalDistance < 2.0f)
+                return false;
+
+            return true;
+        }
+
+        /// <summary>
+        /// Calculates the horizontal distance between two keys in U units.
+        /// Uses center-to-center distance.
+        /// </summary>
+        private float CalculateHorizontalDistance(PhysicalKey key1, PhysicalKey key2)
+        {
+            float center1X = key1.X + key1.Width / 2.0f;
+            float center2X = key2.X + key2.Width / 2.0f;
+            return Math.Abs(center2X - center1X);
         }
 
         /// <summary>

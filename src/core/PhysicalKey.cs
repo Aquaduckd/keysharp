@@ -29,7 +29,27 @@ namespace Keysharp.Core
         /// <summary>
         /// The finger used to press this key.
         /// </summary>
-        public Finger Finger { get; set; }
+        private Finger _finger;
+        public Finger Finger 
+        { 
+            get => _finger;
+            set 
+            {
+                _finger = value;
+                (HandIndex, FingerIndex) = FingerToIndices(value);
+            }
+        }
+
+        /// <summary>
+        /// The hand index: 0 for left hand, 1 for right hand.
+        /// </summary>
+        public int HandIndex { get; set; }
+
+        /// <summary>
+        /// The finger index within the hand: 0=Pinky, 1=Ring, 2=Middle, 3=Index, 4=Thumb (left) or 0=Thumb, 1=Index, 2=Middle, 3=Ring, 4=Pinky (right).
+        /// Used for easy adjacent finger checking (difference of 1 = adjacent, excluding thumb).
+        /// </summary>
+        public int FingerIndex { get; set; }
 
         /// <summary>
         /// Optional identifier or label for this key (e.g., "A", "Space", "Left Shift").
@@ -62,9 +82,35 @@ namespace Keysharp.Core
             Y = y;
             Width = width;
             Height = height;
-            Finger = finger;
             Identifier = identifier;
+            // Setting Finger property will automatically set HandIndex and FingerIndex via the setter
+            Finger = finger;
         }
+
+        /// <summary>
+        /// Converts a Finger enum value to hand index and finger index.
+        /// Hand index: 0 = left, 1 = right
+        /// Finger index: 0=Pinky, 1=Ring, 2=Middle, 3=Index, 4=Thumb (left)
+        ///                 0=Thumb, 1=Index, 2=Middle, 3=Ring, 4=Pinky (right)
+        /// </summary>
+        private static (int handIndex, int fingerIndex) FingerToIndices(Finger finger)
+        {
+            return finger switch
+            {
+                Finger.LeftPinky => (0, 0),
+                Finger.LeftRing => (0, 1),
+                Finger.LeftMiddle => (0, 2),
+                Finger.LeftIndex => (0, 3),
+                Finger.LeftThumb => (0, 4),
+                Finger.RightThumb => (1, 0),
+                Finger.RightIndex => (1, 1),
+                Finger.RightMiddle => (1, 2),
+                Finger.RightRing => (1, 3),
+                Finger.RightPinky => (1, 4),
+                _ => (0, 0) // Default fallback
+            };
+        }
+
     }
 }
 
