@@ -7,11 +7,11 @@ namespace Keysharp.Components
 {
     public class Table : UIElement
     {
-        private Font font;
-        private int fontSize;
+        protected Font font;
+        protected int fontSize;
+        protected const int Padding = 10;
         private const int RowHeight = 22; // Increased for larger font
         private const int HeaderHeight = 28; // Increased for larger font
-        private const int Padding = 10;
         private const int ColumnGap = 20;
         private const int ScrollbarWidth = 16;
 
@@ -27,42 +27,70 @@ namespace Keysharp.Components
             scrollOffset = 0;
         }
 
-        public List<(string column1, string column2, string column3, string column4, string column5, string column6, string column7)> Rows { get; set; }
-        public string Column1Header { get; set; }
-        public string Column2Header { get; set; }
-        public string Column3Header { get; set; }
-        public string Column4Header { get; set; }
-        public string Column5Header { get; set; }
-        public string Column6Header { get; set; }
-        public string Column7Header { get; set; }
-        public bool ShowColumn5 { get; set; } = false; // Global Rank
-        public bool ShowColumn6 { get; set; } = false; // Relative Frequency
-        public bool ShowColumn7 { get; set; } = false; // Key Sequence
-        
-        // Store match positions for highlighting in column 2 (n-gram column)
-        // Maps row index to list of (start, length) match positions in the display text
-        public Dictionary<int, List<(int start, int length)>> Column2MatchPositions { get; set; } = new Dictionary<int, List<(int, int)>>();
-        
-        // Callback to calculate match positions for a row (used for lazy calculation during drawing)
-        public Func<int, string, List<(int start, int length)>>? CalculateMatchPositionsCallback { get; set; }
+        public List<List<string>> Rows { get; set; }
+        public List<TableColumn> Columns { get; set; }
 
-        public Table(Font font, string column1Header, string column2Header, string column3Header, string column4Header, string column5Header, string column6Header, string column7Header, int fontSize = 12) 
+        public Table(Font font, params string[] columnHeaders) 
             : base("Table")
         {
             this.font = font;
-            this.fontSize = fontSize;
-            this.Column1Header = column1Header;
-            this.Column2Header = column2Header;
-            this.Column3Header = column3Header;
-            this.Column4Header = column4Header;
-            this.Column5Header = column5Header;
-            this.Column6Header = column6Header;
-            this.Column7Header = column7Header;
-            this.Rows = new List<(string, string, string, string, string, string, string)>();
+            this.fontSize = 12;
+            
+            // Initialize columns
+            Columns = new List<TableColumn>();
+            foreach (var header in columnHeaders)
+            {
+                Columns.Add(new TableColumn(header, isVisible: true));
+            }
+            
+            this.Rows = new List<List<string>>();
 
             // Tables are interactive for scrolling
             IsClickable = true;
             IsHoverable = true;
+        }
+
+        public Table(Font font, int fontSize, params string[] columnHeaders) 
+            : base("Table")
+        {
+            this.font = font;
+            this.fontSize = fontSize;
+            
+            // Initialize columns
+            Columns = new List<TableColumn>();
+            foreach (var header in columnHeaders)
+            {
+                Columns.Add(new TableColumn(header, isVisible: true));
+            }
+            
+            this.Rows = new List<List<string>>();
+
+            // Tables are interactive for scrolling
+            IsClickable = true;
+            IsHoverable = true;
+        }
+
+        /// <summary>
+        /// Sets the visibility of a column by index.
+        /// </summary>
+        public void SetColumnVisibility(int columnIndex, bool isVisible)
+        {
+            if (columnIndex >= 0 && columnIndex < Columns.Count)
+            {
+                Columns[columnIndex].IsVisible = isVisible;
+            }
+        }
+
+        /// <summary>
+        /// Gets the visibility of a column by index.
+        /// </summary>
+        public bool GetColumnVisibility(int columnIndex)
+        {
+            if (columnIndex >= 0 && columnIndex < Columns.Count)
+            {
+                return Columns[columnIndex].IsVisible;
+            }
+            return false;
         }
 
         protected override void DrawSelf()
@@ -71,9 +99,10 @@ namespace Keysharp.Components
                 return;
             
             if (Rows == null)
-                Rows = new List<(string, string, string, string, string, string, string)>();
+                Rows = new List<List<string>>();
+            if (Columns == null || Columns.Count == 0)
+                return;
 
-            // Use smaller padding for first column to reduce gap between rank and ngram
             const int FirstColumnPadding = 5;
 
             int x = (int)Bounds.X;
@@ -91,30 +120,8 @@ namespace Keysharp.Components
                 tableWidth -= ScrollbarWidth;
             }
             
-            // Calculate column widths based on whether conditional columns are shown
-            // Column order: Rank, N-gram, Frequency, Count, Global Rank (conditional), Relative Frequency (conditional), Key Sequence (conditional)
-            int col1Width, col2Width, col3Width, col4Width, col5Width, col6Width, col7Width;
-            bool showConditional = ShowColumn5 || ShowColumn6 || ShowColumn7;
-            if (showConditional)
-            {
-                col1Width = (int)(tableWidth * 0.07f); // Rank
-                col2Width = (int)(tableWidth * 0.20f); // N-gram
-                col3Width = (int)(tableWidth * 0.10f); // Frequency
-                col4Width = (int)(tableWidth * 0.12f); // Count
-                col5Width = ShowColumn5 ? (int)(tableWidth * 0.08f) : 0; // Global Rank
-                col6Width = ShowColumn6 ? (int)(tableWidth * 0.15f) : 0; // Relative Frequency
-                col7Width = ShowColumn7 ? (int)(tableWidth * 0.28f) : 0; // Key Sequence
-            }
-            else
-            {
-                col1Width = (int)(tableWidth * 0.10f); // Rank
-                col2Width = (int)(tableWidth * 0.50f); // N-gram
-                col3Width = (int)(tableWidth * 0.20f); // Frequency
-                col4Width = (int)(tableWidth * 0.20f); // Count
-                col5Width = 0;
-                col6Width = 0;
-                col7Width = 0;
-            }
+            // Calculate column widths
+            var columnWidths = CalculateColumnWidths(tableWidth);
 
             // Draw header background
             Rectangle headerRect = new Rectangle(x, y, Bounds.Width, HeaderHeight);
@@ -122,30 +129,16 @@ namespace Keysharp.Components
             Raylib.DrawRectangleLinesEx(headerRect, 1, UITheme.BorderColor);
 
             // Draw header text (all right-aligned)
-            // Column order: Rank, N-gram, Frequency, Count, Global Rank (conditional), Relative Frequency (conditional), Key Sequence (conditional)
             float currentX = x;
-            TextContainer.DrawRightAlignedText(font, Column1Header, new Rectangle(currentX, y, col1Width, HeaderHeight), fontSize, UITheme.TextColor, FirstColumnPadding);
-            currentX += col1Width;
-            TextContainer.DrawRightAlignedText(font, Column2Header, new Rectangle(currentX, y, col2Width, HeaderHeight), fontSize, UITheme.TextColor, Padding);
-            currentX += col2Width;
-            TextContainer.DrawRightAlignedText(font, Column3Header, new Rectangle(currentX, y, col3Width, HeaderHeight), fontSize, UITheme.TextColor, Padding);
-            currentX += col3Width;
-            TextContainer.DrawRightAlignedText(font, Column4Header, new Rectangle(currentX, y, col4Width, HeaderHeight), fontSize, UITheme.TextColor, Padding);
-            currentX += col4Width;
-            if (ShowColumn5)
+            for (int colIndex = 0; colIndex < Columns.Count; colIndex++)
             {
-                TextContainer.DrawRightAlignedText(font, Column5Header, new Rectangle(currentX, y, col5Width, HeaderHeight), fontSize, UITheme.TextColor, Padding);
-                currentX += col5Width;
-            }
-            if (ShowColumn6)
-            {
-                TextContainer.DrawRightAlignedText(font, Column6Header, new Rectangle(currentX, y, col6Width, HeaderHeight), fontSize, UITheme.TextColor, Padding);
-                currentX += col6Width;
-            }
-            if (ShowColumn7)
-            {
-                TextContainer.DrawRightAlignedText(font, Column7Header, new Rectangle(currentX, y, col7Width, HeaderHeight), fontSize, UITheme.TextColor, Padding);
-                currentX += col7Width;
+                if (!Columns[colIndex].IsVisible)
+                    continue;
+                    
+                int colWidth = columnWidths[colIndex];
+                int padding = colIndex == 0 ? FirstColumnPadding : Padding;
+                TextContainer.DrawRightAlignedText(font, Columns[colIndex].Header, new Rectangle(currentX, y, colWidth, HeaderHeight), fontSize, UITheme.TextColor, padding);
+                currentX += colWidth;
             }
 
             // Draw rows
@@ -174,58 +167,17 @@ namespace Keysharp.Components
                 Raylib.DrawRectangleRec(rowRect, rowColor);
 
                 // Draw row text (all right-aligned)
-                // Column order: Rank, N-gram, Frequency, Count, Global Rank (conditional), Relative Frequency (conditional), Key Sequence (conditional)
                 float rowCurrentX = x;
-                TextContainer.DrawRightAlignedText(font, row.column1, new Rectangle(rowCurrentX, rowY, col1Width, RowHeight), fontSize - 1, UITheme.TextColor, FirstColumnPadding);
-                rowCurrentX += col1Width;
-                
-                // Draw column 2 (n-gram) with potential highlighting
-                Rectangle column2Rect = new Rectangle(rowCurrentX, rowY, col2Width, RowHeight);
-                TextContainer.DrawRightAlignedText(font, row.column2, column2Rect, fontSize - 1, UITheme.TextColor, Padding);
-                
-                // Get or calculate match positions for this row (lazy calculation)
-                List<(int start, int length)>? matchPositions = null;
-                if (Column2MatchPositions != null && Column2MatchPositions.TryGetValue(rowIndex, out var cachedPositions))
+                for (int colIndex = 0; colIndex < Columns.Count && colIndex < row.Count; colIndex++)
                 {
-                    matchPositions = cachedPositions;
-                }
-                else if (CalculateMatchPositionsCallback != null)
-                {
-                    // Calculate on-demand during drawing
-                    matchPositions = CalculateMatchPositionsCallback(rowIndex, row.column2);
-                    if (matchPositions != null && matchPositions.Count > 0)
-                    {
-                        // Cache the result
-                        if (Column2MatchPositions == null)
-                            Column2MatchPositions = new Dictionary<int, List<(int, int)>>();
-                        Column2MatchPositions[rowIndex] = matchPositions;
-                    }
-                }
-                
-                // Draw highlights if we have match positions
-                if (matchPositions != null && matchPositions.Count > 0)
-                {
-                    DrawColumn2Highlights(row.column2, column2Rect, matchPositions, rowIndex);
-                }
-                rowCurrentX += col2Width;
-                TextContainer.DrawRightAlignedText(font, row.column3, new Rectangle(rowCurrentX, rowY, col3Width, RowHeight), fontSize - 1, UITheme.TextColor, Padding);
-                rowCurrentX += col3Width;
-                TextContainer.DrawRightAlignedText(font, row.column4, new Rectangle(rowCurrentX, rowY, col4Width, RowHeight), fontSize - 1, UITheme.TextColor, Padding);
-                rowCurrentX += col4Width;
-                if (ShowColumn5)
-                {
-                    TextContainer.DrawRightAlignedText(font, row.column5, new Rectangle(rowCurrentX, rowY, col5Width, RowHeight), fontSize - 1, UITheme.TextColor, Padding);
-                    rowCurrentX += col5Width;
-                }
-                if (ShowColumn6)
-                {
-                    TextContainer.DrawRightAlignedText(font, row.column6, new Rectangle(rowCurrentX, rowY, col6Width, RowHeight), fontSize - 1, UITheme.TextColor, Padding);
-                    rowCurrentX += col6Width;
-                }
-                if (ShowColumn7)
-                {
-                    TextContainer.DrawRightAlignedText(font, row.column7, new Rectangle(rowCurrentX, rowY, col7Width, RowHeight), fontSize - 1, UITheme.TextColor, Padding);
-                    rowCurrentX += col7Width;
+                    if (!Columns[colIndex].IsVisible)
+                        continue;
+                        
+                    int colWidth = columnWidths[colIndex];
+                    int padding = colIndex == 0 ? FirstColumnPadding : Padding;
+                    string cellText = row[colIndex];
+                    DrawCell(colIndex + 1, cellText, new Rectangle(rowCurrentX, rowY, colWidth, RowHeight), rowIndex, padding);
+                    rowCurrentX += colWidth;
                 }
 
                 rowY += RowHeight;
@@ -244,41 +196,55 @@ namespace Keysharp.Components
             }
         }
 
-        private void DrawColumn2Highlights(string displayText, Rectangle cellRect, List<(int start, int length)> matchPositions, int rowIndex)
+        /// <summary>
+        /// Overridable method to draw a cell. Base implementation draws right-aligned text.
+        /// </summary>
+        protected virtual void DrawCell(int columnIndex, string cellText, Rectangle cellRect, int rowIndex, int padding)
         {
-            if (string.IsNullOrEmpty(displayText) || matchPositions.Count == 0)
-                return;
+            TextContainer.DrawRightAlignedText(font, cellText, cellRect, fontSize - 1, UITheme.TextColor, padding);
+        }
 
-            // Calculate text position (right-aligned)
-            float textWidth = FontManager.MeasureText(font, displayText, fontSize - 1);
-            float textX = cellRect.X + cellRect.Width - textWidth - Padding;
-            float textY = cellRect.Y + (cellRect.Height - (fontSize - 1)) / 2;
-
-            // Draw highlighting rectangles for each match
-            Color highlightColor = new Color(255, 165, 0, 50); // Semi-transparent yellow with reduced opacity
-
-            foreach (var (start, length) in matchPositions)
+        /// <summary>
+        /// Overridable method to calculate column widths. Returns a list of widths, one per column.
+        /// </summary>
+        protected virtual List<int> CalculateColumnWidths(int tableWidth)
+        {
+            var widths = new List<int>();
+            int visibleColumnCount = 0;
+            
+            // Count visible columns
+            foreach (var col in Columns)
             {
-                if (start >= displayText.Length || start + length > displayText.Length)
-                    continue;
-
-                // Measure text before the match
-                string beforeMatch = displayText.Substring(0, start);
-                float beforeWidth = FontManager.MeasureText(font, beforeMatch, fontSize - 1);
-
-                // Measure the matched text
-                string matchedText = displayText.Substring(start, length);
-                float matchWidth = FontManager.MeasureText(font, matchedText, fontSize - 1);
-
-                // Draw highlight rectangle
-                Rectangle highlightRect = new Rectangle(
-                    textX + beforeWidth,
-                    textY,
-                    matchWidth,
-                    fontSize - 1
-                );
-                Raylib.DrawRectangleRec(highlightRect, highlightColor);
+                if (col.IsVisible)
+                    visibleColumnCount++;
             }
+            
+            if (visibleColumnCount == 0)
+                return widths;
+            
+            // Default: distribute width evenly among visible columns
+            int baseWidth = tableWidth / visibleColumnCount;
+            int remainder = tableWidth % visibleColumnCount;
+            
+            for (int i = 0; i < Columns.Count; i++)
+            {
+                if (Columns[i].IsVisible)
+                {
+                    int width = baseWidth;
+                    if (remainder > 0)
+                    {
+                        width++;
+                        remainder--;
+                    }
+                    widths.Add(width);
+                }
+                else
+                {
+                    widths.Add(0);
+                }
+            }
+            
+            return widths;
         }
 
         private void DrawScrollbar(int x, int y, int height, int totalRows, int visibleRows)

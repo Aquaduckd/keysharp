@@ -31,7 +31,7 @@ namespace Keysharp.UI
         private Components.Container? ngramSelectorContainer;
         private Components.Label? corpusHeaderLabel;
         private Components.Dropdown? ngramSizeDropdown;
-        private Components.Table? ngramTable;
+        private Components.CorpusTable? ngramTable;
         private Components.TextInput? limitInput;
         private Components.TextInput? searchInput;
         private Components.Button? regexToggleButton;
@@ -276,7 +276,7 @@ namespace Keysharp.UI
             ngramSelectorContainer.AddChild(totalCountLabel);
 
             // Create n-gram table (Rank, N-gram, Frequency, Count, Global Rank, Rel. Freq., Key Sequence)
-            ngramTable = new Components.Table(font, "Rank", "N-gram", "Frequency", "Count", "Global Rank", "Rel. Freq.", "Key Sequence", 14);
+            ngramTable = new Components.CorpusTable(font, 14, "Rank", "N-gram", "Frequency", "Count", "Global Rank", "Rel. Freq.", "Key Sequence");
             ngramTable.Bounds = new Rectangle(0, 0, 0, 0); // Will be set by Update
             ngramTable.AutoSize = false;
             ngramTable.FillRemaining = true; // Fill remaining space after selector
@@ -847,9 +847,9 @@ namespace Keysharp.UI
             }
 
             // Show/hide conditional columns
-            ngramTable.ShowColumn5 = isFiltered; // Global Rank
-            ngramTable.ShowColumn6 = isFiltered; // Relative Frequency (show when filtered)
-            ngramTable.ShowColumn7 = layout != null; // Key Sequence (show when layout is available)
+            ngramTable.SetColumnVisibility(4, isFiltered); // Column 5 (Global Rank) - 0-indexed
+            ngramTable.SetColumnVisibility(5, isFiltered); // Column 6 (Relative Frequency) - 0-indexed
+            ngramTable.SetColumnVisibility(6, layout != null); // Column 7 (Key Sequence) - 0-indexed
 
             // Update table rows
             ngramTable.Rows.Clear();
@@ -905,7 +905,7 @@ namespace Keysharp.UI
                 }
 
                 // Column order: Rank, N-gram, Frequency, Count, Global Rank, Rel. Freq., Key Sequence
-                ngramTable.Rows.Add((rank, ngramText, frequency, count, globalRank, relativeFreq, keySequence));
+                ngramTable.Rows.Add(new List<string> { rank, ngramText, frequency, count, globalRank, relativeFreq, keySequence });
             }
             
             // Set up callback for lazy highlight calculation
@@ -985,36 +985,26 @@ namespace Keysharp.UI
                         using (var writer = new StreamWriter(filePath))
                         {
                             // Write header row
-                            var headers = new List<string> { ngramTable.Column1Header, ngramTable.Column2Header, ngramTable.Column3Header, ngramTable.Column4Header };
-                            if (ngramTable.ShowColumn5)
+                            var headers = new List<string>();
+                            for (int colIndex = 0; colIndex < ngramTable.Columns.Count; colIndex++)
                             {
-                                headers.Add(ngramTable.Column5Header);
-                            }
-                            if (ngramTable.ShowColumn6)
-                            {
-                                headers.Add(ngramTable.Column6Header);
-                            }
-                            if (ngramTable.ShowColumn7)
-                            {
-                                headers.Add(ngramTable.Column7Header);
+                                if (ngramTable.GetColumnVisibility(colIndex))
+                                {
+                                    headers.Add(ngramTable.Columns[colIndex].Header);
+                                }
                             }
                             writer.WriteLine(string.Join(",", headers.Select(h => EscapeCsvField(h))));
 
                             // Write data rows
                             foreach (var row in ngramTable.Rows)
                             {
-                                var fields = new List<string> { row.column1, row.column2, row.column3, row.column4 };
-                                if (ngramTable.ShowColumn5)
+                                var fields = new List<string>();
+                                for (int colIndex = 0; colIndex < ngramTable.Columns.Count && colIndex < row.Count; colIndex++)
                                 {
-                                    fields.Add(row.column5);
-                                }
-                                if (ngramTable.ShowColumn6)
-                                {
-                                    fields.Add(row.column6);
-                                }
-                                if (ngramTable.ShowColumn7)
-                                {
-                                    fields.Add(row.column7);
+                                    if (ngramTable.GetColumnVisibility(colIndex))
+                                    {
+                                        fields.Add(row[colIndex]);
+                                    }
                                 }
                                 writer.WriteLine(string.Join(",", fields.Select(f => EscapeCsvField(f))));
                             }
