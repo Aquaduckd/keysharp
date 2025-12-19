@@ -30,9 +30,11 @@ namespace Keysharp
             // ▲ U+25B2 (Black Up-Pointing Triangle)
             // ▼ U+25BC (Black Down-Pointing Triangle)
             // • U+2022 (Bullet - used in regex help tips)
+            // ✓ U+2713 (Check Mark - used in View menu)
             codepoints.Add(0x25B2); // ▲
             codepoints.Add(0x25BC); // ▼
             codepoints.Add(0x2022); // •
+            codepoints.Add(0x2713); // ✓
 
             int[] codepointArray = codepoints.ToArray();
             int fontSize = 32; // Base font size for loading
