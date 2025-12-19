@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Keysharp.Core
 {
@@ -9,39 +10,38 @@ namespace Keysharp.Core
     public static class Metrics
     {
         /// <summary>
-        /// Determines if a key sequence represents a Same Finger Bigram (SFB).
-        /// For sequences longer than 2 keys, splits into overlapping bigrams and checks if ANY bigram is an SFB.
-        /// An SFB occurs when two keys are:
-        /// 1. On the same finger
-        /// 2. Not the same key
+        /// Checks if any overlapping n-gram of the specified size in a sequence matches a predicate.
         /// </summary>
-        public static bool IsSameFingerBigram(List<PhysicalKey> sequence)
+        public static bool CheckAnyNgram(List<PhysicalKey> sequence, int ngramSize, Func<List<PhysicalKey>, bool> predicate)
         {
-            if (sequence == null || sequence.Count < 2)
+            if (sequence == null || sequence.Count < ngramSize)
                 return false;
 
-            // Check all overlapping bigrams in the sequence
-            for (int i = 0; i < sequence.Count - 1; i++)
+            // Check all overlapping n-grams in the sequence
+            for (int i = 0; i <= sequence.Count - ngramSize; i++)
             {
-                var firstKey = sequence[i];
-                var secondKey = sequence[i + 1];
-
-                // Check if this bigram is an SFB
-                if (IsSFBPair(firstKey, secondKey))
+                var ngram = sequence.Skip(i).Take(ngramSize).ToList();
+                if (predicate(ngram))
                 {
-                    return true; // If any bigram is an SFB, return true
+                    return true; // If any n-gram matches, return true
                 }
             }
 
-            return false; // No SFB found in any bigram
+            return false; // No matching n-gram found
         }
 
         /// <summary>
-        /// Checks if two keys form a Same Finger Bigram (SFB).
+        /// Checks if a bigram (2 keys) forms a Same Finger Bigram (SFB).
         /// Returns true if the keys are on the same finger but are different keys.
         /// </summary>
-        private static bool IsSFBPair(PhysicalKey firstKey, PhysicalKey secondKey)
+        public static bool IsSFBPair(List<PhysicalKey> bigram)
         {
+            if (bigram == null || bigram.Count != 2)
+                return false;
+
+            var firstKey = bigram[0];
+            var secondKey = bigram[1];
+
             // Check if same finger
             if (firstKey.Finger != secondKey.Finger)
                 return false;
@@ -65,39 +65,19 @@ namespace Keysharp.Core
             return !isSameKey;
         }
 
-        /// <summary>
-        /// Determines if a key sequence represents a Lateral Stretch Bigram (LSB).
-        /// An LSB occurs when two keys are:
-        /// 1. On the same hand
-        /// 2. On adjacent fingers (excluding thumb)
-        /// 3. Have a horizontal distance of 2U or greater
-        /// </summary>
-        public static bool IsLateralStretchBigram(List<PhysicalKey> sequence)
-        {
-            if (sequence == null || sequence.Count < 2)
-                return false;
-
-            // Check all overlapping bigrams in the sequence
-            for (int i = 0; i < sequence.Count - 1; i++)
-            {
-                var firstKey = sequence[i];
-                var secondKey = sequence[i + 1];
-
-                if (IsLSBPair(firstKey, secondKey))
-                {
-                    return true; // If any bigram is an LSB, return true
-                }
-            }
-
-            return false; // No LSB found in any bigram
-        }
 
         /// <summary>
-        /// Checks if two keys form a Lateral Stretch Bigram (LSB).
+        /// Checks if a bigram (2 keys) forms a Lateral Stretch Bigram (LSB).
         /// Returns true if they are on the same hand, adjacent fingers (excluding thumb), and 2U+ apart horizontally.
         /// </summary>
-        private static bool IsLSBPair(PhysicalKey firstKey, PhysicalKey secondKey)
+        public static bool IsLSBPair(List<PhysicalKey> bigram)
         {
+            if (bigram == null || bigram.Count != 2)
+                return false;
+
+            var firstKey = bigram[0];
+            var secondKey = bigram[1];
+
             // Check if on same hand
             if (firstKey.HandIndex != secondKey.HandIndex)
                 return false;
@@ -131,40 +111,20 @@ namespace Keysharp.Core
             return true;
         }
 
-        /// <summary>
-        /// Determines if a key sequence represents a Full Scissor Bigram (FSB).
-        /// An FSB occurs when two keys are:
-        /// 1. On the same hand (excluding thumbs)
-        /// 2. Have a vertical distance of 2U or greater
-        /// 3. The finger with the greater Y position is either Middle or Ring
-        /// </summary>
-        public static bool IsFullScissorBigram(List<PhysicalKey> sequence)
-        {
-            if (sequence == null || sequence.Count < 2)
-                return false;
-
-            // Check all overlapping bigrams in the sequence
-            for (int i = 0; i < sequence.Count - 1; i++)
-            {
-                var firstKey = sequence[i];
-                var secondKey = sequence[i + 1];
-
-                if (IsFSBPair(firstKey, secondKey))
-                {
-                    return true; // If any bigram is an FSB, return true
-                }
-            }
-
-            return false; // No FSB found in any bigram
-        }
 
         /// <summary>
-        /// Checks if two keys form a Full Scissor Bigram (FSB).
+        /// Checks if a bigram (2 keys) forms a Full Scissor Bigram (FSB).
         /// Returns true if they are on the same hand (excluding thumbs), have vertical distance >= 2U,
         /// and the key with greater Y has a Middle or Ring finger.
         /// </summary>
-        private static bool IsFSBPair(PhysicalKey firstKey, PhysicalKey secondKey)
+        public static bool IsFSBPair(List<PhysicalKey> bigram)
         {
+            if (bigram == null || bigram.Count != 2)
+                return false;
+
+            var firstKey = bigram[0];
+            var secondKey = bigram[1];
+
             // Check if on same hand
             if (firstKey.HandIndex != secondKey.HandIndex)
                 return false;
@@ -210,41 +170,20 @@ namespace Keysharp.Core
             return true;
         }
 
-        /// <summary>
-        /// Determines if a key sequence represents a Half Scissor Bigram (HSB).
-        /// An HSB occurs when two keys are:
-        /// 1. On the same hand (excluding thumbs)
-        /// 2. On adjacent fingers (excluding thumbs)
-        /// 3. Have a vertical distance of 1U or greater but less than 2U
-        /// 4. The finger with the greater Y position is either Middle or Ring
-        /// </summary>
-        public static bool IsHalfScissorBigram(List<PhysicalKey> sequence)
-        {
-            if (sequence == null || sequence.Count < 2)
-                return false;
-
-            // Check all overlapping bigrams in the sequence
-            for (int i = 0; i < sequence.Count - 1; i++)
-            {
-                var firstKey = sequence[i];
-                var secondKey = sequence[i + 1];
-
-                if (IsHSBPair(firstKey, secondKey))
-                {
-                    return true; // If any bigram is an HSB, return true
-                }
-            }
-
-            return false; // No HSB found in any bigram
-        }
 
         /// <summary>
-        /// Checks if two keys form a Half Scissor Bigram (HSB).
+        /// Checks if a bigram (2 keys) forms a Half Scissor Bigram (HSB).
         /// Returns true if they are on the same hand (excluding thumbs), are adjacent fingers,
         /// have vertical distance >= 1U and < 2U, and the key with greater Y has a Middle or Ring finger.
         /// </summary>
-        private static bool IsHSBPair(PhysicalKey firstKey, PhysicalKey secondKey)
+        public static bool IsHSBPair(List<PhysicalKey> bigram)
         {
+            if (bigram == null || bigram.Count != 2)
+                return false;
+
+            var firstKey = bigram[0];
+            var secondKey = bigram[1];
+
             // Check if on same hand
             if (firstKey.HandIndex != secondKey.HandIndex)
                 return false;
@@ -317,6 +256,87 @@ namespace Keysharp.Core
             float center2Y = key2.Y + key2.Height / 2.0f;
             return Math.Abs(center2Y - center1Y);
         }
+
+        /// <summary>
+        /// Checks if a trigram (3 keys) is an InHand.
+        /// An InHand occurs when all three keys are:
+        /// 1. On the same hand
+        /// 2. Roll direction is towards the center of the keyboard:
+        ///    - Left hand: finger indices strictly increasing (a < b < c)
+        ///    - Right hand: finger indices strictly decreasing (a > b > c)
+        /// </summary>
+        public static bool IsInHandTrigram(List<PhysicalKey> trigram)
+        {
+            if (trigram == null || trigram.Count != 3)
+                return false;
+
+            var firstKey = trigram[0];
+            var secondKey = trigram[1];
+            var thirdKey = trigram[2];
+
+            // Check if all keys are on the same hand
+            if (firstKey.HandIndex != secondKey.HandIndex || secondKey.HandIndex != thirdKey.HandIndex)
+                return false;
+
+            int a = firstKey.FingerIndex;
+            int b = secondKey.FingerIndex;
+            int c = thirdKey.FingerIndex;
+
+            // Direction depends on which hand:
+            // Left hand (HandIndex == 0): increasing indices = towards center (right)
+            // Right hand (HandIndex == 1): decreasing indices = towards center (left)
+            if (firstKey.HandIndex == 0)
+            {
+                // Left hand: InHand = increasing indices (a < b < c)
+                return a < b && b < c;
+            }
+            else
+            {
+                // Right hand: InHand = decreasing indices (a > b > c)
+                return a > b && b > c;
+            }
+        }
+
+        /// <summary>
+        /// Checks if a trigram (3 keys) is an OutHand.
+        /// An OutHand occurs when all three keys are:
+        /// 1. On the same hand
+        /// 2. Roll direction is towards the outside of the keyboard:
+        ///    - Left hand: finger indices strictly decreasing (a > b > c)
+        ///    - Right hand: finger indices strictly increasing (a < b < c)
+        /// </summary>
+        public static bool IsOutHandTrigram(List<PhysicalKey> trigram)
+        {
+            if (trigram == null || trigram.Count != 3)
+                return false;
+
+            var firstKey = trigram[0];
+            var secondKey = trigram[1];
+            var thirdKey = trigram[2];
+
+            // Check if all keys are on the same hand
+            if (firstKey.HandIndex != secondKey.HandIndex || secondKey.HandIndex != thirdKey.HandIndex)
+                return false;
+
+            int a = firstKey.FingerIndex;
+            int b = secondKey.FingerIndex;
+            int c = thirdKey.FingerIndex;
+
+            // Direction depends on which hand:
+            // Left hand (HandIndex == 0): decreasing indices = towards outside (left)
+            // Right hand (HandIndex == 1): increasing indices = towards outside (right)
+            if (firstKey.HandIndex == 0)
+            {
+                // Left hand: OutHand = decreasing indices (a > b > c)
+                return a > b && b > c;
+            }
+            else
+            {
+                // Right hand: OutHand = increasing indices (a < b < c)
+                return a < b && b < c;
+            }
+        }
+
     }
 }
 

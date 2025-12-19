@@ -169,8 +169,8 @@ namespace Keysharp.UI
             metricsContentContainer.FillRemaining = true; // Fill remaining space in parent container
             metricsMainContainer.AddChild(metricsContentContainer);
 
-            // Create metrics table (Bigram, Frequency, Key Sequence, Finger Sequence, Metric Matches)
-            metricsTable = new Components.Table(font, 14, "Bigram", "Frequency", "Key Sequence", "Finger Sequence", "Metric Matches");
+            // Create metrics table (Ngram column name will be updated based on selected ngram size)
+            metricsTable = new Components.Table(font, 14, "Ngram", "Frequency", "Key Sequence", "Finger Sequence", "Metric Matches");
             metricsTable.Bounds = new Rectangle(0, 0, 0, 0); // Will be set by Update
             metricsTable.AutoSize = false;
             metricsTable.FillRemaining = true;
@@ -298,6 +298,13 @@ namespace Keysharp.UI
             if (metricsTable == null)
                 return;
 
+            // Update table header based on selected ngram size
+            string ngramColumnName = selectedNgramSize == "trigram" ? "Trigram" : "Bigram";
+            if (metricsTable.Columns.Count > 0)
+            {
+                metricsTable.Columns[0].Header = ngramColumnName;
+            }
+
             metricsTable.Rows.Clear();
 
             if (corpus == null || layout == null || !corpus.IsLoaded)
@@ -333,24 +340,42 @@ namespace Keysharp.UI
                 // Format finger sequence
                 string fingerSequenceStr = FormatFingerSequence(keySequence);
 
-                // Check if it's an SFB (Same Finger Bigram)
-                bool isSFB = Core.Metrics.IsSameFingerBigram(keySequence);
-                
-                // Check if it's an LSB (Lateral Stretch Bigram)
-                bool isLSB = Core.Metrics.IsLateralStretchBigram(keySequence);
-                
-                // Check if it's an FSB (Full Scissor Bigram)
-                bool isFSB = Core.Metrics.IsFullScissorBigram(keySequence);
-                
-                // Check if it's an HSB (Half Scissor Bigram)
-                bool isHSB = Core.Metrics.IsHalfScissorBigram(keySequence);
-                
-                // Build metric matches string
+                // Build metric matches string based on ngram size
                 var metrics = new List<string>();
-                if (isSFB) metrics.Add("SFB");
-                if (isLSB) metrics.Add("LSB");
-                if (isFSB) metrics.Add("FSB");
-                if (isHSB) metrics.Add("HSB");
+                
+                if (selectedNgramSize == "bigram")
+                {
+                    // Bigram metrics
+                    // Check if it's an SFB (Same Finger Bigram)
+                    bool isSFB = Core.Metrics.CheckAnyNgram(keySequence, 2, Core.Metrics.IsSFBPair);
+                    
+                    // Check if it's an LSB (Lateral Stretch Bigram)
+                    bool isLSB = Core.Metrics.CheckAnyNgram(keySequence, 2, Core.Metrics.IsLSBPair);
+                    
+                    // Check if it's an FSB (Full Scissor Bigram)
+                    bool isFSB = Core.Metrics.CheckAnyNgram(keySequence, 2, Core.Metrics.IsFSBPair);
+                    
+                    // Check if it's an HSB (Half Scissor Bigram)
+                    bool isHSB = Core.Metrics.CheckAnyNgram(keySequence, 2, Core.Metrics.IsHSBPair);
+                    
+                    if (isSFB) metrics.Add("SFB");
+                    if (isLSB) metrics.Add("LSB");
+                    if (isFSB) metrics.Add("FSB");
+                    if (isHSB) metrics.Add("HSB");
+                }
+                else if (selectedNgramSize == "trigram")
+                {
+                    // Trigram metrics
+                    // Check if it's an InHand (roll towards center)
+                    bool isInHand = Core.Metrics.CheckAnyNgram(keySequence, 3, Core.Metrics.IsInHandTrigram);
+                    
+                    // Check if it's an OutHand (roll towards outside)
+                    bool isOutHand = Core.Metrics.CheckAnyNgram(keySequence, 3, Core.Metrics.IsOutHandTrigram);
+                    
+                    if (isInHand) metrics.Add("InHand");
+                    if (isOutHand) metrics.Add("OutHand");
+                }
+                
                 string metricMatches = string.Join(" ", metrics);
 
                 // Apply ngram search filter
@@ -371,13 +396,13 @@ namespace Keysharp.UI
                 if (filterNoMetrics && string.IsNullOrEmpty(metricMatches))
                     continue;
 
-                // Format bigram with escape characters (like corpus tab)
-                string bigramText = $"\"{EscapeSpecialChars(sequence)}\"";
+                // Format ngram with escape characters (like corpus tab)
+                string ngramText = $"\"{EscapeSpecialChars(sequence)}\"";
                 
                 // Format frequency as percentage with 3 decimal places
                 string frequencyText = $"{frequency * 100:F3}%";
                 
-                metricsTable.Rows.Add(new List<string> { bigramText, frequencyText, keySequenceStr, fingerSequenceStr, metricMatches });
+                metricsTable.Rows.Add(new List<string> { ngramText, frequencyText, keySequenceStr, fingerSequenceStr, metricMatches });
             }
         }
 
