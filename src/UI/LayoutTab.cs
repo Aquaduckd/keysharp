@@ -20,9 +20,15 @@ namespace Keysharp.UI
         private Components.RadioButton? fingerColorsRadioButton;
         private Components.RadioButton? heatmapRadioButton;
         private Components.Checkbox? showDisabledCheckbox;
+        private Components.Checkbox? enableSecondLayoutCheckbox;
         private Components.Button? saveLayoutButton;
         private Components.Button? loadLayoutButton;
         private Components.Button? addKeyButton;
+        
+        // Second layout buttons
+        private Components.Button? saveLayoutButton2;
+        private Components.Button? loadLayoutButton2;
+        private Components.Button? addKeyButton2;
         private Components.Dropdown? layoutsDropdown;
         private Components.Canvas keyboardCanvas;
         private string? initialLayoutFile = null; // Track which file was initially loaded
@@ -30,6 +36,17 @@ namespace Keysharp.UI
         private string? currentlyLoadedFile = null; // Track which file is currently loaded
         private Components.KeyboardLayoutView keyboardView;
         private Layout layout;
+        
+        // Second layout fields
+        private Components.Dropdown? layoutsDropdown2;
+        private Components.Container? layoutControlsContainer2;
+        private Components.Canvas keyboardCanvas2;
+        private bool isLoadingLayout2 = false; // Flag to prevent recursive loading for second layout
+        private string? currentlyLoadedFile2 = null; // Track which file is currently loaded for second layout
+        private Components.KeyboardLayoutView keyboardView2;
+        private Layout layout2;
+        private LayoutMetadataJson metadata2 = new LayoutMetadataJson(); // Second layout metadata
+        
         private SidePanel? sidePanel;
         private Font font;
         private CorpusTab? corpusTab; // Reference to corpus tab for checking loaded corpus
@@ -37,6 +54,7 @@ namespace Keysharp.UI
 
         public Components.TabContent TabContent => tabContent;
         public Components.Dropdown? LayoutsDropdown => layoutsDropdown;
+        public Components.Dropdown? LayoutsDropdown2 => layoutsDropdown2;
 
         public SidePanel? SidePanel
         {
@@ -80,11 +98,21 @@ namespace Keysharp.UI
         /// Gets the current layout metadata.
         /// </summary>
         public LayoutMetadataJson Metadata => metadata;
+        
+        /// <summary>
+        /// Gets the second layout metadata.
+        /// </summary>
+        public LayoutMetadataJson Metadata2 => metadata2;
 
         /// <summary>
-        /// Gets the current layout.
+        /// Gets the current layout (first layout).
         /// </summary>
         public Layout Layout => layout;
+        
+        /// <summary>
+        /// Gets the second layout.
+        /// </summary>
+        public Layout Layout2 => layout2;
 
         /// <summary>
         /// Notifies dependent tabs that the layout has changed (e.g., keys swapped, mappings rebuilt).
@@ -133,6 +161,42 @@ namespace Keysharp.UI
                 // Fallback to programmatic creation
                 layout = Layout.CreateStandard60PercentQwerty();
             }
+            
+            // Initialize second layout - try to load qwerty.json, fallback to programmatic creation if it doesn't exist
+            string qwertyPath = Path.Combine(layoutDir, "qwerty.json");
+            bool loadedQwerty = false;
+            
+            if (File.Exists(qwertyPath))
+            {
+                try
+                {
+                    LoadLayoutFromPath2(qwertyPath);
+                    // Ensure layout2 is initialized (fallback if load failed)
+                    if (layout2 == null)
+                    {
+                        System.Console.WriteLine("Layout2 load returned null, falling back to programmatic creation");
+                        layout2 = Layout.CreateStandard60PercentQwerty();
+                        metadata2 = new LayoutMetadataJson();
+                    }
+                    else
+                    {
+                        loadedQwerty = true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Console.WriteLine($"Exception during initial layout2 load: {ex.Message}");
+                    System.Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                    layout2 = Layout.CreateStandard60PercentQwerty();
+                    metadata2 = new LayoutMetadataJson();
+                }
+            }
+            else
+            {
+                // Fallback to programmatic creation
+                layout2 = Layout.CreateStandard60PercentQwerty();
+                metadata2 = new LayoutMetadataJson();
+            }
 
             // Create tab content without title (we'll use a Label element instead)
             tabContent = new Components.TabContent(font, "", null);
@@ -163,23 +227,23 @@ namespace Keysharp.UI
             // Calculate button height (used for all controls)
             int buttonHeight = 30;
 
-            // Create container for left-side controls (Load Layout, dropdown, and radio buttons)
-            radioButtonsContainer = new Components.Container("LeftControlsContainer");
-            radioButtonsContainer.AutoLayoutChildren = true;
-            radioButtonsContainer.LayoutDirection = Components.LayoutDirection.Horizontal;
-            radioButtonsContainer.AutoSize = false;
-            radioButtonsContainer.Bounds = new Rectangle(0, 0, 0, buttonHeight); // Height to match controls
-            radioButtonsContainer.ChildPadding = 0;
-            radioButtonsContainer.ChildGap = 15;
-            radioButtonsContainer.ChildJustification = Components.ChildJustification.Left; // Left-justify controls
-            radioButtonsContainer.PositionMode = Components.PositionMode.Relative;
+            // Create container for left-side controls (Load Layout and dropdown)
+            var leftControlsContainer = new Components.Container("LeftControlsContainer");
+            leftControlsContainer.AutoLayoutChildren = true;
+            leftControlsContainer.LayoutDirection = Components.LayoutDirection.Horizontal;
+            leftControlsContainer.AutoSize = false;
+            leftControlsContainer.Bounds = new Rectangle(0, 0, 0, buttonHeight); // Height to match controls
+            leftControlsContainer.ChildPadding = 0;
+            leftControlsContainer.ChildGap = 15;
+            leftControlsContainer.ChildJustification = Components.ChildJustification.Left; // Left-justify controls
+            leftControlsContainer.PositionMode = Components.PositionMode.Relative;
 
             // Create Load Layout button (first item on left)
             loadLayoutButton = new Components.Button(font, "Load Layout", 14);
             loadLayoutButton.Bounds = new Rectangle(0, 0, 120, buttonHeight);
             loadLayoutButton.AutoSize = false;
             loadLayoutButton.OnClick = LoadLayoutFromFile;
-            radioButtonsContainer.AddChild(loadLayoutButton);
+            leftControlsContainer.AddChild(loadLayoutButton);
 
             // Initialize layouts dropdown (second item on left)
             List<string> layoutFiles = GetLayoutFiles();
@@ -192,9 +256,31 @@ namespace Keysharp.UI
             {
                 layoutsDropdown.SetSelectedItem(initialLayoutFile);
             }
-            radioButtonsContainer.AddChild(layoutsDropdown);
+            leftControlsContainer.AddChild(layoutsDropdown);
 
-            viewControlsContainer.AddChild(radioButtonsContainer);
+            viewControlsContainer.AddChild(leftControlsContainer);
+
+            // Create container for radio buttons (view mode controls)
+            radioButtonsContainer = new Components.Container("RadioButtonsContainer");
+            radioButtonsContainer.AutoLayoutChildren = true;
+            radioButtonsContainer.LayoutDirection = Components.LayoutDirection.Horizontal;
+            radioButtonsContainer.AutoSize = false;
+            radioButtonsContainer.Bounds = new Rectangle(0, 0, 0, buttonHeight);
+            radioButtonsContainer.ChildPadding = 0;
+            radioButtonsContainer.ChildGap = 15;
+            radioButtonsContainer.ChildJustification = Components.ChildJustification.SpaceBetween;
+            radioButtonsContainer.PositionMode = Components.PositionMode.Relative;
+            
+            // Create container for left side (radio buttons)
+            var radioButtonsLeftContainer = new Components.Container("RadioButtonsLeftContainer");
+            radioButtonsLeftContainer.AutoLayoutChildren = true;
+            radioButtonsLeftContainer.LayoutDirection = Components.LayoutDirection.Horizontal;
+            radioButtonsLeftContainer.AutoSize = false;
+            radioButtonsLeftContainer.Bounds = new Rectangle(0, 0, 0, buttonHeight);
+            radioButtonsLeftContainer.ChildPadding = 0;
+            radioButtonsLeftContainer.ChildGap = 15;
+            radioButtonsLeftContainer.ChildJustification = Components.ChildJustification.Left;
+            radioButtonsLeftContainer.PositionMode = Components.PositionMode.Relative;
 
             // Create radio buttons for view modes
             const string radioGroup = "ViewMode";
@@ -220,6 +306,8 @@ namespace Keysharp.UI
                 if (selected)
                 {
                     keyboardView.ViewMode = Components.KeyboardViewMode.Regular;
+                    if (keyboardView2 != null)
+                        keyboardView2.ViewMode = Components.KeyboardViewMode.Regular;
                     // Notify side panel of view mode change
                     sidePanel?.SetViewMode(Components.KeyboardViewMode.Regular);
                 }
@@ -234,6 +322,8 @@ namespace Keysharp.UI
                 if (selected)
                 {
                     keyboardView.ViewMode = Components.KeyboardViewMode.FingerColors;
+                    if (keyboardView2 != null)
+                        keyboardView2.ViewMode = Components.KeyboardViewMode.FingerColors;
                     // Notify side panel of view mode change
                     sidePanel?.SetViewMode(Components.KeyboardViewMode.FingerColors);
                 }
@@ -248,6 +338,8 @@ namespace Keysharp.UI
                 if (selected)
                 {
                     keyboardView.ViewMode = Components.KeyboardViewMode.Heatmap;
+                    if (keyboardView2 != null)
+                        keyboardView2.ViewMode = Components.KeyboardViewMode.Heatmap;
                     UpdateHeatmapData(); // Update heatmap data when selected
                     // Notify side panel of view mode change
                     sidePanel?.SetViewMode(Components.KeyboardViewMode.Heatmap);
@@ -258,9 +350,31 @@ namespace Keysharp.UI
             // This is needed because keyboardView might be created after radio buttons
             // We'll set it again after keyboardView is created, but this ensures consistency
 
-            radioButtonsContainer.AddChild(regularRadioButton);
-            radioButtonsContainer.AddChild(fingerColorsRadioButton);
-            radioButtonsContainer.AddChild(heatmapRadioButton);
+            radioButtonsLeftContainer.AddChild(regularRadioButton);
+            radioButtonsLeftContainer.AddChild(fingerColorsRadioButton);
+            radioButtonsLeftContainer.AddChild(heatmapRadioButton);
+            
+            radioButtonsContainer.AddChild(radioButtonsLeftContainer);
+            
+            // Create checkbox for enabling second layout (right side of radio buttons container)
+            float enableSecondLayoutWidth = FontManager.MeasureText(font, "Enable Second Layout", 14) + 16 + 8; // text + checkbox + spacing
+            enableSecondLayoutCheckbox = new Components.Checkbox(font, "Enable Second Layout", 14);
+            enableSecondLayoutCheckbox.Bounds = new Rectangle(0, 0, enableSecondLayoutWidth, buttonHeight);
+            enableSecondLayoutCheckbox.AutoSize = false;
+            enableSecondLayoutCheckbox.IsChecked = false; // Default: second layout disabled
+            enableSecondLayoutCheckbox.OnCheckedChanged = (isChecked) => {
+                UpdateSecondLayoutVisibility(isChecked);
+                // Switch back to Layout 1 metadata and hide dropdown if second layout is disabled
+                if (!isChecked)
+                {
+                    sidePanel?.SwitchToLayout1MetadataAndHideDropdown();
+                }
+                else
+                {
+                    sidePanel?.ShowMetadataLayoutDropdown();
+                }
+            };
+            radioButtonsContainer.AddChild(enableSecondLayoutCheckbox);
 
             // Create container for right-side controls (Save Layout button and Show Disabled checkbox)
             var rightControlsContainer = new Components.Container("RightControlsContainer");
@@ -295,6 +409,8 @@ namespace Keysharp.UI
             showDisabledCheckbox.IsChecked = true; // Default: show disabled keys
             showDisabledCheckbox.OnCheckedChanged = (isChecked) => {
                 keyboardView.ShowDisabledKeys = isChecked;
+                if (keyboardView2 != null)
+                    keyboardView2.ShowDisabledKeys = isChecked;
             };
             rightControlsContainer.AddChild(showDisabledCheckbox);
 
@@ -323,6 +439,7 @@ namespace Keysharp.UI
                 if (currentSidePanel != null)
                 {
                     currentSidePanel.SetLayout(layout); // Set layout reference for rebuilding mappings
+                    currentSidePanel.SetKeyboardView(keyboardView); // Set keyboardView for HSV color controls
                     currentSidePanel.SetSelectedKeys(keys);
                 }
             };
@@ -333,6 +450,7 @@ namespace Keysharp.UI
                 if (currentSidePanel != null)
                 {
                     currentSidePanel.SetLayout(layout);
+                    currentSidePanel.SetKeyboardView(keyboardView); // Set keyboardView for HSV color controls
                     currentSidePanel.SetSelectedKey(key);
                 }
             };
@@ -343,12 +461,132 @@ namespace Keysharp.UI
             };
             
             keyboardCanvas.AddChild(keyboardView);
+            
+            // Create second layout controls container (similar structure to first)
+            layoutControlsContainer2 = new Components.Container("LayoutControlsContainer2");
+            layoutControlsContainer2.AutoLayoutChildren = true;
+            layoutControlsContainer2.LayoutDirection = Components.LayoutDirection.Horizontal;
+            layoutControlsContainer2.AutoSize = false;
+            layoutControlsContainer2.Bounds = new Rectangle(0, 0, 0, buttonHeight);
+            layoutControlsContainer2.ChildPadding = 0;
+            layoutControlsContainer2.ChildGap = 15;
+            layoutControlsContainer2.ChildJustification = Components.ChildJustification.SpaceBetween;
+            layoutControlsContainer2.PositionMode = Components.PositionMode.Relative;
+            
+            // Create container for left-side controls (Load Layout and dropdown)
+            var leftControlsContainer2 = new Components.Container("LeftControlsContainer2");
+            leftControlsContainer2.AutoLayoutChildren = true;
+            leftControlsContainer2.LayoutDirection = Components.LayoutDirection.Horizontal;
+            leftControlsContainer2.AutoSize = false;
+            leftControlsContainer2.Bounds = new Rectangle(0, 0, 0, buttonHeight);
+            leftControlsContainer2.ChildPadding = 0;
+            leftControlsContainer2.ChildGap = 15;
+            leftControlsContainer2.ChildJustification = Components.ChildJustification.Left;
+            leftControlsContainer2.PositionMode = Components.PositionMode.Relative;
+            
+            // Create Load Layout button for second layout (first item on left)
+            loadLayoutButton2 = new Components.Button(font, "Load Layout", 14);
+            loadLayoutButton2.Bounds = new Rectangle(0, 0, 120, buttonHeight);
+            loadLayoutButton2.AutoSize = false;
+            loadLayoutButton2.OnClick = LoadLayoutFromFile2;
+            leftControlsContainer2.AddChild(loadLayoutButton2);
+            
+            // Initialize second layouts dropdown (second item on left)
+            layoutsDropdown2 = new Components.Dropdown(font, layoutFiles, 14);
+            layoutsDropdown2.SetBounds(new Rectangle(0, 0, 200, buttonHeight));
+            layoutsDropdown2.AutoSize = false;
+            layoutsDropdown2.OnSelectionChanged = OnLayoutSelected2;
+            // Set initial selection if we loaded qwerty.json
+            if (loadedQwerty && layoutFiles.Contains("qwerty.json"))
+            {
+                layoutsDropdown2.SetSelectedItem("qwerty.json");
+            }
+            leftControlsContainer2.AddChild(layoutsDropdown2);
+            
+            layoutControlsContainer2.AddChild(leftControlsContainer2);
+            
+            // Create container for right-side controls (Save Layout and Add Key buttons)
+            var rightControlsContainer2 = new Components.Container("RightControlsContainer2");
+            rightControlsContainer2.AutoLayoutChildren = true;
+            rightControlsContainer2.LayoutDirection = Components.LayoutDirection.Horizontal;
+            rightControlsContainer2.AutoSize = false;
+            rightControlsContainer2.Bounds = new Rectangle(0, 0, 0, buttonHeight);
+            rightControlsContainer2.ChildPadding = 0;
+            rightControlsContainer2.ChildGap = 15;
+            rightControlsContainer2.ChildJustification = Components.ChildJustification.Right;
+            rightControlsContainer2.PositionMode = Components.PositionMode.Relative;
+            
+            // Create Save Layout button for second layout (first item on right)
+            saveLayoutButton2 = new Components.Button(font, "Save Layout", 14);
+            saveLayoutButton2.Bounds = new Rectangle(0, 0, 120, buttonHeight);
+            saveLayoutButton2.AutoSize = false;
+            saveLayoutButton2.OnClick = SaveLayoutToJson2;
+            rightControlsContainer2.AddChild(saveLayoutButton2);
+            
+            // Create Add Key button for second layout (after Save Layout)
+            addKeyButton2 = new Components.Button(font, "Add Key", 14);
+            addKeyButton2.Bounds = new Rectangle(0, 0, 100, buttonHeight);
+            addKeyButton2.AutoSize = false;
+            addKeyButton2.OnClick = AddNewKey2;
+            rightControlsContainer2.AddChild(addKeyButton2);
+            
+            layoutControlsContainer2.AddChild(rightControlsContainer2);
+            
+            // Create second canvas to hold the second keyboard view
+            keyboardCanvas2 = new Components.Canvas("KeyboardCanvas2");
+            keyboardCanvas2.AutoSize = true; // Auto-size to fit keyboard
+            keyboardCanvas2.AutoLayoutChildren = true; // Enable layout to calculate size
+            keyboardCanvas2.PositionMode = Components.PositionMode.Relative;
+            
+            // Create second keyboard layout view
+            keyboardView2 = new Components.KeyboardLayoutView(font);
+            keyboardView2.Layout = layout2;
+            keyboardView2.PositionMode = Components.PositionMode.Relative;
+            keyboardView2.ShowDisabledKeys = true; // Default: show disabled keys
+            keyboardView2.ViewMode = Components.KeyboardViewMode.Heatmap; // Default to heatmap view (matches first view)
+            keyboardView2.OnSelectedKeysChanged = (keys) => {
+                System.Console.WriteLine($"LayoutTab.OnSelectedKeysChanged callback (layout 2): {keys?.Count ?? 0} keys");
+                var currentSidePanel = SidePanel;
+                System.Console.WriteLine($"LayoutTab: currentSidePanel is {(currentSidePanel != null ? "not null" : "null")}");
+                if (currentSidePanel != null)
+                {
+                    currentSidePanel.SetLayout(layout2); // Set layout2 reference for editing
+                    currentSidePanel.SetKeyboardView(keyboardView2, isLayout2: true); // Set keyboardView2 for HSV color controls
+                    currentSidePanel.SetSelectedKeys(keys, isLayout2: true);
+                }
+            };
+            
+            // Legacy callback for backwards compatibility
+            keyboardView2.OnSelectedKeyChanged = (key) => {
+                var currentSidePanel = SidePanel;
+                if (currentSidePanel != null)
+                {
+                    currentSidePanel.SetLayout(layout2); // Set layout2 reference for editing
+                    currentSidePanel.SetKeyboardView(keyboardView2, isLayout2: true); // Set keyboardView2 for HSV color controls
+                    currentSidePanel.SetSelectedKey(key, isLayout2: true);
+                }
+            };
+            
+            // Notify when keys are swapped in second layout
+            keyboardView2.OnKeysSwapped = () => {
+                // Only update corpus tab if layout2 changes? Actually, corpus tab uses first layout only
+                // So we don't need to call NotifyLayoutChanged() here
+            };
+            
+            keyboardCanvas2.AddChild(keyboardView2);
+            
             tabContent.AddChild(titleLabel);
+            tabContent.AddChild(radioButtonsContainer);
             tabContent.AddChild(viewControlsContainer);
             tabContent.AddChild(keyboardCanvas);
+            tabContent.AddChild(layoutControlsContainer2);
+            tabContent.AddChild(keyboardCanvas2);
             
             // Initially hide the checkbox if there are no disabled keys
             UpdateShowDisabledCheckboxVisibility();
+            
+            // Initially hide second layout (checkbox is unchecked by default)
+            UpdateSecondLayoutVisibility(false);
             
             // Set keyboard view reference in side panel for HSV color controls
             if (sidePanel != null)
@@ -394,6 +632,18 @@ namespace Keysharp.UI
                 // Note: showDisabledCheckbox width is set in InitializeUI, no need to update here
             }
 
+            // Set radio buttons container width
+            if (radioButtonsContainer != null)
+            {
+                radioButtonsContainer.Bounds = new Rectangle(0, 0, availableWidth, 30);
+            }
+
+            // Set second layout controls container width
+            if (layoutControlsContainer2 != null)
+            {
+                layoutControlsContainer2.Bounds = new Rectangle(0, 0, availableWidth, 30);
+            }
+
             // Set keyboard view initial size calculation (width/height will be calculated in ResolveBounds)
             // We just need to trigger the initial calculation
             if (keyboardView.Layout != null && keyboardView.Bounds.Width <= 0)
@@ -414,8 +664,31 @@ namespace Keysharp.UI
                 }
             }
 
-            // Align the keyboard view to top-left within the canvas using relative position
+            // Set second keyboard view initial size calculation
+            if (keyboardView2 != null && keyboardView2.Layout != null && keyboardView2.Bounds.Width <= 0)
+            {
+                // Calculate the bounding box of all keys to set initial size
+                float maxX = 0;
+                float maxY = 0;
+                foreach (var key in keyboardView2.Layout.GetPhysicalKeys())
+                {
+                    float keyRight = key.X + key.Width;
+                    float keyBottom = key.Y + key.Height;
+                    if (keyRight > maxX) maxX = keyRight;
+                    if (keyBottom > maxY) maxY = keyBottom;
+                }
+                if (maxX > 0 && maxY > 0)
+                {
+                    keyboardView2.Bounds = new Rectangle(0, 0, maxX * keyboardView2.PixelsPerU + 40, maxY * keyboardView2.PixelsPerU + 40);
+                }
+            }
+
+            // Align the keyboard views to top-left within their canvases using relative position
             keyboardView.RelativePosition = new System.Numerics.Vector2(0, 0);
+            if (keyboardView2 != null)
+            {
+                keyboardView2.RelativePosition = new System.Numerics.Vector2(0, 0);
+            }
         }
 
         /// <summary>
@@ -424,12 +697,12 @@ namespace Keysharp.UI
         /// </summary>
         public void ConstrainCanvasWidth(Rectangle contentArea)
         {
+            // Calculate available width accounting for padding
+            float availableWidth = contentArea.Width - (tabContent.ChildPadding * 2);
+            
+            // Constrain first canvas width if it exceeds available space
             if (keyboardCanvas != null)
             {
-                // Calculate available width accounting for padding
-                float availableWidth = contentArea.Width - (tabContent.ChildPadding * 2);
-                
-                // Constrain canvas width if it exceeds available space
                 if (keyboardCanvas.Bounds.Width > availableWidth)
                 {
                     keyboardCanvas.Bounds = new Rectangle(
@@ -437,6 +710,20 @@ namespace Keysharp.UI
                         keyboardCanvas.Bounds.Y,
                         availableWidth,
                         keyboardCanvas.Bounds.Height
+                    );
+                }
+            }
+            
+            // Constrain second canvas width if it exceeds available space
+            if (keyboardCanvas2 != null)
+            {
+                if (keyboardCanvas2.Bounds.Width > availableWidth)
+                {
+                    keyboardCanvas2.Bounds = new Rectangle(
+                        keyboardCanvas2.Bounds.X,
+                        keyboardCanvas2.Bounds.Y,
+                        availableWidth,
+                        keyboardCanvas2.Bounds.Height
                     );
                 }
             }
@@ -450,10 +737,11 @@ namespace Keysharp.UI
         public void UpdateFont(Font newFont)
         {
             font = newFont;
-            // Update font in keyboard view
+            // Update font in keyboard views
             keyboardView.UpdateFont(newFont);
+            keyboardView2?.UpdateFont(newFont);
             // Update font in title label (would need UpdateFont in Label component)
-            // For now, just update the keyboard view which is most visible
+            // For now, just update the keyboard views which are most visible
         }
 
         public void UpdateShowDisabledCheckboxVisibility()
@@ -463,6 +751,18 @@ namespace Keysharp.UI
                 // Check if any keys in the layout are disabled
                 bool hasDisabledKeys = layout.GetPhysicalKeys().Any(key => key.Disabled);
                 showDisabledCheckbox.IsVisible = hasDisabledKeys;
+            }
+        }
+
+        private void UpdateSecondLayoutVisibility(bool isVisible)
+        {
+            if (layoutControlsContainer2 != null)
+            {
+                layoutControlsContainer2.IsVisible = isVisible;
+            }
+            if (keyboardCanvas2 != null)
+            {
+                keyboardCanvas2.IsVisible = isVisible;
             }
         }
 
@@ -490,6 +790,8 @@ namespace Keysharp.UI
                 // Heatmap mode but radio button not selected - user must have manually changed view mode
                 // Switch to regular view
                 keyboardView.ViewMode = Components.KeyboardViewMode.Regular;
+                if (keyboardView2 != null)
+                    keyboardView2.ViewMode = Components.KeyboardViewMode.Regular;
                 if (regularRadioButton != null)
                 {
                     regularRadioButton.IsSelected = true;
@@ -515,6 +817,7 @@ namespace Keysharp.UI
             if (corpusTab == null)
             {
                 keyboardView.SetMonogramCounts(null);
+                keyboardView2?.SetMonogramCounts(null);
                 return;
             }
 
@@ -528,10 +831,12 @@ namespace Keysharp.UI
                     counts[kvp.Key] = kvp.Value;
                 }
                 keyboardView.SetMonogramCounts(counts);
+                keyboardView2?.SetMonogramCounts(counts);
             }
             else
             {
                 keyboardView.SetMonogramCounts(null);
+                keyboardView2?.SetMonogramCounts(null);
             }
         }
 
@@ -598,8 +903,9 @@ namespace Keysharp.UI
 
                         System.Console.WriteLine($"Layout saved to: {filePath}");
 
-                        // Refresh layouts dropdown
+                        // Refresh layouts dropdowns
                         RefreshLayoutsDropdown();
+                        RefreshLayoutsDropdown2();
                     }
                     else
                     {
@@ -801,6 +1107,129 @@ namespace Keysharp.UI
             }
         }
 
+        private void OnLayoutSelected2(string layoutFile)
+        {
+            // Prevent recursive loading
+            if (isLoadingLayout2)
+                return;
+                
+            string layoutDir = Path.Combine(Directory.GetCurrentDirectory(), "layouts");
+            string fullPath = Path.Combine(layoutDir, layoutFile);
+
+            if (File.Exists(fullPath))
+            {
+                LoadLayoutFromPath2(fullPath);
+            }
+        }
+
+        private void LoadLayoutFromPath2(string filePath)
+        {
+            // Prevent recursive loading and loading the same file twice
+            string normalizedPath = Path.GetFullPath(filePath);
+            if (isLoadingLayout2 || currentlyLoadedFile2 == normalizedPath)
+                return;
+                
+            isLoadingLayout2 = true;
+            string? previousFile = currentlyLoadedFile2;
+            currentlyLoadedFile2 = normalizedPath;
+            try
+            {
+                System.Console.WriteLine($"Loading second layout from: {filePath}");
+                
+                // Read JSON file
+                string json = File.ReadAllText(filePath);
+                System.Console.WriteLine($"Read {json.Length} characters from file");
+
+                // Deserialize JSON
+                var layoutJson = JsonSerializer.Deserialize<LayoutJson>(json);
+                if (layoutJson == null)
+                {
+                    System.Console.WriteLine("Failed to deserialize layout JSON");
+                    isLoadingLayout2 = false;
+                    return;
+                }
+                
+                System.Console.WriteLine($"Deserialized JSON: {layoutJson.Keys.Count} keys");
+
+                // Convert JSON DTO to Layout
+                var newLayout = layoutJson.ToLayout();
+                System.Console.WriteLine($"Converted to Layout: {newLayout.PhysicalKeyCount} physical keys, {newLayout.MappingCount} mappings");
+
+                // Load metadata if present
+                if (layoutJson.Metadata != null)
+                {
+                    metadata2 = layoutJson.Metadata;
+                }
+                else
+                {
+                    // Initialize default metadata if not present
+                    metadata2 = new LayoutMetadataJson();
+                }
+
+                // Update the second layout
+                layout2 = newLayout;
+                
+                // Update keyboardView2 if it exists
+                if (keyboardView2 != null)
+                {
+                    keyboardView2.Layout = layout2;
+                }
+
+                // Update dropdown selection if this is a file from the layouts directory
+                string layoutDir = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "layouts"));
+                string fullFilePath = Path.GetFullPath(filePath);
+                if (fullFilePath.StartsWith(layoutDir, StringComparison.Ordinal))
+                {
+                    string fileName = Path.GetFileName(filePath);
+                    if (layoutsDropdown2 != null)
+                    {
+                        // Only update if it's different to avoid unnecessary work
+                        if (layoutsDropdown2.SelectedItem != fileName)
+                        {
+                            // Temporarily remove the callback to prevent recursion when programmatically setting selection
+                            var oldCallback = layoutsDropdown2.OnSelectionChanged;
+                            layoutsDropdown2.OnSelectionChanged = null;
+                            
+                            // Refresh the dropdown items first in case the file list changed
+                            RefreshLayoutsDropdown2();
+                            // Then set the selection (this won't trigger callback since we removed it)
+                            layoutsDropdown2.SetSelectedItem(fileName);
+                            
+                            // Restore the callback
+                            layoutsDropdown2.OnSelectionChanged = oldCallback;
+                        }
+                    }
+                }
+
+                System.Console.WriteLine($"Second layout loaded from: {filePath}");
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"Error loading second layout: {ex.Message}");
+                System.Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                // If loading fails, fallback to programmatic creation
+                if (layout2 == null)
+                {
+                    System.Console.WriteLine("Falling back to programmatic layout creation for second layout");
+                    layout2 = Layout.CreateStandard60PercentQwerty();
+                    metadata2 = new LayoutMetadataJson();
+                }
+            }
+            finally
+            {
+                isLoadingLayout2 = false;
+                // Only clear currentlyLoadedFile2 if we successfully loaded, otherwise restore previous
+                if (layout2 != null)
+                {
+                    // Keep currentlyLoadedFile2 set
+                }
+                else
+                {
+                    currentlyLoadedFile2 = previousFile;
+                }
+            }
+        }
+
         private void AddNewKey()
         {
             if (layout == null)
@@ -887,6 +1316,204 @@ namespace Keysharp.UI
             {
                 List<string> layoutFiles = GetLayoutFiles();
                 layoutsDropdown.SetItems(layoutFiles);
+            }
+        }
+
+        private void RefreshLayoutsDropdown2()
+        {
+            if (layoutsDropdown2 != null)
+            {
+                List<string> layoutFiles = GetLayoutFiles();
+                layoutsDropdown2.SetItems(layoutFiles);
+            }
+        }
+
+        private void SaveLayoutToJson2()
+        {
+            if (layout2 == null)
+                return;
+
+            try
+            {
+                // Use zenity for file save dialog on Linux
+                ProcessStartInfo startInfo = new ProcessStartInfo
+                {
+                    FileName = "zenity",
+                    Arguments = "--file-selection --title=\"Save Layout File (Layout 2)\" --save --confirm-overwrite",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    CreateNoWindow = true
+                };
+
+                Process? process = Process.Start(startInfo);
+                if (process != null)
+                {
+                    string? output = process.StandardOutput.ReadToEnd();
+                    process.WaitForExit();
+
+                    if (process.ExitCode == 0 && !string.IsNullOrWhiteSpace(output))
+                    {
+                        string filePath = output.Trim();
+                        if (!filePath.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+                        {
+                            filePath += ".json";
+                        }
+
+                        // Convert layout2 to JSON DTO (include metadata2)
+                        var layoutJson = LayoutJson.FromLayout(layout2, metadata2);
+
+                        // Serialize to JSON
+                        var options = new JsonSerializerOptions
+                        {
+                            WriteIndented = true
+                        };
+                        string json = JsonSerializer.Serialize(layoutJson, options);
+
+                        // Write JSON file
+                        File.WriteAllText(filePath, json);
+
+                        System.Console.WriteLine($"Layout 2 saved to: {filePath}");
+
+                        // Refresh layouts dropdowns
+                        RefreshLayoutsDropdown();
+                        RefreshLayoutsDropdown2();
+                    }
+                    else
+                    {
+                        System.Console.WriteLine("Layout 2 save cancelled");
+                    }
+                }
+                else
+                {
+                    System.Console.WriteLine("zenity not available for file save dialog");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"Error saving layout 2: {ex.Message}");
+            }
+        }
+
+        private void LoadLayoutFromFile2()
+        {
+            try
+            {
+                // Use zenity for file open dialog on Linux
+                ProcessStartInfo startInfo = new ProcessStartInfo
+                {
+                    FileName = "zenity",
+                    Arguments = "--file-selection --title=\"Load Layout File (Layout 2)\"",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    CreateNoWindow = true
+                };
+
+                Process? process = Process.Start(startInfo);
+                if (process != null)
+                {
+                    string? output = process.StandardOutput.ReadToEnd();
+                    process.WaitForExit();
+
+                    if (process.ExitCode == 0 && !string.IsNullOrWhiteSpace(output))
+                    {
+                        string filePath = output.Trim();
+                        LoadLayoutFromPath2(filePath);
+                    }
+                    else
+                    {
+                        System.Console.WriteLine("Layout 2 load cancelled");
+                    }
+                }
+                else
+                {
+                    System.Console.WriteLine("zenity not available for file open dialog");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"Error loading layout 2: {ex.Message}");
+            }
+        }
+
+        private void AddNewKey2()
+        {
+            if (layout2 == null)
+                return;
+
+            // Find the bottom-rightmost key (key with highest bottom Y, and if tie, highest right X)
+            // NOTE: We should consider ALL keys (including disabled ones) when determining placement
+            float maxBottomY = float.MinValue;
+            float maxRightX = float.MinValue;
+            PhysicalKey? bottomRightmostKey = null;
+            bool hasKeys = false;
+
+            foreach (var key in layout2.GetPhysicalKeys())
+            {
+                float rightX = key.X + key.Width;
+                float bottomY = key.Y + key.Height;
+
+                // Check if this key is further down, or same row but further right
+                if (bottomY > maxBottomY || (bottomY == maxBottomY && rightX > maxRightX))
+                {
+                    maxBottomY = bottomY;
+                    maxRightX = rightX;
+                    bottomRightmostKey = key;
+                }
+
+                hasKeys = true;
+            }
+
+            // Calculate position for new key: aligned with the right edge of the bottom-rightmost key
+            // Use maxRightX directly since we already computed the right edge
+            float newX = hasKeys ? maxRightX : 0.0f;
+            float newY = hasKeys && bottomRightmostKey != null ? bottomRightmostKey.Y : 0.0f; // Same Y level (same row)
+
+            // Auto-generate identifier (Key1, Key2, etc.)
+            int keyNumber = 1;
+            string identifier;
+            bool identifierExists = true;
+            while (identifierExists)
+            {
+                identifier = $"Key{keyNumber}";
+                identifierExists = false;
+                foreach (var key in layout2.GetPhysicalKeys())
+                {
+                    if (key.Identifier == identifier)
+                    {
+                        identifierExists = true;
+                        keyNumber++;
+                        break;
+                    }
+                }
+                if (!identifierExists)
+                {
+                    identifier = $"Key{keyNumber}";
+                    break;
+                }
+            }
+            identifier = $"Key{keyNumber}";
+
+            // Create new key with default properties
+            var newKey = new Core.PhysicalKey(
+                x: newX,
+                y: newY,
+                width: 1.0f,  // 1U width
+                height: 1.0f, // 1U height
+                finger: Core.Finger.LeftIndex, // Default finger
+                identifier: identifier
+            );
+            // Characters are empty by default (PrimaryCharacter and ShiftCharacter are null)
+
+            // Add key to layout2
+            layout2.AddPhysicalKey(newKey);
+            layout2.RebuildMappings();
+
+            // Update keyboard view
+            if (keyboardView2 != null)
+            {
+                keyboardView2.Layout = layout2; // This will clear cache and force redraw
+                // Select the new key
+                keyboardView2.SelectedKey = newKey;
             }
         }
     }

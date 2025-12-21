@@ -37,8 +37,48 @@ namespace Keysharp.UI
         private Components.Label? placeholderLabel;
         private HashSet<Keysharp.Core.PhysicalKey> selectedKeys = new HashSet<Keysharp.Core.PhysicalKey>();
         private Core.Layout? layout; // Reference to layout for rebuilding mappings
+        
+        // Second layout key info fields
+        private Components.Container? keyInfoContainer2;
+        private Components.Label? titleLabel2;
+        private Components.Label? identifierLabel2;
+        private Components.TextInput? identifierInput2;
+        private Components.Container? identifierRowContainer2;
+        private Components.Label? positionLabel2;
+        private Components.TextInput? positionXInput2;
+        private Components.TextInput? positionYInput2;
+        private Components.Label? sizeLabel2;
+        private Components.TextInput? sizeWidthInput2;
+        private Components.TextInput? sizeHeightInput2;
+        private Components.Label? rotationLabel2;
+        private Components.TextInput? rotationInput2;
+        private Components.Label? fingerLabel2;
+        private Components.Dropdown? fingerDropdown2;
+        private Components.Label? primaryCharacterLabel2;
+        private Components.TextInput? primaryCharacterInput2;
+        private Components.Container? primaryCharacterRowContainer2;
+        private Components.Label? shiftCharacterLabel2;
+        private Components.TextInput? shiftCharacterInput2;
+        private Components.Container? shiftCharacterRowContainer2;
+        private Components.Checkbox? shiftAutoCheckbox2;
+        private Components.Label? shiftAutoLabel2;
+        private Components.Label? disabledLabel2;
+        private Components.Checkbox? disabledCheckbox2;
+        private Components.Button? deleteKeyButton2;
+        private Components.Label? placeholderLabel2;
+        private HashSet<Keysharp.Core.PhysicalKey> selectedKeys2 = new HashSet<Keysharp.Core.PhysicalKey>();
+        private Components.KeyboardLayoutView? keyboardView2; // Reference to keyboard view 2 for cache invalidation
+        private bool isEditingLayout1 = true; // Track which layout's keys we're currently editing
         private bool isUpdatingFromKey = false; // Flag to prevent circular updates
         private LayoutTab? layoutTab; // Reference to layout tab for updating checkbox visibility
+        
+        // Scrolling
+        private float scrollOffset = 0f; // Current scroll offset (positive = scrolled down)
+        private const float ScrollSpeed = 20f; // Pixels per scroll wheel tick
+        private const int ScrollbarWidth = 12; // Width of the scrollbar
+        private bool isDraggingScrollbar = false;
+        private int scrollbarDragStartY = 0;
+        private float scrollbarDragStartOffset = 0f;
         
         // HSV color controls for heatmap
         private Components.Container? colorControlsContainer;
@@ -57,6 +97,8 @@ namespace Keysharp.UI
         // Layout metadata controls
         private Components.Container? metadataContainer;
         private Components.Label? metadataHeaderLabel;
+        private Components.Dropdown? metadataLayoutDropdown;
+        private bool editingLayout1Metadata = true; // Track which layout's metadata we're editing
         private Components.TextInput? displayNameInput;
         private Components.TextInput? authorsInput;
         private Components.TextInput? creationDateInput;
@@ -64,6 +106,12 @@ namespace Keysharp.UI
 
         public SidePanel(Font font) : base(font, "SidePanel")
         {
+            // Disable auto-layout for SidePanel - we manually position containers in ResolveBounds()
+            AutoLayoutChildren = false;
+            LayoutDirection = Components.LayoutDirection.Vertical;
+            ChildGap = 0; // No gap between main containers (they handle their own spacing)
+            ChildPadding = 10; // Padding around all children
+            
             // Create metadata container (first)
             metadataContainer = new Components.Container("MetadataContainer");
             metadataContainer.AutoLayoutChildren = true;
@@ -81,13 +129,26 @@ namespace Keysharp.UI
             metadataHeaderLabel.PositionMode = Components.PositionMode.Relative;
             metadataContainer.AddChild(metadataHeaderLabel);
 
+            // Create dropdown to switch between Layout 1 and Layout 2 metadata
+            List<string> layoutOptions = new List<string> { "Layout 1", "Layout 2" };
+            metadataLayoutDropdown = new Components.Dropdown(Font, layoutOptions, 14);
+            metadataLayoutDropdown.SetBounds(new Rectangle(0, 0, 0, 30));
+            metadataLayoutDropdown.AutoSize = false;
+            metadataLayoutDropdown.SetSelectedItem("Layout 1"); // Default to Layout 1
+            metadataLayoutDropdown.IsVisible = false; // Hidden by default (second layout is disabled by default)
+            metadataLayoutDropdown.OnSelectionChanged = (selected) => {
+                SwitchMetadataLayout(selected == "Layout 1");
+            };
+            metadataContainer.AddChild(metadataLayoutDropdown);
+
             // Create Display Name row
             var displayNameRow = CreateInfoRowWithInput(font, "Display Name:");
             displayNameInput = displayNameRow.input;
             displayNameInput.OnTextChanged = (text) => {
                 if (layoutTab != null)
                 {
-                    layoutTab.Metadata.DisplayName = string.IsNullOrEmpty(text) ? null : text;
+                    var metadata = editingLayout1Metadata ? layoutTab.Metadata : layoutTab.Metadata2;
+                    metadata.DisplayName = string.IsNullOrEmpty(text) ? null : text;
                 }
             };
             metadataContainer.AddChild(displayNameRow.container);
@@ -98,9 +159,10 @@ namespace Keysharp.UI
             authorsInput.OnTextChanged = (text) => {
                 if (layoutTab != null)
                 {
+                    var metadata = editingLayout1Metadata ? layoutTab.Metadata : layoutTab.Metadata2;
                     if (string.IsNullOrEmpty(text))
                     {
-                        layoutTab.Metadata.Authors.Clear();
+                        metadata.Authors.Clear();
                     }
                     else
                     {
@@ -109,7 +171,7 @@ namespace Keysharp.UI
                             .Select(a => a.Trim())
                             .Where(a => !string.IsNullOrEmpty(a))
                             .ToList();
-                        layoutTab.Metadata.Authors = authors;
+                        metadata.Authors = authors;
                     }
                 }
             };
@@ -121,7 +183,8 @@ namespace Keysharp.UI
             creationDateInput.OnTextChanged = (text) => {
                 if (layoutTab != null)
                 {
-                    layoutTab.Metadata.CreationDate = string.IsNullOrEmpty(text) ? null : text;
+                    var metadata = editingLayout1Metadata ? layoutTab.Metadata : layoutTab.Metadata2;
+                    metadata.CreationDate = string.IsNullOrEmpty(text) ? null : text;
                 }
             };
             metadataContainer.AddChild(creationDateRow.container);
@@ -132,7 +195,8 @@ namespace Keysharp.UI
             descriptionInput.OnTextChanged = (text) => {
                 if (layoutTab != null)
                 {
-                    layoutTab.Metadata.Description = string.IsNullOrEmpty(text) ? null : text;
+                    var metadata = editingLayout1Metadata ? layoutTab.Metadata : layoutTab.Metadata2;
+                    metadata.Description = string.IsNullOrEmpty(text) ? null : text;
                 }
             };
             metadataContainer.AddChild(descriptionRow.container);
@@ -694,6 +758,496 @@ namespace Keysharp.UI
 
             // Initially show placeholder, hide info rows
             UpdateKeyInfo();
+            
+            // Initially hide container (no keys selected yet)
+            if (keyInfoContainer != null)
+            {
+                keyInfoContainer.IsVisible = false;
+            }
+            
+            // Create second key info container for layout 2 (duplicate of first)
+            CreateKeyInfoContainer2(font);
+            
+            // Initially hide container (no keys selected yet)
+            if (keyInfoContainer2 != null)
+            {
+                keyInfoContainer2.IsVisible = false;
+            }
+        }
+        
+        private void CreateKeyInfoContainer2(Font font)
+        {
+            // Create main container for key info 2 (last)
+            keyInfoContainer2 = new Components.Container("KeyInfoContainer2");
+            keyInfoContainer2.AutoLayoutChildren = true;
+            keyInfoContainer2.LayoutDirection = Components.LayoutDirection.Vertical;
+            keyInfoContainer2.AutoSize = true;
+            keyInfoContainer2.ChildPadding = 0; // No padding, outer container handles it
+            keyInfoContainer2.ChildGap = 12;
+            keyInfoContainer2.PositionMode = Components.PositionMode.Relative;
+            AddChild(keyInfoContainer2);
+
+            // Create placeholder label for when no key is selected (add first so it appears at top)
+            placeholderLabel2 = new Components.Label(font, "Click a key to view its information (Layout 2)", 14, null, Components.Label.TextAlignment.Center);
+            placeholderLabel2.AutoSize = false;
+            placeholderLabel2.Bounds = new Rectangle(0, 0, 0, 18);
+            placeholderLabel2.PositionMode = Components.PositionMode.Relative;
+            keyInfoContainer2.AddChild(placeholderLabel2);
+
+            // Create title label
+            titleLabel2 = new Components.Label(font, "Key Information (Layout 2)", 18);
+            titleLabel2.AutoSize = false;
+            titleLabel2.Bounds = new Rectangle(0, 0, 0, 24);
+            titleLabel2.PositionMode = Components.PositionMode.Relative;
+            keyInfoContainer2.AddChild(titleLabel2);
+
+            // Create identifier row (editable)
+            var identifierRow2 = CreateInfoRowWithInput(font, "Identifier:");
+            identifierLabel2 = identifierRow2.label;
+            identifierInput2 = identifierRow2.input;
+            identifierRowContainer2 = identifierRow2.container;
+            identifierInput2.OnTextChanged = (text) => {
+                if (!isUpdatingFromKey && selectedKeys2.Count == 1)
+                {
+                    var key = selectedKeys2.First();
+                    key.Identifier = string.IsNullOrEmpty(text) ? null : text;
+                }
+            };
+            keyInfoContainer2.AddChild(identifierRowContainer2);
+
+            // Create position row with two inputs (X and Y)
+            positionLabel2 = new Components.Label(font, "Position:", 14);
+            positionLabel2.AutoSize = false;
+            positionLabel2.Bounds = new Rectangle(0, 0, 90, 18);
+            positionLabel2.PositionMode = Components.PositionMode.Relative;
+            
+            var positionContainer2 = new Components.Container("PositionContainer2");
+            positionContainer2.AutoLayoutChildren = true;
+            positionContainer2.LayoutDirection = Components.LayoutDirection.Horizontal;
+            positionContainer2.AutoSize = false;
+            positionContainer2.ChildPadding = 0;
+            positionContainer2.ChildGap = 8;
+            positionContainer2.PositionMode = Components.PositionMode.Relative;
+            
+            positionXInput2 = new Components.TextInput(font, "0.00", 14);
+            positionXInput2.Bounds = new Rectangle(0, 0, 80, 24);
+            positionXInput2.AutoSize = false;
+            positionXInput2.EnableScrollIncrement = true;
+            positionXInput2.OnTextChanged = (text) => {
+                if (!isUpdatingFromKey && selectedKeys2.Count > 0 && float.TryParse(text, out float value))
+                {
+                    PhysicalKey? refKey = null;
+                    float minX = float.MaxValue;
+                    float minY = float.MaxValue;
+                    foreach (var key in selectedKeys2)
+                    {
+                        if (key.X < minX || (key.X == minX && key.Y < minY))
+                        {
+                            minX = key.X;
+                            minY = key.Y;
+                            refKey = key;
+                        }
+                    }
+                    if (refKey != null)
+                    {
+                        float offsetX = value - refKey.X;
+                        foreach (var key in selectedKeys2)
+                        {
+                            key.X += offsetX;
+                            keyboardView2?.InvalidateKeyCache(key);
+                        }
+                    }
+                }
+            };
+            
+            positionYInput2 = new Components.TextInput(font, "0.00", 14);
+            positionYInput2.Bounds = new Rectangle(0, 0, 80, 24);
+            positionYInput2.AutoSize = false;
+            positionYInput2.EnableScrollIncrement = true;
+            positionYInput2.OnTextChanged = (text) => {
+                if (!isUpdatingFromKey && selectedKeys2.Count > 0 && float.TryParse(text, out float value))
+                {
+                    PhysicalKey? refKey = null;
+                    float minX = float.MaxValue;
+                    float minY = float.MaxValue;
+                    foreach (var key in selectedKeys2)
+                    {
+                        if (key.X < minX || (key.X == minX && key.Y < minY))
+                        {
+                            minX = key.X;
+                            minY = key.Y;
+                            refKey = key;
+                        }
+                    }
+                    if (refKey != null)
+                    {
+                        float offsetY = value - refKey.Y;
+                        foreach (var key in selectedKeys2)
+                        {
+                            key.Y += offsetY;
+                            keyboardView2?.InvalidateKeyCache(key);
+                        }
+                    }
+                }
+            };
+            
+            positionContainer2.AddChild(positionXInput2);
+            positionContainer2.AddChild(positionYInput2);
+            
+            var positionRowContainer2 = new Components.Container("PositionRowContainer2");
+            positionRowContainer2.AutoLayoutChildren = true;
+            positionRowContainer2.LayoutDirection = Components.LayoutDirection.Horizontal;
+            positionRowContainer2.AutoSize = false;
+            positionRowContainer2.Bounds = new Rectangle(0, 0, 0, 24);
+            positionRowContainer2.ChildPadding = 0;
+            positionRowContainer2.ChildGap = 8;
+            positionRowContainer2.ChildJustification = Components.ChildJustification.Left;
+            positionRowContainer2.PositionMode = Components.PositionMode.Relative;
+            positionRowContainer2.AddChild(positionLabel2);
+            positionRowContainer2.AddChild(positionContainer2);
+            keyInfoContainer2.AddChild(positionRowContainer2);
+
+            // Create size row with two inputs (Width and Height)
+            sizeLabel2 = new Components.Label(font, "Size:", 14);
+            sizeLabel2.AutoSize = false;
+            sizeLabel2.Bounds = new Rectangle(0, 0, 90, 18);
+            sizeLabel2.PositionMode = Components.PositionMode.Relative;
+            
+            var sizeContainer2 = new Components.Container("SizeContainer2");
+            sizeContainer2.AutoLayoutChildren = true;
+            sizeContainer2.LayoutDirection = Components.LayoutDirection.Horizontal;
+            sizeContainer2.AutoSize = false;
+            sizeContainer2.ChildPadding = 0;
+            sizeContainer2.ChildGap = 8;
+            sizeContainer2.PositionMode = Components.PositionMode.Relative;
+            
+            sizeWidthInput2 = new Components.TextInput(font, "1.00", 14);
+            sizeWidthInput2.Bounds = new Rectangle(0, 0, 80, 24);
+            sizeWidthInput2.AutoSize = false;
+            sizeWidthInput2.InputConstraint = Components.InputType.Decimal;
+            sizeWidthInput2.EnableScrollIncrement = true;
+            sizeWidthInput2.ScrollIncrementAmount = 0.25f;
+            sizeWidthInput2.MinValue = 0.25f;
+            sizeWidthInput2.OnTextChanged = (text) => {
+                if (!isUpdatingFromKey && selectedKeys2.Count > 0 && float.TryParse(text, out float value))
+                {
+                    value = System.Math.Max(value, 0.25f);
+                    foreach (var key in selectedKeys2)
+                    {
+                        key.Width = value;
+                        keyboardView2?.InvalidateKeyCache(key);
+                    }
+                }
+            };
+            
+            sizeHeightInput2 = new Components.TextInput(font, "1.00", 14);
+            sizeHeightInput2.Bounds = new Rectangle(0, 0, 80, 24);
+            sizeHeightInput2.AutoSize = false;
+            sizeHeightInput2.InputConstraint = Components.InputType.Decimal;
+            sizeHeightInput2.EnableScrollIncrement = true;
+            sizeHeightInput2.ScrollIncrementAmount = 0.25f;
+            sizeHeightInput2.MinValue = 0.25f;
+            sizeHeightInput2.OnTextChanged = (text) => {
+                if (!isUpdatingFromKey && selectedKeys2.Count > 0 && float.TryParse(text, out float value))
+                {
+                    value = System.Math.Max(value, 0.25f);
+                    foreach (var key in selectedKeys2)
+                    {
+                        key.Height = value;
+                        keyboardView2?.InvalidateKeyCache(key);
+                    }
+                }
+            };
+            
+            sizeContainer2.AddChild(sizeWidthInput2);
+            sizeContainer2.AddChild(sizeHeightInput2);
+            
+            var sizeRowContainer2 = new Components.Container("SizeRowContainer2");
+            sizeRowContainer2.AutoLayoutChildren = true;
+            sizeRowContainer2.LayoutDirection = Components.LayoutDirection.Horizontal;
+            sizeRowContainer2.AutoSize = false;
+            sizeRowContainer2.Bounds = new Rectangle(0, 0, 0, 24);
+            sizeRowContainer2.ChildPadding = 0;
+            sizeRowContainer2.ChildGap = 8;
+            sizeRowContainer2.ChildJustification = Components.ChildJustification.Left;
+            sizeRowContainer2.PositionMode = Components.PositionMode.Relative;
+            sizeRowContainer2.AddChild(sizeLabel2);
+            sizeRowContainer2.AddChild(sizeContainer2);
+            keyInfoContainer2.AddChild(sizeRowContainer2);
+
+            // Create rotation row with input
+            rotationLabel2 = new Components.Label(font, "Rotation:", 14);
+            rotationLabel2.AutoSize = false;
+            rotationLabel2.Bounds = new Rectangle(0, 0, 90, 18);
+            rotationLabel2.PositionMode = Components.PositionMode.Relative;
+            
+            rotationInput2 = new Components.TextInput(font, "0.00", 14);
+            rotationInput2.Bounds = new Rectangle(0, 0, 80, 24);
+            rotationInput2.AutoSize = false;
+            rotationInput2.InputConstraint = Components.InputType.Decimal;
+            rotationInput2.EnableScrollIncrement = true;
+            rotationInput2.ScrollIncrementAmount = 5.0f;
+            rotationInput2.MinValue = -90.0f;
+            rotationInput2.MaxValue = 90.0f;
+            rotationInput2.OnTextChanged = (text) => {
+                if (!isUpdatingFromKey && selectedKeys2.Count > 0 && float.TryParse(text, out float value))
+                {
+                    value = System.Math.Clamp(value, -90.0f, 90.0f);
+                    if (selectedKeys2.Count == 1)
+                    {
+                        var key = selectedKeys2.First();
+                        key.Rotation = value;
+                        keyboardView2?.InvalidateKeyCache(key);
+                    }
+                    else
+                    {
+                        PhysicalKey? centerKey = null;
+                        float minX = float.MaxValue;
+                        float minY = float.MaxValue;
+                        foreach (var key in selectedKeys2)
+                        {
+                            if (key.X < minX || (key.X == minX && key.Y < minY))
+                            {
+                                minX = key.X;
+                                minY = key.Y;
+                                centerKey = key;
+                            }
+                        }
+                        if (centerKey != null)
+                        {
+                            float centerX = centerKey.X + centerKey.Width / 2.0f;
+                            float centerY = centerKey.Y + centerKey.Height / 2.0f;
+                            float rotationRad = value * (float)(System.Math.PI / 180.0);
+                            float cos = (float)System.Math.Cos(rotationRad);
+                            float sin = (float)System.Math.Sin(rotationRad);
+                            float oldRotationRad = centerKey.Rotation * (float)(System.Math.PI / 180.0);
+                            float oldCos = (float)System.Math.Cos(-oldRotationRad);
+                            float oldSin = (float)System.Math.Sin(-oldRotationRad);
+                            foreach (var key in selectedKeys2)
+                            {
+                                if (key == centerKey)
+                                {
+                                    key.Rotation = value;
+                                }
+                                else
+                                {
+                                    float offsetX = (key.X + key.Width / 2.0f) - centerX;
+                                    float offsetY = (key.Y + key.Height / 2.0f) - centerY;
+                                    float origOffsetX = offsetX * oldCos - offsetY * oldSin;
+                                    float origOffsetY = offsetX * oldSin + offsetY * oldCos;
+                                    float newOffsetX = origOffsetX * cos - origOffsetY * sin;
+                                    float newOffsetY = origOffsetX * sin + origOffsetY * cos;
+                                    key.X = centerX + newOffsetX - key.Width / 2.0f;
+                                    key.Y = centerY + newOffsetY - key.Height / 2.0f;
+                                    key.Rotation = value;
+                                    keyboardView2?.InvalidateKeyCache(key);
+                                }
+                            }
+                            keyboardView2?.InvalidateKeyCache(centerKey);
+                        }
+                    }
+                }
+            };
+            
+            var rotationRowContainer2 = new Components.Container("RotationRowContainer2");
+            rotationRowContainer2.AutoLayoutChildren = true;
+            rotationRowContainer2.LayoutDirection = Components.LayoutDirection.Horizontal;
+            rotationRowContainer2.AutoSize = false;
+            rotationRowContainer2.Bounds = new Rectangle(0, 0, 0, 24);
+            rotationRowContainer2.ChildPadding = 0;
+            rotationRowContainer2.ChildGap = 8;
+            rotationRowContainer2.ChildJustification = Components.ChildJustification.Left;
+            rotationRowContainer2.PositionMode = Components.PositionMode.Relative;
+            rotationRowContainer2.AddChild(rotationLabel2);
+            rotationRowContainer2.AddChild(rotationInput2);
+            keyInfoContainer2.AddChild(rotationRowContainer2);
+
+            // Create finger row with dropdown
+            var fingerRow2 = CreateInfoRowWithDropdown(font, "Finger:", GetFingerNames());
+            fingerLabel2 = fingerRow2.label;
+            fingerDropdown2 = fingerRow2.dropdown;
+            fingerDropdown2.OnSelectionChanged = (selectedItem) => {
+                if (!isUpdatingFromKey && selectedKeys2.Count > 0)
+                {
+                    int index = fingerDropdown2.SelectedIndex;
+                    if (index >= 0 && index < GetFingerNames().Count)
+                    {
+                        Finger newFinger = GetFingerFromIndex(index);
+                        foreach (var key in selectedKeys2)
+                        {
+                            key.Finger = newFinger;
+                        }
+                    }
+                }
+            };
+            keyInfoContainer2.AddChild(fingerRow2.container);
+
+            // Create primary character row
+            var primaryCharacterRow2 = CreateInfoRowWithInput(font, "Primary:");
+            primaryCharacterLabel2 = primaryCharacterRow2.label;
+            primaryCharacterInput2 = primaryCharacterRow2.input;
+            primaryCharacterRowContainer2 = primaryCharacterRow2.container;
+            primaryCharacterInput2.OnTextChanged = (text) => {
+                if (!isUpdatingFromKey && selectedKeys2.Count > 0)
+                {
+                    if (selectedKeys2.Count == 1)
+                    {
+                        var key = selectedKeys2.First();
+                        key.PrimaryCharacter = string.IsNullOrEmpty(text) ? null : text;
+                        if (shiftAutoCheckbox2 != null && shiftAutoCheckbox2.IsChecked && !string.IsNullOrEmpty(text))
+                        {
+                            key.ShiftCharacter = ConvertToShiftCharacter(text);
+                            if (shiftCharacterInput2 != null)
+                            {
+                                isUpdatingFromKey = true;
+                                shiftCharacterInput2.SetText(key.ShiftCharacter ?? "");
+                                isUpdatingFromKey = false;
+                            }
+                        }
+                        else if (shiftAutoCheckbox2 != null && shiftAutoCheckbox2.IsChecked && string.IsNullOrEmpty(text))
+                        {
+                            key.ShiftCharacter = null;
+                            if (shiftCharacterInput2 != null)
+                            {
+                                isUpdatingFromKey = true;
+                                shiftCharacterInput2.SetText("");
+                                isUpdatingFromKey = false;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        var sortedKeys = selectedKeys2.OrderBy(k => k.Y).ThenBy(k => k.X).ToList();
+                        string[] characters = text.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+                        for (int i = 0; i < sortedKeys.Count; i++)
+                        {
+                            if (i < characters.Length)
+                            {
+                                sortedKeys[i].PrimaryCharacter = characters[i];
+                                if (shiftAutoCheckbox2 != null && shiftAutoCheckbox2.IsChecked)
+                                {
+                                    sortedKeys[i].ShiftCharacter = ConvertToShiftCharacter(characters[i]);
+                                }
+                            }
+                            else
+                            {
+                                sortedKeys[i].PrimaryCharacter = null;
+                                if (shiftAutoCheckbox2 != null && shiftAutoCheckbox2.IsChecked)
+                                {
+                                    sortedKeys[i].ShiftCharacter = null;
+                                }
+                            }
+                        }
+                        if (shiftAutoCheckbox2 != null && shiftAutoCheckbox2.IsChecked && shiftCharacterInput2 != null)
+                        {
+                            isUpdatingFromKey = true;
+                            var shiftChars = sortedKeys.Select(k => k.ShiftCharacter ?? "").Where(c => !string.IsNullOrEmpty(c));
+                            shiftCharacterInput2.SetText(string.Join(" ", shiftChars));
+                            isUpdatingFromKey = false;
+                        }
+                    }
+                    layout?.RebuildMappings();
+                    layoutTab?.NotifyLayoutChanged();
+                }
+            };
+            keyInfoContainer2.AddChild(primaryCharacterRowContainer2);
+
+            // Create shift character row
+            var shiftCharacterRow2 = CreateInfoRowWithInput(font, "Shift:");
+            shiftCharacterLabel2 = shiftCharacterRow2.label;
+            shiftCharacterInput2 = shiftCharacterRow2.input;
+            shiftCharacterRowContainer2 = shiftCharacterRow2.container;
+            shiftCharacterInput2.OnTextChanged = (text) => {
+                if (!isUpdatingFromKey && selectedKeys2.Count > 0)
+                {
+                    if (selectedKeys2.Count == 1)
+                    {
+                        var key = selectedKeys2.First();
+                        key.ShiftCharacter = string.IsNullOrEmpty(text) ? null : text;
+                    }
+                    else
+                    {
+                        var sortedKeys = selectedKeys2.OrderBy(k => k.Y).ThenBy(k => k.X).ToList();
+                        string[] characters = text.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+                        for (int i = 0; i < sortedKeys.Count; i++)
+                        {
+                            if (i < characters.Length)
+                            {
+                                sortedKeys[i].ShiftCharacter = characters[i];
+                            }
+                            else
+                            {
+                                sortedKeys[i].ShiftCharacter = null;
+                            }
+                        }
+                    }
+                    layout?.RebuildMappings();
+                    layoutTab?.NotifyLayoutChanged();
+                }
+            };
+            keyInfoContainer2.AddChild(shiftCharacterRowContainer2);
+
+            // Create shift auto-fill checkbox row
+            var shiftAutoRow2 = CreateInfoRowWithCheckbox(font, "Auto Shift:");
+            shiftAutoLabel2 = shiftAutoRow2.label;
+            shiftAutoCheckbox2 = shiftAutoRow2.checkbox;
+            shiftAutoCheckbox2.IsChecked = true;
+            shiftAutoCheckbox2.OnCheckedChanged = (isChecked) => {
+                if (!isUpdatingFromKey && selectedKeys2.Count > 0)
+                {
+                    if (isChecked)
+                    {
+                        foreach (var key in selectedKeys2)
+                        {
+                            if (!string.IsNullOrEmpty(key.PrimaryCharacter))
+                            {
+                                key.ShiftCharacter = ConvertToShiftCharacter(key.PrimaryCharacter);
+                            }
+                            else
+                            {
+                                key.ShiftCharacter = null;
+                            }
+                        }
+                        UpdateShiftInputDisplay2();
+                        layout?.RebuildMappings();
+                        layoutTab?.NotifyLayoutChanged();
+                    }
+                    if (shiftCharacterInput2 != null)
+                    {
+                        shiftCharacterInput2.IsEnabled = !isChecked;
+                    }
+                }
+            };
+            keyInfoContainer2.AddChild(shiftAutoRow2.container);
+
+            // Create disabled row with checkbox
+            var disabledRow2 = CreateInfoRowWithCheckbox(font, "Disabled:");
+            disabledLabel2 = disabledRow2.label;
+            disabledCheckbox2 = disabledRow2.checkbox;
+            disabledCheckbox2.OnCheckedChanged = (isChecked) => {
+                if (!isUpdatingFromKey && selectedKeys2.Count > 0)
+                {
+                    foreach (var key in selectedKeys2)
+                    {
+                        key.Disabled = isChecked;
+                    }
+                    layoutTab?.UpdateShowDisabledCheckboxVisibility();
+                }
+            };
+            keyInfoContainer2.AddChild(disabledRow2.container);
+
+            // Create delete key button
+            var deleteKeyButton2 = new Components.Button(Font, "Delete Key", 14);
+            deleteKeyButton2.Bounds = new Rectangle(0, 0, 0, 30);
+            deleteKeyButton2.AutoSize = true;
+            deleteKeyButton2.PositionMode = Components.PositionMode.Relative;
+            deleteKeyButton2.IsVisible = false;
+            deleteKeyButton2.OnClick = DeleteSelectedKey2;
+            keyInfoContainer2.AddChild(deleteKeyButton2);
+            this.deleteKeyButton2 = deleteKeyButton2;
+
+            // Initially show placeholder, hide info rows
+            UpdateKeyInfo2();
         }
 
         private (Components.Container container, Components.Label label, Components.Label value) CreateInfoRow(Font font, string labelText, string valueText)
@@ -726,20 +1280,22 @@ namespace Keysharp.UI
             var row = new Components.Container($"InfoRow_{labelText}");
             row.AutoLayoutChildren = true;
             row.LayoutDirection = Components.LayoutDirection.Horizontal;
-            row.AutoSize = true;
+            row.AutoSize = false;
+            row.Bounds = new Rectangle(0, 0, 0, 24);
             row.ChildPadding = 0;
             row.ChildGap = 8;
+            row.ChildJustification = Components.ChildJustification.Left;
             row.PositionMode = Components.PositionMode.Relative;
 
             var label = new Components.Label(font, labelText, 14);
             label.AutoSize = false;
-            label.Bounds = new Rectangle(0, 0, 0, 18);
+            label.Bounds = new Rectangle(0, 0, 90, 18);
             label.PositionMode = Components.PositionMode.Relative;
             row.AddChild(label);
 
             var input = new Components.TextInput(font, "", 14);
             input.AutoSize = false;
-            input.Bounds = new Rectangle(0, 0, 0, 24); // Slightly taller for text input
+            input.Bounds = new Rectangle(0, 0, 0, 24); // Width 0 means expand to fill remaining space
             input.PositionMode = Components.PositionMode.Relative;
             row.AddChild(input);
 
@@ -751,20 +1307,22 @@ namespace Keysharp.UI
             var row = new Components.Container($"InfoRow_{labelText}");
             row.AutoLayoutChildren = true;
             row.LayoutDirection = Components.LayoutDirection.Horizontal;
-            row.AutoSize = true;
+            row.AutoSize = false;
+            row.Bounds = new Rectangle(0, 0, 0, 35);
             row.ChildPadding = 0;
             row.ChildGap = 8;
+            row.ChildJustification = Components.ChildJustification.Left;
             row.PositionMode = Components.PositionMode.Relative;
 
             var label = new Components.Label(font, labelText, 14);
             label.AutoSize = false;
-            label.Bounds = new Rectangle(0, 0, 0, 18);
+            label.Bounds = new Rectangle(0, 0, 90, 18);
             label.PositionMode = Components.PositionMode.Relative;
             row.AddChild(label);
 
             var dropdown = new Components.Dropdown(font, options, 14);
             dropdown.AutoSize = false;
-            dropdown.Bounds = new Rectangle(0, 0, 0, 35); // Standard dropdown height
+            dropdown.Bounds = new Rectangle(0, 0, 0, 35); // Width 0 means expand to fill remaining space
             dropdown.PositionMode = Components.PositionMode.Relative;
             row.AddChild(dropdown);
 
@@ -776,14 +1334,16 @@ namespace Keysharp.UI
             var row = new Components.Container($"InfoRow_{labelText}");
             row.AutoLayoutChildren = true;
             row.LayoutDirection = Components.LayoutDirection.Horizontal;
-            row.AutoSize = true;
+            row.AutoSize = false;
+            row.Bounds = new Rectangle(0, 0, 0, 18);
             row.ChildPadding = 0;
             row.ChildGap = 8;
+            row.ChildJustification = Components.ChildJustification.Left;
             row.PositionMode = Components.PositionMode.Relative;
 
             var label = new Components.Label(font, labelText, 14);
             label.AutoSize = false;
-            label.Bounds = new Rectangle(0, 0, 0, 18);
+            label.Bounds = new Rectangle(0, 0, 90, 18);
             label.PositionMode = Components.PositionMode.Relative;
             row.AddChild(label);
 
@@ -1007,9 +1567,16 @@ namespace Keysharp.UI
             this.layout = layout;
         }
         
-        public void SetKeyboardView(Components.KeyboardLayoutView? keyboardView)
+        public void SetKeyboardView(Components.KeyboardLayoutView? keyboardView, bool isLayout2 = false)
         {
-            this.keyboardView = keyboardView;
+            if (isLayout2)
+            {
+                this.keyboardView2 = keyboardView;
+            }
+            else
+            {
+                this.keyboardView = keyboardView;
+            }
             // Initialize heatmap colors when keyboard view is set
             UpdateHeatmapColors();
             // Update visibility based on current view mode
@@ -1045,6 +1612,61 @@ namespace Keysharp.UI
         /// </summary>
         public void SetLayoutMetadata(LayoutMetadataJson metadata)
         {
+            // Only update UI if we're editing this layout's metadata
+            if (editingLayout1Metadata)
+            {
+                UpdateMetadataUI(metadata);
+            }
+        }
+        
+        /// <summary>
+        /// Switches between editing Layout 1 and Layout 2 metadata.
+        /// </summary>
+        private void SwitchMetadataLayout(bool isLayout1)
+        {
+            if (layoutTab == null)
+                return;
+                
+            editingLayout1Metadata = isLayout1;
+            var metadata = isLayout1 ? layoutTab.Metadata : layoutTab.Metadata2;
+            UpdateMetadataUI(metadata);
+        }
+        
+        /// <summary>
+        /// Switches back to Layout 1 metadata editing and hides the dropdown.
+        /// Called when the second layout is disabled.
+        /// </summary>
+        public void SwitchToLayout1MetadataAndHideDropdown()
+        {
+            editingLayout1Metadata = true;
+            if (metadataLayoutDropdown != null)
+            {
+                metadataLayoutDropdown.SetSelectedItem("Layout 1");
+                metadataLayoutDropdown.IsVisible = false;
+            }
+            if (layoutTab != null)
+            {
+                UpdateMetadataUI(layoutTab.Metadata);
+            }
+        }
+        
+        /// <summary>
+        /// Shows the metadata layout dropdown.
+        /// Called when the second layout is enabled.
+        /// </summary>
+        public void ShowMetadataLayoutDropdown()
+        {
+            if (metadataLayoutDropdown != null)
+            {
+                metadataLayoutDropdown.IsVisible = true;
+            }
+        }
+        
+        /// <summary>
+        /// Updates the metadata UI fields with the given metadata.
+        /// </summary>
+        private void UpdateMetadataUI(LayoutMetadataJson metadata)
+        {
             if (displayNameInput != null)
             {
                 displayNameInput.Text = metadata.DisplayName ?? "";
@@ -1063,28 +1685,59 @@ namespace Keysharp.UI
             }
         }
 
-        public void SetSelectedKey(Keysharp.Core.PhysicalKey? key)
+        public void SetSelectedKey(Keysharp.Core.PhysicalKey? key, bool isLayout2 = false)
         {
-            selectedKeys.Clear();
-            if (key != null)
+            isEditingLayout1 = !isLayout2;
+            if (isLayout2)
             {
-                selectedKeys.Add(key);
+                selectedKeys2.Clear();
+                if (key != null)
+                {
+                    selectedKeys2.Add(key);
+                }
+            }
+            else
+            {
+                selectedKeys.Clear();
+                if (key != null)
+                {
+                    selectedKeys.Add(key);
+                }
             }
             UpdateKeyInfo();
         }
 
-        public void SetSelectedKeys(HashSet<Keysharp.Core.PhysicalKey> keys)
+        public void SetSelectedKeys(HashSet<Keysharp.Core.PhysicalKey> keys, bool isLayout2 = false)
         {
-            System.Console.WriteLine($"SidePanel.SetSelectedKeys called with {keys?.Count ?? 0} keys");
-            selectedKeys = keys ?? new HashSet<Keysharp.Core.PhysicalKey>();
-            System.Console.WriteLine($"SidePanel.selectedKeys now has {selectedKeys.Count} keys");
+            isEditingLayout1 = !isLayout2;
+            if (isLayout2)
+            {
+                selectedKeys2 = keys ?? new HashSet<Keysharp.Core.PhysicalKey>();
+            }
+            else
+            {
+                selectedKeys = keys ?? new HashSet<Keysharp.Core.PhysicalKey>();
+            }
             UpdateKeyInfo();
         }
 
         private void UpdateKeyInfo()
         {
+            // Always update both key info sections - they show/hide based on whether they have selections
+            UpdateKeyInfo1();
+            UpdateKeyInfo2();
+        }
+        
+        private void UpdateKeyInfo1()
+        {
             bool hasKey = selectedKeys.Count > 0;
             bool isMultiSelect = selectedKeys.Count > 1;
+            
+            // Show/hide container based on whether it has selections
+            if (keyInfoContainer != null)
+            {
+                keyInfoContainer.IsVisible = hasKey;
+            }
             
             // Find top-leftmost key for position display
             PhysicalKey? topLeftKey = null;
@@ -1345,6 +1998,259 @@ namespace Keysharp.UI
             isUpdatingFromKey = false;
         }
         
+        private void UpdateKeyInfo2()
+        {
+            bool hasKey = selectedKeys2.Count > 0;
+            bool isMultiSelect = selectedKeys2.Count > 1;
+            
+            // Show/hide container based on whether it has selections
+            if (keyInfoContainer2 != null)
+            {
+                keyInfoContainer2.IsVisible = hasKey;
+            }
+            
+            // Find top-leftmost key for position display
+            PhysicalKey? topLeftKey = null;
+            if (hasKey)
+            {
+                float minX = float.MaxValue;
+                float minY = float.MaxValue;
+                foreach (var key in selectedKeys2)
+                {
+                    if (key.X < minX || (key.X == minX && key.Y < minY))
+                    {
+                        minX = key.X;
+                        minY = key.Y;
+                        topLeftKey = key;
+                    }
+                }
+            }
+            
+            // Show/hide delete button based on whether a key is selected
+            if (deleteKeyButton2 != null)
+            {
+                deleteKeyButton2.IsVisible = hasKey;
+            }
+
+            // Show/hide placeholder and info rows
+            if (placeholderLabel2 != null)
+            {
+                placeholderLabel2.IsVisible = !hasKey;
+            }
+
+            if (titleLabel2 != null)
+            {
+                titleLabel2.IsVisible = hasKey;
+            }
+
+            // Hide identifier field container when multiple keys are selected
+            if (identifierRowContainer2 != null)
+            {
+                identifierRowContainer2.IsVisible = hasKey && !isMultiSelect;
+                if (hasKey && !isMultiSelect && topLeftKey != null && identifierInput2 != null)
+                {
+                    isUpdatingFromKey = true;
+                    identifierInput2.SetText(topLeftKey.Identifier ?? "");
+                    isUpdatingFromKey = false;
+                }
+            }
+
+            // Position shows top-leftmost key's position
+            if (positionLabel2 != null && positionXInput2 != null && positionYInput2 != null)
+            {
+                positionLabel2.IsVisible = hasKey;
+                positionXInput2.IsVisible = hasKey;
+                positionYInput2.IsVisible = hasKey;
+                if (hasKey && topLeftKey != null)
+                {
+                    isUpdatingFromKey = true;
+                    positionXInput2.SetText(topLeftKey.X.ToString("F2"));
+                    positionYInput2.SetText(topLeftKey.Y.ToString("F2"));
+                    isUpdatingFromKey = false;
+                }
+            }
+
+            // Size: show first key's size, apply to all when edited
+            if (sizeLabel2 != null && sizeWidthInput2 != null && sizeHeightInput2 != null)
+            {
+                sizeLabel2.IsVisible = hasKey;
+                sizeWidthInput2.IsVisible = hasKey;
+                sizeHeightInput2.IsVisible = hasKey;
+                if (hasKey && topLeftKey != null)
+                {
+                    isUpdatingFromKey = true;
+                    sizeWidthInput2.SetText(topLeftKey.Width.ToString("F2"));
+                    sizeHeightInput2.SetText(topLeftKey.Height.ToString("F2"));
+                    isUpdatingFromKey = false;
+                }
+            }
+
+            // Rotation: show first key's rotation, apply to all when edited
+            if (rotationLabel2 != null && rotationInput2 != null)
+            {
+                rotationLabel2.IsVisible = hasKey;
+                rotationInput2.IsVisible = hasKey;
+                if (hasKey && topLeftKey != null)
+                {
+                    isUpdatingFromKey = true;
+                    rotationInput2.SetText(topLeftKey.Rotation.ToString("F2"));
+                    isUpdatingFromKey = false;
+                }
+            }
+
+            // Finger: show first key's finger, apply to all when edited
+            if (fingerLabel2 != null && fingerDropdown2 != null)
+            {
+                fingerLabel2.IsVisible = hasKey;
+                fingerDropdown2.IsVisible = hasKey;
+                if (hasKey && topLeftKey != null)
+                {
+                    isUpdatingFromKey = true;
+                    int fingerIndex = GetIndexFromFinger(topLeftKey.Finger);
+                    fingerDropdown2.SetSelectedIndex(fingerIndex, triggerCallback: false);
+                    isUpdatingFromKey = false;
+                }
+            }
+
+            // Primary/Shift characters: show for both single and multi-selection
+            if (primaryCharacterRowContainer2 != null)
+            {
+                primaryCharacterRowContainer2.IsVisible = hasKey;
+                if (hasKey && primaryCharacterInput2 != null)
+                {
+                    isUpdatingFromKey = true;
+                    if (isMultiSelect)
+                    {
+                        var sortedKeys = selectedKeys2.OrderBy(k => k.Y).ThenBy(k => k.X).ToList();
+                        var primaryChars = sortedKeys
+                            .Select(k => k.PrimaryCharacter ?? "")
+                            .Where(c => !string.IsNullOrEmpty(c));
+                        primaryCharacterInput2.SetText(string.Join(" ", primaryChars));
+                    }
+                    else if (topLeftKey != null)
+                    {
+                        primaryCharacterInput2.SetText(topLeftKey.PrimaryCharacter ?? "");
+                    }
+                    isUpdatingFromKey = false;
+                }
+            }
+
+            if (shiftCharacterRowContainer2 != null)
+            {
+                shiftCharacterRowContainer2.IsVisible = hasKey;
+                if (hasKey && shiftCharacterInput2 != null)
+                {
+                    isUpdatingFromKey = true;
+                    bool autoEnabled = shiftAutoCheckbox2 != null && shiftAutoCheckbox2.IsChecked;
+                    shiftCharacterInput2.IsEnabled = !autoEnabled;
+                    
+                    if (autoEnabled)
+                    {
+                        foreach (var key in selectedKeys2)
+                        {
+                            if (!string.IsNullOrEmpty(key.PrimaryCharacter))
+                            {
+                                string expectedShift = ConvertToShiftCharacter(key.PrimaryCharacter);
+                                if (key.ShiftCharacter != expectedShift)
+                                {
+                                    key.ShiftCharacter = expectedShift;
+                                }
+                            }
+                            else if (key.ShiftCharacter != null)
+                            {
+                                key.ShiftCharacter = null;
+                            }
+                        }
+                    }
+                    
+                    if (isMultiSelect)
+                    {
+                        var sortedKeys = selectedKeys2.OrderBy(k => k.Y).ThenBy(k => k.X).ToList();
+                        var shiftChars = sortedKeys
+                            .Select(k => k.ShiftCharacter ?? "")
+                            .Where(c => !string.IsNullOrEmpty(c));
+                        shiftCharacterInput2.SetText(string.Join(" ", shiftChars));
+                    }
+                    else if (topLeftKey != null)
+                    {
+                        shiftCharacterInput2.SetText(topLeftKey.ShiftCharacter ?? "");
+                    }
+                    isUpdatingFromKey = false;
+                }
+            }
+
+            // Shift auto checkbox: show when key is selected
+            if (shiftAutoLabel2 != null && shiftAutoCheckbox2 != null)
+            {
+                shiftAutoLabel2.IsVisible = hasKey;
+                shiftAutoCheckbox2.IsVisible = hasKey;
+            }
+            
+            // Disabled: show if all keys have same state, apply to all when edited
+            if (disabledLabel2 != null && disabledCheckbox2 != null)
+            {
+                disabledLabel2.IsVisible = hasKey;
+                disabledCheckbox2.IsVisible = hasKey;
+                if (hasKey && topLeftKey != null)
+                {
+                    isUpdatingFromKey = true;
+                    bool allDisabled = selectedKeys2.All(k => k.Disabled);
+                    bool allEnabled = selectedKeys2.All(k => !k.Disabled);
+                    disabledCheckbox2.IsChecked = allDisabled || (!allEnabled && topLeftKey.Disabled);
+                    isUpdatingFromKey = false;
+                }
+            }
+        }
+        
+        private void DeleteSelectedKey2()
+        {
+            if (layout != null && selectedKeys2.Count > 0)
+            {
+                foreach (var key in selectedKeys2)
+                {
+                    layout.RemovePhysicalKey(key);
+                }
+                layout.RebuildMappings();
+                layoutTab?.NotifyLayoutChanged();
+                selectedKeys2.Clear();
+                if (keyboardView2 != null)
+                {
+                    var emptySelection = new HashSet<PhysicalKey>();
+                    keyboardView2.SelectedKeys = emptySelection;
+                }
+                UpdateKeyInfo2();
+                if (keyboardView2 != null)
+                {
+                    keyboardView2.Layout = layout;
+                }
+            }
+        }
+        
+        private void UpdateShiftInputDisplay2()
+        {
+            if (shiftCharacterInput2 == null || isUpdatingFromKey)
+                return;
+                
+            isUpdatingFromKey = true;
+            bool isMultiSelect = selectedKeys2.Count > 1;
+            
+            if (isMultiSelect)
+            {
+                var sortedKeys = selectedKeys2.OrderBy(k => k.Y).ThenBy(k => k.X).ToList();
+                var shiftChars = sortedKeys
+                    .Select(k => k.ShiftCharacter ?? "")
+                    .Where(c => !string.IsNullOrEmpty(c));
+                shiftCharacterInput2.SetText(string.Join(" ", shiftChars));
+            }
+            else if (selectedKeys2.Count == 1)
+            {
+                var key = selectedKeys2.First();
+                shiftCharacterInput2.SetText(key.ShiftCharacter ?? "");
+            }
+            
+            isUpdatingFromKey = false;
+        }
+        
         private string ConvertToShiftCharacter(string primaryChar)
         {
             if (string.IsNullOrEmpty(primaryChar))
@@ -1429,39 +2335,7 @@ namespace Keysharp.UI
             base.PrepareResolveBounds();
 
             // Set child sizes before ResolveBounds() runs (this is the correct place, not Update())
-            if (keyInfoContainer != null && Bounds.Width > 0 && Bounds.Height > 0)
-            {
-                // Set container width (height will be auto-calculated based on content)
-                // Width accounts for 15px padding on each side
-                float containerWidth = Bounds.Width - 30;
-                keyInfoContainer.SetSize(containerWidth, 0); // Height will be calculated by auto-size
-                keyInfoContainer.RelativePosition = new System.Numerics.Vector2(15, 15);
-                
-                if (metadataHeaderLabel != null)
-                {
-                    metadataHeaderLabel.SetSize(containerWidth, 24);
-                }
-                // Set input widths (accounting for label width)
-                float labelWidth = 100;
-                float inputWidth = containerWidth - labelWidth - 8; // 8 is gap
-                
-                // Find the parent containers of the inputs to set label and input sizes
-                foreach (var child in metadataContainer.Children)
-                {
-                    if (child is Components.Container rowContainer && rowContainer.Children.Count >= 2)
-                    {
-                        var label = rowContainer.Children[0] as Components.Label;
-                        var input = rowContainer.Children[1] as Components.TextInput;
-                        if (label != null && input != null)
-                        {
-                            label.SetSize(labelWidth, label.Bounds.Height);
-                            // For description, use taller height
-                            float inputHeight = (input == descriptionInput) ? 60 : 24;
-                            input.SetSize(inputWidth, inputHeight);
-                        }
-                    }
-                }
-            }
+            // Note: Positions are set in ResolveBounds(), not here
             
             // Set key info container size
             if (keyInfoContainer != null && Bounds.Width > 0 && Bounds.Height > 0)
@@ -1543,6 +2417,92 @@ namespace Keysharp.UI
                 }
             }
             
+            // Set keyInfoContainer2 size (same as keyInfoContainer)
+            if (keyInfoContainer2 != null && Bounds.Width > 0 && Bounds.Height > 0)
+            {
+                // Set container width (height will be auto-calculated based on content)
+                // Width accounts for 15px padding on each side
+                float containerWidth = Bounds.Width - 30;
+                keyInfoContainer2.SetSize(containerWidth, 0); // Height will be calculated by auto-size
+                
+                // Set label widths to fill available space (accounting for container padding)
+                float availableWidth = containerWidth - (keyInfoContainer2.ChildPadding * 2);
+                
+                if (titleLabel2 != null)
+                {
+                    titleLabel2.SetSize(availableWidth, 24);
+                }
+
+                if (placeholderLabel2 != null)
+                {
+                    placeholderLabel2.SetSize(availableWidth, 18);
+                }
+
+                // Set info row label widths (fixed width for labels)
+                float labelWidth = 90;
+                float valueWidth = availableWidth - labelWidth - 8; // 8 is gap between label and value
+
+                if (identifierLabel2 != null && identifierInput2 != null)
+                {
+                    identifierLabel2.SetSize(labelWidth, 18);
+                    identifierInput2.SetSize(valueWidth, 24);
+                }
+                
+                if (positionLabel2 != null && positionXInput2 != null && positionYInput2 != null)
+                {
+                    positionLabel2.SetSize(labelWidth, 18);
+                    // Position inputs share the available width (half each minus gap)
+                    float inputWidth = (valueWidth - 8) / 2; // 8 is gap between inputs
+                    positionXInput2.SetSize(inputWidth, 24);
+                    positionYInput2.SetSize(inputWidth, 24);
+                }
+                
+                if (sizeLabel2 != null && sizeWidthInput2 != null && sizeHeightInput2 != null)
+                {
+                    sizeLabel2.SetSize(labelWidth, 18);
+                    // Size inputs share the available width (half each minus gap)
+                    float inputWidth = (valueWidth - 8) / 2; // 8 is gap between inputs
+                    sizeWidthInput2.SetSize(inputWidth, 24);
+                    sizeHeightInput2.SetSize(inputWidth, 24);
+                }
+                
+                if (rotationLabel2 != null && rotationInput2 != null)
+                {
+                    rotationLabel2.SetSize(labelWidth, 18);
+                    rotationInput2.SetSize(valueWidth, 24);
+                }
+                
+                if (fingerLabel2 != null && fingerDropdown2 != null)
+                {
+                    fingerLabel2.SetSize(labelWidth, 18);
+                    fingerDropdown2.SetSize(valueWidth, 35);
+                }
+                
+                if (primaryCharacterLabel2 != null && primaryCharacterInput2 != null)
+                {
+                    primaryCharacterLabel2.SetSize(labelWidth, 18);
+                    primaryCharacterInput2.SetSize(valueWidth, 24);
+                }
+                
+                if (shiftCharacterLabel2 != null && shiftCharacterInput2 != null)
+                {
+                    shiftCharacterLabel2.SetSize(labelWidth, 18);
+                    shiftCharacterInput2.SetSize(valueWidth, 24);
+                }
+                
+                if (shiftAutoLabel2 != null && shiftAutoCheckbox2 != null)
+                {
+                    shiftAutoLabel2.SetSize(labelWidth, 18);
+                    shiftAutoCheckbox2.SetSize(16, 16);
+                }
+
+                if (disabledLabel2 != null && disabledCheckbox2 != null)
+                {
+                    disabledLabel2.SetSize(labelWidth, 18);
+                    disabledCheckbox2.SetSize(16, 16);
+                }
+            }
+            
             // Set metadata container size (position will be set after ResolveBounds in ResolveBounds method)
             if (metadataContainer != null && Bounds.Width > 0 && Bounds.Height > 0)
             {
@@ -1605,58 +2565,185 @@ namespace Keysharp.UI
         
         public override void ResolveBounds()
         {
+            // Call base.ResolveBounds() first to resolve our own position
             base.ResolveBounds();
             
-            // Position containers in order: metadata (first), colorControls (second), keyInfo (last)
+            // Position containers manually (AutoLayoutChildren is disabled so LayoutChildren() won't override our positions)
+            const float containerGap = 20f; // Gap between containers
             
-            // Position metadata container first (at top)
+            // Track cumulative Y position to properly space containers
+            float currentY = 15 - scrollOffset;
+            
+            // Position metadata container first (at top, with scroll offset)
             if (metadataContainer != null)
             {
-                metadataContainer.RelativePosition = new System.Numerics.Vector2(15, 15);
+                metadataContainer.RelativePosition = new System.Numerics.Vector2(15, currentY);
                 metadataContainer.ResolveBounds();
+                if (metadataContainer.Bounds.Height > 0)
+                {
+                    currentY += metadataContainer.Bounds.Height + containerGap;
+                }
             }
             
             // Position color controls container below metadata container
             if (colorControlsContainer != null)
             {
-                float colorControlsY;
-                if (metadataContainer != null && metadataContainer.Bounds.Height > 0)
-                {
-                    colorControlsY = metadataContainer.RelativePosition.Y + metadataContainer.Bounds.Height + 15;
-                }
-                else
-                {
-                    colorControlsY = 15;
-                }
-                colorControlsContainer.RelativePosition = new System.Numerics.Vector2(15, colorControlsY);
+                colorControlsContainer.RelativePosition = new System.Numerics.Vector2(15, currentY);
                 colorControlsContainer.ResolveBounds();
+                if (colorControlsContainer.IsVisible && colorControlsContainer.Bounds.Height > 0)
+                {
+                    currentY += colorControlsContainer.Bounds.Height + containerGap;
+                }
             }
             
-            // Position key info container last (below color controls container or metadata container)
+            // Position key info container (below color controls container or metadata container)
             if (keyInfoContainer != null)
             {
-                float keyInfoY;
-                if (colorControlsContainer != null && colorControlsContainer.IsVisible && colorControlsContainer.Bounds.Height > 0)
-                {
-                    keyInfoY = colorControlsContainer.RelativePosition.Y + colorControlsContainer.Bounds.Height + 15;
-                }
-                else if (metadataContainer != null && metadataContainer.Bounds.Height > 0)
-                {
-                    keyInfoY = metadataContainer.RelativePosition.Y + metadataContainer.Bounds.Height + 15;
-                }
-                else
-                {
-                    keyInfoY = 15;
-                }
-                keyInfoContainer.RelativePosition = new System.Numerics.Vector2(15, keyInfoY);
+                keyInfoContainer.RelativePosition = new System.Numerics.Vector2(15, currentY);
                 keyInfoContainer.ResolveBounds();
+                if (keyInfoContainer.IsVisible && keyInfoContainer.Bounds.Height > 0)
+                {
+                    currentY += keyInfoContainer.Bounds.Height + containerGap;
+                }
             }
+            
+            // Position keyInfoContainer2 below keyInfoContainer
+            if (keyInfoContainer2 != null)
+            {
+                keyInfoContainer2.RelativePosition = new System.Numerics.Vector2(15, currentY);
+                keyInfoContainer2.ResolveBounds();
+            }
+        }
+
+        /// <summary>
+        /// Recursively checks if any TextInput component in the given element and its children is focused.
+        /// </summary>
+        private bool HasFocusedTextInput(UIElement element)
+        {
+            if (element == null || !element.IsVisible)
+                return false;
+            
+            // Check if this element is a TextInput and is focused
+            if (element is Components.TextInput textInput && textInput.IsFocused)
+            {
+                return true;
+            }
+            
+            // Recursively check children
+            foreach (var child in element.Children)
+            {
+                if (HasFocusedTextInput(child))
+                {
+                    return true;
+                }
+            }
+            
+            return false;
         }
 
         public override void Update()
         {
             base.Update();
             // No bounds setting here - that's done in PrepareResolveBounds()
+            
+            // Handle mouse wheel scrolling when mouse is over the panel
+            int mouseX = Raylib.GetMouseX();
+            int mouseY = Raylib.GetMouseY();
+            
+            // Calculate total content height for scrollbar and scrolling
+            float totalContentHeight = 15; // Top padding
+            const float containerGap = 20f;
+            
+            if (metadataContainer != null && metadataContainer.IsVisible && metadataContainer.Bounds.Height > 0)
+            {
+                totalContentHeight += metadataContainer.Bounds.Height + containerGap;
+            }
+            if (colorControlsContainer != null && colorControlsContainer.IsVisible && colorControlsContainer.Bounds.Height > 0)
+            {
+                totalContentHeight += colorControlsContainer.Bounds.Height + containerGap;
+            }
+            if (keyInfoContainer != null && keyInfoContainer.IsVisible && keyInfoContainer.Bounds.Height > 0)
+            {
+                totalContentHeight += keyInfoContainer.Bounds.Height + containerGap;
+            }
+            if (keyInfoContainer2 != null && keyInfoContainer2.IsVisible && keyInfoContainer2.Bounds.Height > 0)
+            {
+                totalContentHeight += keyInfoContainer2.Bounds.Height + containerGap;
+            }
+            
+            float maxScroll = System.Math.Max(0, totalContentHeight - Bounds.Height);
+            
+            // Handle scrollbar dragging (check this BEFORE early returns, and allow even when TextInput is focused)
+            // Continue dragging even if mouse leaves sidebar bounds (as long as button is held)
+            if (isDraggingScrollbar)
+            {
+                if (Raylib.IsMouseButtonDown(MouseButton.MOUSE_BUTTON_LEFT))
+                {
+                    float deltaY = mouseY - scrollbarDragStartY;
+                    float scrollbarHeight = Bounds.Height;
+                    float visibleRatio = Bounds.Height / totalContentHeight;
+                    float thumbHeight = scrollbarHeight * visibleRatio;
+                    float maxThumbY = scrollbarHeight - thumbHeight;
+                    if (maxThumbY > 0)
+                    {
+                        float scrollRatio = deltaY / maxThumbY;
+                        scrollOffset = System.Math.Clamp(scrollbarDragStartOffset + scrollRatio * maxScroll, 0, maxScroll);
+                    }
+                }
+                else
+                {
+                    isDraggingScrollbar = false;
+                }
+            }
+            else if (maxScroll > 0 && mouseX >= Bounds.X && mouseX <= Bounds.X + Bounds.Width &&
+                     mouseY >= Bounds.Y && mouseY <= Bounds.Y + Bounds.Height)
+            {
+                // Only check for starting a new drag when mouse is within sidebar bounds
+                float scrollbarX = Bounds.X + Bounds.Width - ScrollbarWidth;
+                Rectangle scrollbarArea = new Rectangle(scrollbarX, Bounds.Y, ScrollbarWidth, Bounds.Height);
+                bool hoveringScrollbar = mouseX >= scrollbarArea.X && mouseX <= scrollbarArea.X + scrollbarArea.Width &&
+                                        mouseY >= scrollbarArea.Y && mouseY <= scrollbarArea.Y + scrollbarArea.Height;
+                
+                if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT) && hoveringScrollbar)
+                {
+                    isDraggingScrollbar = true;
+                    scrollbarDragStartY = mouseY;
+                    scrollbarDragStartOffset = scrollOffset;
+                }
+            }
+            
+            // Don't handle mouse wheel scrolling if we're dragging the scrollbar
+            if (isDraggingScrollbar)
+            {
+                return;
+            }
+            
+            if (Raylib.IsMouseButtonDown(MouseButton.MOUSE_BUTTON_LEFT) || 
+                Raylib.IsMouseButtonDown(MouseButton.MOUSE_BUTTON_RIGHT) ||
+                Raylib.IsMouseButtonDown(MouseButton.MOUSE_BUTTON_MIDDLE))
+            {
+                // Don't scroll while dragging (except scrollbar dragging, which is handled above)
+                return;
+            }
+            
+            // Don't scroll if a TextInput is focused (scrolling is used to modify text input values)
+            if (HasFocusedTextInput(this))
+            {
+                return;
+            }
+            
+            // Handle mouse wheel scrolling
+            if (mouseX >= Bounds.X && mouseX <= Bounds.X + Bounds.Width - ScrollbarWidth && // Don't scroll when over scrollbar
+                mouseY >= Bounds.Y && mouseY <= Bounds.Y + Bounds.Height)
+            {
+                float wheelMove = Raylib.GetMouseWheelMove();
+                if (wheelMove != 0)
+                {
+                    scrollOffset -= wheelMove * ScrollSpeed; // Negate to scroll down when wheel moves down
+                    scrollOffset = System.Math.Clamp(scrollOffset, 0, maxScroll);
+                    // ResolveBounds will be called in the next frame by RootUI, which will apply the scroll offset
+                }
+            }
         }
 
         public override void UpdateFont(Font newFont)
@@ -1666,6 +2753,108 @@ namespace Keysharp.UI
             // Note: Components store their own font references, so we'd need to update them individually
             // For now, this is a limitation - components will need to be recreated to use new fonts
             // This is acceptable for a debug feature
+        }
+
+        public override void Draw()
+        {
+            // Only draw if visible
+            if (!IsVisible)
+                return;
+
+            // Enable scissor mode to clip content to panel bounds (exclude scrollbar width)
+            // Calculate if scrollbar is needed to determine clipping width
+            float totalContentHeight = 15; // Top padding
+            const float containerGap = 20f;
+            if (metadataContainer != null && metadataContainer.IsVisible && metadataContainer.Bounds.Height > 0)
+                totalContentHeight += metadataContainer.Bounds.Height + containerGap;
+            if (colorControlsContainer != null && colorControlsContainer.IsVisible && colorControlsContainer.Bounds.Height > 0)
+                totalContentHeight += colorControlsContainer.Bounds.Height + containerGap;
+            if (keyInfoContainer != null && keyInfoContainer.IsVisible && keyInfoContainer.Bounds.Height > 0)
+                totalContentHeight += keyInfoContainer.Bounds.Height + containerGap;
+            if (keyInfoContainer2 != null && keyInfoContainer2.IsVisible && keyInfoContainer2.Bounds.Height > 0)
+                totalContentHeight += keyInfoContainer2.Bounds.Height + containerGap;
+            
+            int clipWidth = (int)Bounds.Width;
+            if (totalContentHeight > Bounds.Height)
+            {
+                clipWidth -= ScrollbarWidth; // Exclude scrollbar from clipping area
+            }
+            
+            // Draw panel background and borders first (before scissor mode so it's always visible)
+            DrawPanelContent(Bounds);
+            
+            // Enable scissor mode to clip content to panel bounds (exclude scrollbar width)
+            ScissorModeManager.BeginScissorMode((int)Bounds.X, (int)Bounds.Y, clipWidth, (int)Bounds.Height);
+            
+            // Draw all children (they will be clipped by scissor mode)
+            // Only draw children that intersect with the visible scrolling area
+            // This prevents elements from drawing above/below the visible area
+            float visibleTop = Bounds.Y;
+            float visibleBottom = Bounds.Y + Bounds.Height;
+            foreach (var child in Children)
+            {
+                // Only draw if element's bounds intersect with visible area
+                // Element intersects if: bottom >= top AND top <= bottom
+                float childTop = child.Bounds.Y;
+                float childBottom = child.Bounds.Y + child.Bounds.Height;
+                if (childBottom > visibleTop && childTop < visibleBottom)
+                {
+                    child.Draw();
+                }
+            }
+            
+            // End scissor mode
+            ScissorModeManager.EndScissorMode();
+            
+            // Draw scrollbar if needed (draw outside scissor mode so it's always visible)
+            DrawScrollbar();
+        }
+        
+        private void DrawScrollbar()
+        {
+            // Calculate total content height
+            float totalContentHeight = 15; // Top padding
+            const float containerGap = 20f;
+            
+            if (metadataContainer != null && metadataContainer.IsVisible && metadataContainer.Bounds.Height > 0)
+            {
+                totalContentHeight += metadataContainer.Bounds.Height + containerGap;
+            }
+            if (colorControlsContainer != null && colorControlsContainer.IsVisible && colorControlsContainer.Bounds.Height > 0)
+            {
+                totalContentHeight += colorControlsContainer.Bounds.Height + containerGap;
+            }
+            if (keyInfoContainer != null && keyInfoContainer.IsVisible && keyInfoContainer.Bounds.Height > 0)
+            {
+                totalContentHeight += keyInfoContainer.Bounds.Height + containerGap;
+            }
+            if (keyInfoContainer2 != null && keyInfoContainer2.IsVisible && keyInfoContainer2.Bounds.Height > 0)
+            {
+                totalContentHeight += keyInfoContainer2.Bounds.Height + containerGap;
+            }
+            
+            // Only show scrollbar if content exceeds visible area
+            if (totalContentHeight <= Bounds.Height)
+                return;
+            
+            float scrollbarX = Bounds.X + Bounds.Width - ScrollbarWidth;
+            float scrollbarY = Bounds.Y;
+            float scrollbarHeight = Bounds.Height;
+            
+            // Draw scrollbar track
+            Rectangle trackRect = new Rectangle(scrollbarX, scrollbarY, ScrollbarWidth, scrollbarHeight);
+            Raylib.DrawRectangleRec(trackRect, new Color(40, 40, 40, 255)); // Dark gray track
+            
+            // Calculate scrollbar thumb size and position
+            float visibleRatio = Bounds.Height / totalContentHeight;
+            float thumbHeight = scrollbarHeight * visibleRatio;
+            float maxThumbY = scrollbarHeight - thumbHeight;
+            float thumbY = scrollbarY + (scrollOffset / (totalContentHeight - Bounds.Height)) * maxThumbY;
+            thumbY = System.Math.Clamp(thumbY, scrollbarY, scrollbarY + maxThumbY);
+            
+            Rectangle thumbRect = new Rectangle(scrollbarX + 2, (int)thumbY, ScrollbarWidth - 4, (int)thumbHeight);
+            Color thumbColor = isDraggingScrollbar ? new Color(120, 120, 120, 255) : new Color(100, 100, 100, 255);
+            Raylib.DrawRectangleRec(thumbRect, thumbColor);
         }
 
         protected override void DrawPanelContent(Rectangle bounds)
@@ -1695,6 +2884,14 @@ namespace Keysharp.UI
             if (fingerDropdown != null)
             {
                 fingerDropdown.DrawDropdown();
+            }
+            if (fingerDropdown2 != null)
+            {
+                fingerDropdown2.DrawDropdown();
+            }
+            if (metadataLayoutDropdown != null)
+            {
+                metadataLayoutDropdown.DrawDropdown();
             }
         }
     }

@@ -337,8 +337,8 @@ namespace Keysharp.Components
             int mouseY = Raylib.GetMouseY();
             bool isHovered = IsHovering(mouseX, mouseY);
 
-            // Handle scroll wheel increment/decrement (when enabled and hovered)
-            if (EnableScrollIncrement && isHovered)
+            // Handle scroll wheel increment/decrement (when enabled and focused)
+            if (EnableScrollIncrement && IsFocused)
             {
                 float wheelMove = Raylib.GetMouseWheelMove();
                 if (wheelMove != 0)
@@ -864,9 +864,9 @@ namespace Keysharp.Components
             if (textX + textWidth >= Bounds.X + Padding && textX < Bounds.X + Bounds.Width - Padding)
             {
                 // Use scissor mode to clip text to bounds
-                Raylib.BeginScissorMode((int)clipRect.X, (int)clipRect.Y, (int)clipRect.Width, (int)clipRect.Height);
+                ScissorModeManager.BeginScissorMode((int)clipRect.X, (int)clipRect.Y, (int)clipRect.Width, (int)clipRect.Height);
                 FontManager.DrawText(font, displayText, (int)textX, (int)textY, fontSize, textColor);
-                Raylib.EndScissorMode();
+                ScissorModeManager.EndScissorMode();
             }
             
             // Draw cursor when focused (only if visible)

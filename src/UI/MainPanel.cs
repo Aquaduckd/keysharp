@@ -354,6 +354,7 @@ namespace Keysharp.UI
             corpusTab?.CorpusDropdown?.DrawDropdown();
             corpusTab?.NgramSizeDropdown?.DrawDropdown();
             layoutTab?.LayoutsDropdown?.DrawDropdown();
+            layoutTab?.LayoutsDropdown2?.DrawDropdown();
         }
 
         public void DrawHelpScreen()
