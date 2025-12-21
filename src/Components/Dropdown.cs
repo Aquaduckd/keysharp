@@ -170,40 +170,48 @@ namespace Keysharp.Components
                     
                     handledClick = true;
                 }
-                // Check if clicking on dropdown items
+                // Check if clicking on dropdown items or anywhere within dropdown bounds when open
                 else if (isOpen)
                 {
-                    int dropdownY = (int)(Bounds.Y + Bounds.Height);
-                    int visibleRows = Math.Min(maxVisibleRows, items.Count);
-                    int dropdownHeight = visibleRows * ItemHeight + Padding * 2;
-
-                    if (mouseX >= Bounds.X && mouseX <= Bounds.X + Bounds.Width &&
-                        mouseY >= dropdownY && mouseY <= dropdownY + dropdownHeight)
+                    // If dropdown is open and click is within the dropdown's expanded bounds, consume the click
+                    if (ContainsPoint(mouseX, mouseY))
                     {
-                        int itemIndex = (mouseY - dropdownY - Padding) / ItemHeight;
-                        if (itemIndex >= 0 && itemIndex < visibleRows)
+                        int dropdownY = (int)(Bounds.Y + Bounds.Height);
+                        int visibleRows = Math.Min(maxVisibleRows, items.Count);
+                        int dropdownHeight = visibleRows * ItemHeight + Padding * 2;
+
+                        // Check if clicking on a specific item
+                        if (mouseX >= Bounds.X && mouseX <= Bounds.X + Bounds.Width &&
+                            mouseY >= dropdownY && mouseY <= dropdownY + dropdownHeight)
                         {
-                            // Map visible item index to actual item index accounting for scroll
-                            int actualIndex = scrollOffset + itemIndex;
-                            if (actualIndex >= 0 && actualIndex < items.Count)
+                            int itemIndex = (mouseY - dropdownY - Padding) / ItemHeight;
+                            if (itemIndex >= 0 && itemIndex < visibleRows)
                             {
-                                selectedIndex = actualIndex;
-                                OnSelectionChanged?.Invoke(items[actualIndex]);
-                                isOpen = false;
-                                handledClick = true;
+                                // Map visible item index to actual item index accounting for scroll
+                                int actualIndex = scrollOffset + itemIndex;
+                                if (actualIndex >= 0 && actualIndex < items.Count)
+                                {
+                                    selectedIndex = actualIndex;
+                                    OnSelectionChanged?.Invoke(items[actualIndex]);
+                                    isOpen = false;
+                                    handledClick = true;
+                                }
                             }
                         }
-                    }
-                    else if (ContainsPoint(mouseX, mouseY))
-                    {
-                        // Clicked on dropdown area (even if not on an item), close it
-                        isOpen = false;
-                        handledClick = true;
+                        
+                        // If we didn't handle it as an item click, but we're within bounds, close the dropdown
+                        // This handles clicks in padding areas or outside specific items but still within dropdown bounds
+                        if (!handledClick)
+                        {
+                            isOpen = false;
+                            handledClick = true;
+                        }
                     }
                 }
 
                 // Mark click as consumed if we handled it
-                if (handledClick)
+                // Also, if dropdown is open and click is within its bounds, consume it to prevent click-through
+                if (handledClick || (isOpen && ContainsPoint(mouseX, mouseY)))
                 {
                     clickConsumedThisFrame = true;
                 }

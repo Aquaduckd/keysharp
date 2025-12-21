@@ -364,6 +364,7 @@ namespace Keysharp.UI
             enableSecondLayoutCheckbox.IsChecked = false; // Default: second layout disabled
             enableSecondLayoutCheckbox.OnCheckedChanged = (isChecked) => {
                 UpdateSecondLayoutVisibility(isChecked);
+                sidePanel?.SetSecondLayoutVisibility(isChecked);
                 // Switch back to Layout 1 metadata and hide dropdown if second layout is disabled
                 if (!isChecked)
                 {
@@ -587,6 +588,7 @@ namespace Keysharp.UI
             
             // Initially hide second layout (checkbox is unchecked by default)
             UpdateSecondLayoutVisibility(false);
+            sidePanel?.SetSecondLayoutVisibility(false);
             
             // Set keyboard view reference in side panel for HSV color controls
             if (sidePanel != null)

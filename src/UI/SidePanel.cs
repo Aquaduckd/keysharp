@@ -1,6 +1,10 @@
 using Raylib_cs;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 using Keysharp.Components;
 using Keysharp.Core;
 
@@ -37,6 +41,7 @@ namespace Keysharp.UI
         private Components.Label? placeholderLabel;
         private HashSet<Keysharp.Core.PhysicalKey> selectedKeys = new HashSet<Keysharp.Core.PhysicalKey>();
         private Core.Layout? layout; // Reference to layout for rebuilding mappings
+        private bool isSecondLayoutEnabled = false; // Track whether second layout is enabled
         
         // Second layout key info fields
         private Components.Container? keyInfoContainer2;
@@ -103,6 +108,18 @@ namespace Keysharp.UI
         private Components.TextInput? authorsInput;
         private Components.TextInput? creationDateInput;
         private Components.TextInput? descriptionInput;
+        
+        // Key mappings controls
+        private Components.Container? mappingsContainer;
+        private Components.Label? mappingsHeaderLabel;
+        private Components.Button? addMappingButton;
+        private Components.Button? saveMappingsButton;
+        private Components.Button? loadMappingsButton;
+        private Components.Button? applyMappingsButton;
+        private Components.Button? deleteMappingsButton;
+        private Components.Dropdown? mappingsDropdown;
+        private Components.Table? mappingsTable;
+        private Core.KeyMappings keyMappings = new Core.KeyMappings(); // Source ID -> Target ID
 
         public SidePanel(Font font) : base(font, "SidePanel")
         {
@@ -200,6 +217,118 @@ namespace Keysharp.UI
                 }
             };
             metadataContainer.AddChild(descriptionRow.container);
+
+            // Create mappings container (before color controls)
+            mappingsContainer = new Components.Container("MappingsContainer");
+            mappingsContainer.AutoLayoutChildren = true;
+            mappingsContainer.LayoutDirection = Components.LayoutDirection.Vertical;
+            mappingsContainer.AutoSize = false; // Size will be set in PrepareResolveBounds
+            mappingsContainer.ChildPadding = 0;
+            mappingsContainer.ChildGap = 8;
+            mappingsContainer.PositionMode = Components.PositionMode.Relative;
+            mappingsContainer.IsVisible = false; // Initially hidden (second layout disabled by default)
+            AddChild(mappingsContainer);
+            
+            // Create header label
+            mappingsHeaderLabel = new Components.Label(font, "Key Mappings", 18);
+            mappingsHeaderLabel.AutoSize = false;
+            mappingsHeaderLabel.Bounds = new Rectangle(0, 0, 0, 24);
+            mappingsHeaderLabel.PositionMode = Components.PositionMode.Relative;
+            mappingsContainer.AddChild(mappingsHeaderLabel);
+            
+            // Create first row button container (Load, Dropdown, Save)
+            var mappingButtonsRow1 = new Components.Container("MappingButtonsRow1");
+            mappingButtonsRow1.AutoLayoutChildren = true;
+            mappingButtonsRow1.LayoutDirection = Components.LayoutDirection.Horizontal;
+            mappingButtonsRow1.AutoSize = false;
+            mappingButtonsRow1.Bounds = new Rectangle(0, 0, 0, 28);
+            mappingButtonsRow1.ChildPadding = 0;
+            mappingButtonsRow1.ChildGap = 5;
+            mappingButtonsRow1.PositionMode = Components.PositionMode.Relative;
+            mappingsContainer.AddChild(mappingButtonsRow1);
+            
+            // Create Load Mappings button (first row)
+            loadMappingsButton = new Components.Button(font, "Load", 14);
+            loadMappingsButton.AutoSize = false;
+            loadMappingsButton.Bounds = new Rectangle(0, 0, 60, 28);
+            loadMappingsButton.PositionMode = Components.PositionMode.Relative;
+            loadMappingsButton.OnClick = () => {
+                LoadMappings();
+            };
+            mappingButtonsRow1.AddChild(loadMappingsButton);
+            
+            // Create mappings dropdown (first row)
+            mappingsDropdown = new Components.Dropdown(font, new List<string>(), 14);
+            mappingsDropdown.AutoSize = false;
+            mappingsDropdown.Bounds = new Rectangle(0, 0, 0, 28);
+            mappingsDropdown.PositionMode = Components.PositionMode.Relative;
+            mappingsDropdown.OnSelectionChanged = (selected) => {
+                if (!string.IsNullOrEmpty(selected))
+                {
+                    LoadMappingFromFile(selected);
+                }
+            };
+            RefreshMappingsDropdown();
+            mappingButtonsRow1.AddChild(mappingsDropdown);
+            
+            // Create Save Mappings button (first row)
+            saveMappingsButton = new Components.Button(font, "Save", 14);
+            saveMappingsButton.AutoSize = false;
+            saveMappingsButton.Bounds = new Rectangle(0, 0, 60, 28);
+            saveMappingsButton.PositionMode = Components.PositionMode.Relative;
+            saveMappingsButton.OnClick = () => {
+                SaveMappings();
+            };
+            mappingButtonsRow1.AddChild(saveMappingsButton);
+            
+            // Create second row button container (Add, Delete, Apply)
+            var mappingButtonsRow2 = new Components.Container("MappingButtonsRow2");
+            mappingButtonsRow2.AutoLayoutChildren = true;
+            mappingButtonsRow2.LayoutDirection = Components.LayoutDirection.Horizontal;
+            mappingButtonsRow2.AutoSize = false;
+            mappingButtonsRow2.Bounds = new Rectangle(0, 0, 0, 28);
+            mappingButtonsRow2.ChildPadding = 0;
+            mappingButtonsRow2.ChildGap = 5;
+            mappingButtonsRow2.PositionMode = Components.PositionMode.Relative;
+            mappingsContainer.AddChild(mappingButtonsRow2);
+            
+            // Create Add Mapping button (second row)
+            addMappingButton = new Components.Button(font, "Add", 14);
+            addMappingButton.AutoSize = false;
+            addMappingButton.Bounds = new Rectangle(0, 0, 60, 28);
+            addMappingButton.PositionMode = Components.PositionMode.Relative;
+            addMappingButton.OnClick = () => {
+                AddMappingFromIdentifiers();
+            };
+            mappingButtonsRow2.AddChild(addMappingButton);
+            
+            // Create Delete Mappings button (second row)
+            deleteMappingsButton = new Components.Button(font, "Delete", 14);
+            deleteMappingsButton.AutoSize = false;
+            deleteMappingsButton.Bounds = new Rectangle(0, 0, 60, 28);
+            deleteMappingsButton.PositionMode = Components.PositionMode.Relative;
+            deleteMappingsButton.OnClick = () => {
+                DeleteMappingsFromIdentifiers();
+            };
+            mappingButtonsRow2.AddChild(deleteMappingsButton);
+            
+            // Create Apply Mappings button (second row)
+            applyMappingsButton = new Components.Button(font, "Apply", 14);
+            applyMappingsButton.AutoSize = false;
+            applyMappingsButton.Bounds = new Rectangle(0, 0, 60, 28);
+            applyMappingsButton.PositionMode = Components.PositionMode.Relative;
+            applyMappingsButton.OnClick = () => {
+                ApplyMappings();
+            };
+            mappingButtonsRow2.AddChild(applyMappingsButton);
+            
+            // Create mappings table
+            mappingsTable = new Components.Table(font, 12, "Source", "Target");
+            mappingsTable.AutoSize = false;
+            mappingsTable.Bounds = new Rectangle(0, 0, 0, 150); // Default height, will be adjusted
+            mappingsTable.PositionMode = Components.PositionMode.Relative;
+            mappingsTable.Rows = new List<List<string>>();
+            mappingsContainer.AddChild(mappingsTable);
 
             // Create color controls container for HSV inputs (second)
             colorControlsContainer = new Components.Container("ColorControlsContainer");
@@ -1766,6 +1895,20 @@ namespace Keysharp.UI
             UpdateKeyInfo();
         }
 
+        public void SetSecondLayoutVisibility(bool isVisible)
+        {
+            isSecondLayoutEnabled = isVisible;
+            
+            // Update mappings container visibility
+            if (mappingsContainer != null)
+            {
+                mappingsContainer.IsVisible = isVisible;
+            }
+            
+            // Update keyInfoContainer2 visibility - UpdateKeyInfo2() will handle this based on both enabled state and selection
+            UpdateKeyInfo2();
+        }
+
         private void UpdateKeyInfo()
         {
             // Always update both key info sections - they show/hide based on whether they have selections
@@ -2001,6 +2144,311 @@ namespace Keysharp.UI
             }
         }
 
+        private void AddMappingFromIdentifiers()
+        {
+            // Get identifiers from both layouts' identifier inputs
+            string sourceIds = identifierInput?.Text ?? "";
+            string targetIds = identifierInput2?.Text ?? "";
+            
+            // Split by spaces (same logic as the identifier input handlers)
+            string[] sourceIdentifiers = sourceIds.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+            string[] targetIdentifiers = targetIds.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+            
+            // Check if the number of identifiers match
+            if (sourceIdentifiers.Length != targetIdentifiers.Length)
+            {
+                System.Console.WriteLine($"Cannot add mapping: number of source keys ({sourceIdentifiers.Length}) does not match number of target keys ({targetIdentifiers.Length})");
+                return;
+            }
+            
+            // Check if we have at least one identifier pair
+            if (sourceIdentifiers.Length == 0)
+            {
+                System.Console.WriteLine("Cannot add mapping: no identifiers provided");
+                return;
+            }
+            
+            // Map them 1:1 (first to first, second to second, etc.)
+            for (int i = 0; i < sourceIdentifiers.Length; i++)
+            {
+                string sourceId = sourceIdentifiers[i];
+                string targetId = targetIdentifiers[i];
+                
+                // Update or add the mapping using KeyMappings class
+                keyMappings.AddMapping(sourceId, targetId);
+            }
+            
+            // Update the table display
+            UpdateMappingsTable();
+        }
+        
+        private void DeleteMappingsFromIdentifiers()
+        {
+            // Get identifiers from both layouts' identifier inputs
+            string sourceIds = identifierInput?.Text ?? "";
+            string targetIds = identifierInput2?.Text ?? "";
+            
+            // Split by spaces (same logic as the identifier input handlers)
+            string[] sourceIdentifiers = sourceIds.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+            string[] targetIdentifiers = targetIds.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+            
+            // Check if the number of identifiers match
+            if (sourceIdentifiers.Length != targetIdentifiers.Length)
+            {
+                System.Console.WriteLine($"Cannot delete mapping: number of source keys ({sourceIdentifiers.Length}) does not match number of target keys ({targetIdentifiers.Length})");
+                return;
+            }
+            
+            // Check if we have at least one identifier pair
+            if (sourceIdentifiers.Length == 0)
+            {
+                System.Console.WriteLine("Cannot delete mapping: no identifiers provided");
+                return;
+            }
+            
+            // Remove each mapping pair
+            int removedCount = 0;
+            for (int i = 0; i < sourceIdentifiers.Length; i++)
+            {
+                string sourceId = sourceIdentifiers[i];
+                string targetId = targetIdentifiers[i];
+                
+                // Only remove if the mapping exists and matches the target
+                if (keyMappings.GetTargetIdentifier(sourceId) == targetId)
+                {
+                    if (keyMappings.RemoveMapping(sourceId))
+                    {
+                        removedCount++;
+                    }
+                }
+            }
+            
+            if (removedCount > 0)
+            {
+                System.Console.WriteLine($"Removed {removedCount} mapping(s)");
+            }
+            else
+            {
+                System.Console.WriteLine("No matching mappings found to remove");
+            }
+            
+            // Update the table display
+            UpdateMappingsTable();
+        }
+        
+        private void UpdateMappingsTable()
+        {
+            if (mappingsTable == null)
+                return;
+            
+            // Clear existing rows
+            mappingsTable.Rows = new List<List<string>>();
+            
+            // Add rows for each mapping (sorted by source identifier for consistency)
+            var sortedMappings = keyMappings.Mappings.OrderBy(kvp => kvp.Key).ToList();
+            foreach (var mapping in sortedMappings)
+            {
+                mappingsTable.Rows.Add(new List<string> { mapping.Key, mapping.Value });
+            }
+        }
+        
+        private void SaveMappings()
+        {
+            try
+            {
+                // Use zenity for file save dialog on Linux
+                ProcessStartInfo startInfo = new ProcessStartInfo
+                {
+                    FileName = "zenity",
+                    Arguments = "--file-selection --title=\"Save Mapping File\" --save --confirm-overwrite",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    CreateNoWindow = true
+                };
+
+                Process? process = Process.Start(startInfo);
+                if (process != null)
+                {
+                    string? output = process.StandardOutput.ReadToEnd();
+                    process.WaitForExit();
+
+                    if (process.ExitCode == 0 && !string.IsNullOrWhiteSpace(output))
+                    {
+                        string filePath = output.Trim();
+                        if (!filePath.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+                        {
+                            filePath += ".json";
+                        }
+
+                        // Save mappings to file
+                        keyMappings.SaveToFile(filePath);
+                        
+                        // Refresh dropdown to include the new file
+                        RefreshMappingsDropdown();
+                        
+                        // Set dropdown selection to the saved file
+                        if (mappingsDropdown != null)
+                        {
+                            string fileName = Path.GetFileName(filePath);
+                            mappingsDropdown.SetSelectedItem(fileName);
+                        }
+                        
+                        System.Console.WriteLine($"Mappings saved to: {filePath}");
+                    }
+                }
+                else
+                {
+                    System.Console.WriteLine("zenity not available for file save dialog");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"Error saving mappings: {ex.Message}");
+            }
+        }
+        
+        private void LoadMappings()
+        {
+            try
+            {
+                // Use zenity for file open dialog on Linux
+                ProcessStartInfo startInfo = new ProcessStartInfo
+                {
+                    FileName = "zenity",
+                    Arguments = "--file-selection --title=\"Load Mapping File\"",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    CreateNoWindow = true
+                };
+
+                Process? process = Process.Start(startInfo);
+                if (process != null)
+                {
+                    string? output = process.StandardOutput.ReadToEnd();
+                    process.WaitForExit();
+
+                    if (process.ExitCode == 0 && !string.IsNullOrWhiteSpace(output))
+                    {
+                        string filePath = output.Trim();
+                        LoadMappingFromPath(filePath);
+                    }
+                }
+                else
+                {
+                    System.Console.WriteLine("zenity not available for file open dialog");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"Error loading mappings: {ex.Message}");
+            }
+        }
+        
+        private void LoadMappingFromFile(string fileName)
+        {
+            string mappingsDir = Path.Combine(Directory.GetCurrentDirectory(), "mappings");
+            string filePath = Path.Combine(mappingsDir, fileName);
+            LoadMappingFromPath(filePath);
+        }
+        
+        private void LoadMappingFromPath(string filePath)
+        {
+            if (File.Exists(filePath))
+            {
+                try
+                {
+                    keyMappings = Core.KeyMappings.LoadFromFile(filePath);
+                    UpdateMappingsTable();
+                    
+                    // Refresh dropdown to show the loaded file as selected
+                    RefreshMappingsDropdown();
+                    
+                    // Set dropdown selection to the loaded file (without triggering callback to avoid infinite loop)
+                    if (mappingsDropdown != null)
+                    {
+                        string fileName = Path.GetFileName(filePath);
+                        // Find the index of the file in the dropdown items
+                        string mappingsDir = Path.Combine(Directory.GetCurrentDirectory(), "mappings");
+                        if (Directory.Exists(mappingsDir))
+                        {
+                            var files = Directory.GetFiles(mappingsDir, "*.json")
+                                .Select(f => Path.GetFileName(f))
+                                .OrderBy(f => f)
+                                .ToList();
+                            int index = files.IndexOf(fileName);
+                            if (index >= 0)
+                            {
+                                mappingsDropdown.SetSelectedIndex(index, triggerCallback: false);
+                            }
+                        }
+                    }
+                    
+                    System.Console.WriteLine($"Mappings loaded from: {filePath}");
+                }
+                catch (Exception ex)
+                {
+                    System.Console.WriteLine($"Error loading mapping file: {ex.Message}");
+                }
+            }
+            else
+            {
+                System.Console.WriteLine($"File not found: {filePath}");
+            }
+        }
+        
+        private void RefreshMappingsDropdown()
+        {
+            if (mappingsDropdown == null)
+                return;
+                
+            string mappingsDir = Path.Combine(Directory.GetCurrentDirectory(), "mappings");
+            List<string> mappingFiles = new List<string>();
+            
+            if (Directory.Exists(mappingsDir))
+            {
+                try
+                {
+                    var files = Directory.GetFiles(mappingsDir, "*.json");
+                    foreach (var file in files)
+                    {
+                        string fileName = Path.GetFileName(file);
+                        mappingFiles.Add(fileName);
+                    }
+                    mappingFiles.Sort();
+                }
+                catch (Exception ex)
+                {
+                    System.Console.WriteLine($"Error reading mappings directory: {ex.Message}");
+                }
+            }
+            
+            mappingsDropdown.SetItems(mappingFiles);
+        }
+        
+        private void ApplyMappings()
+        {
+            if (layoutTab == null)
+            {
+                System.Console.WriteLine("LayoutTab not available");
+                return;
+            }
+
+            try
+            {
+                // Apply mappings from layout 1 to layout 2
+                keyMappings.ApplyMappings(layoutTab.Layout, layoutTab.Layout2);
+                
+                // Notify layout tab that layout 2 has changed
+                layoutTab.NotifyLayoutChanged();
+                
+                System.Console.WriteLine("Mappings applied successfully");
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"Error applying mappings: {ex.Message}");
+            }
+        }
+
         private void DeleteSelectedKey()
         {
             if (layout != null && selectedKeys.Count > 0)
@@ -2062,10 +2510,10 @@ namespace Keysharp.UI
             bool hasKey = selectedKeys2.Count > 0;
             bool isMultiSelect = selectedKeys2.Count > 1;
             
-            // Show/hide container based on whether it has selections
+            // Show/hide container based on whether second layout is enabled AND we have selections
             if (keyInfoContainer2 != null)
             {
-                keyInfoContainer2.IsVisible = hasKey;
+                keyInfoContainer2.IsVisible = isSecondLayoutEnabled && hasKey;
             }
             
             // Find top-leftmost key for position display
@@ -2609,6 +3057,47 @@ namespace Keysharp.UI
                 }
             }
             
+            // Set mappings container size
+            if (mappingsContainer != null && Bounds.Width > 0 && Bounds.Height > 0)
+            {
+                float availableWidth = Bounds.Width - 30; // Account for 15px padding on each side
+                // Height: header (24) + gap (8) + row1 buttons (28) + gap (5) + row2 buttons (28) + gap (8) + table (150) = 251
+                mappingsContainer.SetSize(availableWidth, 251);
+                
+                // Set header label width
+                if (mappingsHeaderLabel != null)
+                {
+                    mappingsHeaderLabel.SetSize(availableWidth, 24);
+                }
+                
+                // Set button container width (buttons are in a horizontal container)
+                // Set button container widths (two rows of buttons)
+                var buttonContainerRow1 = mappingsContainer.Children.FirstOrDefault(c => c.Name == "MappingButtonsRow1");
+                if (buttonContainerRow1 != null)
+                {
+                    buttonContainerRow1.SetSize(availableWidth, 28);
+                }
+                var buttonContainerRow2 = mappingsContainer.Children.FirstOrDefault(c => c.Name == "MappingButtonsRow2");
+                if (buttonContainerRow2 != null)
+                {
+                    buttonContainerRow2.SetSize(availableWidth, 28);
+                }
+                
+                // Set dropdown width (fills remaining space in first row)
+                if (mappingsDropdown != null && buttonContainerRow1 != null)
+                {
+                    // Calculate remaining width: container width minus Load button (60) minus Save button (60) minus gaps (10 = 2*5)
+                    float dropdownWidth = availableWidth - 60 - 60 - 10;
+                    mappingsDropdown.SetSize(dropdownWidth, 28);
+                }
+                
+                // Set table width and height
+                if (mappingsTable != null)
+                {
+                    mappingsTable.SetSize(availableWidth, 150);
+                }
+            }
+            
             // Set color controls container size (position will be set after ResolveBounds)
             if (colorControlsContainer != null && Bounds.Width > 0 && Bounds.Height > 0)
             {
@@ -2680,7 +3169,18 @@ namespace Keysharp.UI
                 }
             }
             
-            // Position color controls container below key info containers
+            // Position mappings container before color controls
+            if (mappingsContainer != null)
+            {
+                mappingsContainer.RelativePosition = new System.Numerics.Vector2(15, currentY);
+                mappingsContainer.ResolveBounds();
+                if (mappingsContainer.IsVisible && mappingsContainer.Bounds.Height > 0)
+                {
+                    currentY += mappingsContainer.Bounds.Height + containerGap;
+                }
+            }
+            
+            // Position color controls container below mappings container
             if (colorControlsContainer != null)
             {
                 colorControlsContainer.RelativePosition = new System.Numerics.Vector2(15, currentY);
@@ -2716,6 +3216,25 @@ namespace Keysharp.UI
 
         public override void Update()
         {
+            // Update dropdowns first to ensure they can consume clicks before buttons process them
+            // This prevents click-through when dropdowns are open
+            if (fingerDropdown != null)
+            {
+                fingerDropdown.Update();
+            }
+            if (fingerDropdown2 != null)
+            {
+                fingerDropdown2.Update();
+            }
+            if (metadataLayoutDropdown != null)
+            {
+                metadataLayoutDropdown.Update();
+            }
+            if (mappingsDropdown != null)
+            {
+                mappingsDropdown.Update();
+            }
+            
             base.Update();
             // No bounds setting here - that's done in PrepareResolveBounds()
             
@@ -2738,6 +3257,10 @@ namespace Keysharp.UI
             if (keyInfoContainer2 != null && keyInfoContainer2.IsVisible && keyInfoContainer2.Bounds.Height > 0)
             {
                 totalContentHeight += keyInfoContainer2.Bounds.Height + containerGap;
+            }
+            if (mappingsContainer != null && mappingsContainer.IsVisible && mappingsContainer.Bounds.Height > 0)
+            {
+                totalContentHeight += mappingsContainer.Bounds.Height + containerGap;
             }
             if (colorControlsContainer != null && colorControlsContainer.IsVisible && colorControlsContainer.Bounds.Height > 0)
             {
@@ -2805,8 +3328,16 @@ namespace Keysharp.UI
                 return;
             }
             
+            // Check if mappings table is being hovered/scrolled - if so, don't scroll sidebar
+            bool tableIsHovered = false;
+            if (mappingsTable != null && mappingsTable.IsVisible && mappingsTable.IsEnabled)
+            {
+                tableIsHovered = mappingsTable.IsHovering(mouseX, mouseY);
+            }
+            
             // Handle mouse wheel scrolling
-            if (mouseX >= Bounds.X && mouseX <= Bounds.X + Bounds.Width - ScrollbarWidth && // Don't scroll when over scrollbar
+            if (!tableIsHovered && 
+                mouseX >= Bounds.X && mouseX <= Bounds.X + Bounds.Width - ScrollbarWidth && // Don't scroll when over scrollbar
                 mouseY >= Bounds.Y && mouseY <= Bounds.Y + Bounds.Height)
             {
                 float wheelMove = Raylib.GetMouseWheelMove();
@@ -2844,6 +3375,8 @@ namespace Keysharp.UI
                 totalContentHeight += keyInfoContainer.Bounds.Height + containerGap;
             if (keyInfoContainer2 != null && keyInfoContainer2.IsVisible && keyInfoContainer2.Bounds.Height > 0)
                 totalContentHeight += keyInfoContainer2.Bounds.Height + containerGap;
+            if (mappingsContainer != null && mappingsContainer.IsVisible && mappingsContainer.Bounds.Height > 0)
+                totalContentHeight += mappingsContainer.Bounds.Height + containerGap;
             if (colorControlsContainer != null && colorControlsContainer.IsVisible && colorControlsContainer.Bounds.Height > 0)
                 totalContentHeight += colorControlsContainer.Bounds.Height + containerGap;
             
@@ -2900,6 +3433,10 @@ namespace Keysharp.UI
             if (keyInfoContainer2 != null && keyInfoContainer2.IsVisible && keyInfoContainer2.Bounds.Height > 0)
             {
                 totalContentHeight += keyInfoContainer2.Bounds.Height + containerGap;
+            }
+            if (mappingsContainer != null && mappingsContainer.IsVisible && mappingsContainer.Bounds.Height > 0)
+            {
+                totalContentHeight += mappingsContainer.Bounds.Height + containerGap;
             }
             if (colorControlsContainer != null && colorControlsContainer.IsVisible && colorControlsContainer.Bounds.Height > 0)
             {
@@ -2965,6 +3502,10 @@ namespace Keysharp.UI
             if (metadataLayoutDropdown != null)
             {
                 metadataLayoutDropdown.DrawDropdown();
+            }
+            if (mappingsDropdown != null)
+            {
+                mappingsDropdown.DrawDropdown();
             }
         }
     }
