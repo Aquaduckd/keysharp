@@ -734,6 +734,7 @@ namespace Keysharp.UI
                 }
 
                 // Update corpus tab with new layout reference
+                System.Console.WriteLine($"Updating corpus tab with layout: {metadata.DisplayName ?? "Unknown"} ({newLayout.PhysicalKeyCount} keys, {newLayout.MappingCount} mappings)");
                 corpusTab?.SetLayout(layout);
 
                 // Update dropdown selection if this is a file from the layouts directory

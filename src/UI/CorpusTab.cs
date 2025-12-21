@@ -87,6 +87,7 @@ namespace Keysharp.UI
         public void SetLayout(Layout? layout)
         {
             this.layout = layout;
+            System.Console.WriteLine($"CorpusTab.SetLayout called with layout: {(layout != null ? $"{layout.PhysicalKeyCount} keys, {layout.MappingCount} mappings" : "null")}");
             // Update or create metric analyzer
             UpdateMetricAnalyzer();
             // Update table to show key sequences if layout is available

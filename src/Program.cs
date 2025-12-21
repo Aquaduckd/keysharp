@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using Keysharp.Components;
 using Keysharp.UI;
+using Keysharp.Tools;
 
 namespace Keysharp
 {
@@ -11,6 +12,28 @@ namespace Keysharp
     {
         public static void Main(string[] args)
         {
+            // Check if we should run the layout converter instead
+            if (args.Length > 0 && args[0] == "convert")
+            {
+                TestConverter.RunTest();
+                return;
+            }
+
+            // Check if we should run batch conversion
+            if (args.Length > 0 && args[0] == "batch")
+            {
+                TestConverter.RunBatchConversion();
+                return;
+            }
+
+            // Check if we should remove mappings from layouts
+            if (args.Length > 0 && args[0] == "remove-mappings")
+            {
+                string layoutDirectory = args.Length > 1 ? args[1] : Path.Combine(Directory.GetCurrentDirectory(), "layouts");
+                LayoutConverter.RemoveMappingsFromAllLayouts(layoutDirectory);
+                return;
+            }
+
             const int screenWidth = 1000;
             const int screenHeight = 700;
 

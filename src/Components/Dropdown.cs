@@ -11,6 +11,7 @@ namespace Keysharp.Components
         private const int ItemHeight = 25;
         private const int Padding = 5;
         private const int MinWidth = 200;
+        private const int DefaultMaxVisibleRows = 10;
 
         // Static flag to track if a click was consumed by a dropdown this frame
         private static bool clickConsumedThisFrame = false;
@@ -21,19 +22,45 @@ namespace Keysharp.Components
         private bool isOpen = false;
         private int fontSize;
         private string? customDisplayText = null;
+        private int maxVisibleRows = DefaultMaxVisibleRows;
+        private int scrollOffset = 0; // Index of first visible item when scrolling
 
         public string? SelectedItem => selectedIndex >= 0 && selectedIndex < items.Count ? items[selectedIndex] : null;
         public Action<string>? OnSelectionChanged { get; set; }
         public bool IsOpen => isOpen;
+        
+        /// <summary>
+        /// Maximum number of rows to display in the dropdown before scrolling is needed.
+        /// Default is 10.
+        /// </summary>
+        public int MaxVisibleRows
+        {
+            get => maxVisibleRows;
+            set
+            {
+                maxVisibleRows = Math.Max(1, value); // At least 1 row must be visible
+                // Clamp scroll offset to valid range when max rows changes
+                int maxScroll = Math.Max(0, items.Count - maxVisibleRows);
+                scrollOffset = Math.Min(scrollOffset, maxScroll);
+            }
+        }
 
         public override bool IsHovering(int mouseX, int mouseY)
         {
             bool hoveringButton = mouseX >= Bounds.X && mouseX <= Bounds.X + Bounds.Width &&
                                  mouseY >= Bounds.Y && mouseY <= Bounds.Y + Bounds.Height;
-            bool hoveringDropdown = isOpen && mouseX >= Bounds.X && mouseX <= Bounds.X + Bounds.Width &&
-                                   mouseY >= Bounds.Y + Bounds.Height && 
-                                   mouseY <= Bounds.Y + Bounds.Height + items.Count * ItemHeight + Padding * 2;
-            return hoveringButton || hoveringDropdown;
+            
+            if (isOpen)
+            {
+                int dropdownY = (int)(Bounds.Y + Bounds.Height);
+                int visibleRows = Math.Min(maxVisibleRows, items.Count);
+                int dropdownHeight = visibleRows * ItemHeight + Padding * 2;
+                bool hoveringDropdown = mouseX >= Bounds.X && mouseX <= Bounds.X + Bounds.Width &&
+                                       mouseY >= dropdownY && mouseY <= dropdownY + dropdownHeight;
+                return hoveringButton || hoveringDropdown;
+            }
+            
+            return hoveringButton;
         }
 
         public void SetCustomDisplayText(string? text)
@@ -63,6 +90,9 @@ namespace Keysharp.Components
             {
                 selectedIndex = -1;
             }
+            // Reset scroll offset and clamp it to valid range
+            int maxScroll = Math.Max(0, items.Count - maxVisibleRows);
+            scrollOffset = Math.Min(scrollOffset, maxScroll);
         }
 
         public void SetSelectedItem(string item)
@@ -121,25 +151,47 @@ namespace Keysharp.Components
                 if (mouseX >= Bounds.X && mouseX <= Bounds.X + Bounds.Width &&
                     mouseY >= Bounds.Y && mouseY <= Bounds.Y + Bounds.Height)
                 {
+                    bool wasOpen = isOpen;
                     isOpen = !isOpen;
+                    
+                    // When opening, scroll to show selected item if it exists
+                    if (!wasOpen && isOpen && selectedIndex >= 0 && items.Count > maxVisibleRows)
+                    {
+                        // Ensure selected item is visible
+                        if (selectedIndex < scrollOffset)
+                        {
+                            scrollOffset = selectedIndex;
+                        }
+                        else if (selectedIndex >= scrollOffset + maxVisibleRows)
+                        {
+                            scrollOffset = selectedIndex - maxVisibleRows + 1;
+                        }
+                    }
+                    
                     handledClick = true;
                 }
                 // Check if clicking on dropdown items
                 else if (isOpen)
                 {
                     int dropdownY = (int)(Bounds.Y + Bounds.Height);
-                    int dropdownHeight = items.Count * ItemHeight + Padding * 2;
+                    int visibleRows = Math.Min(maxVisibleRows, items.Count);
+                    int dropdownHeight = visibleRows * ItemHeight + Padding * 2;
 
                     if (mouseX >= Bounds.X && mouseX <= Bounds.X + Bounds.Width &&
                         mouseY >= dropdownY && mouseY <= dropdownY + dropdownHeight)
                     {
                         int itemIndex = (mouseY - dropdownY - Padding) / ItemHeight;
-                        if (itemIndex >= 0 && itemIndex < items.Count)
+                        if (itemIndex >= 0 && itemIndex < visibleRows)
                         {
-                            selectedIndex = itemIndex;
-                            OnSelectionChanged?.Invoke(items[itemIndex]);
-                            isOpen = false;
-                            handledClick = true;
+                            // Map visible item index to actual item index accounting for scroll
+                            int actualIndex = scrollOffset + itemIndex;
+                            if (actualIndex >= 0 && actualIndex < items.Count)
+                            {
+                                selectedIndex = actualIndex;
+                                OnSelectionChanged?.Invoke(items[actualIndex]);
+                                isOpen = false;
+                                handledClick = true;
+                            }
                         }
                     }
                     else if (ContainsPoint(mouseX, mouseY))
@@ -154,6 +206,21 @@ namespace Keysharp.Components
                 if (handledClick)
                 {
                     clickConsumedThisFrame = true;
+                }
+            }
+
+            // Handle mouse wheel scrolling when dropdown is open
+            if (isOpen && items.Count > maxVisibleRows)
+            {
+                float wheelMove = Raylib.GetMouseWheelMove();
+                if (wheelMove != 0)
+                {
+                    // Only scroll if mouse is over the dropdown (reuse mouseX and mouseY from above)
+                    if (ContainsPoint(mouseX, mouseY))
+                    {
+                        int maxScroll = items.Count - maxVisibleRows;
+                        scrollOffset = (int)Math.Clamp(scrollOffset - wheelMove, 0, maxScroll);
+                    }
                 }
             }
 
@@ -241,24 +308,35 @@ namespace Keysharp.Components
                     dropdownWidth = (int)Bounds.Width;
                 }
 
+                // Calculate visible rows and scroll bounds
+                int visibleRows = Math.Min(maxVisibleRows, items.Count);
                 int dropdownY = (int)(Bounds.Y + Bounds.Height);
-                int dropdownHeight = items.Count * ItemHeight + Padding * 2;
+                int dropdownHeight = visibleRows * ItemHeight + Padding * 2;
+                
+                // Ensure scroll offset is within valid range
+                int maxScroll = Math.Max(0, items.Count - maxVisibleRows);
+                scrollOffset = Math.Clamp(scrollOffset, 0, maxScroll);
 
                 // Draw dropdown background
                 Rectangle dropdownRect = new Rectangle(Bounds.X, dropdownY, dropdownWidth, dropdownHeight);
                 Raylib.DrawRectangleRec(dropdownRect, UITheme.SidePanelColor);
                 Raylib.DrawRectangleLinesEx(dropdownRect, 1, UITheme.BorderColor);
 
-                // Draw items
+                // Draw visible items only
+                int currentMouseX = Raylib.GetMouseX();
+                int currentMouseY = Raylib.GetMouseY();
                 int itemY = dropdownY + Padding;
-                for (int i = 0; i < items.Count; i++)
+                
+                for (int i = 0; i < visibleRows; i++)
                 {
+                    int actualIndex = scrollOffset + i;
+                    if (actualIndex >= items.Count)
+                        break;
+                    
                     // Check if hovering
-                    int mouseX = Raylib.GetMouseX();
-                    int mouseY = Raylib.GetMouseY();
-                    bool isHovered = mouseX >= Bounds.X && mouseX <= Bounds.X + dropdownWidth &&
-                                   mouseY >= itemY && mouseY <= itemY + ItemHeight;
-                    bool isSelected = i == selectedIndex;
+                    bool isHovered = currentMouseX >= Bounds.X && currentMouseX <= Bounds.X + dropdownWidth &&
+                                   currentMouseY >= itemY && currentMouseY <= itemY + ItemHeight;
+                    bool isSelected = actualIndex == selectedIndex;
 
                     if (isHovered || isSelected)
                     {
@@ -267,10 +345,16 @@ namespace Keysharp.Components
 
                     // Draw item text
                     Color itemTextColor = isSelected ? UITheme.TextColor : UITheme.TextSecondaryColor;
-                    FontManager.DrawText(font, items[i], (int)Bounds.X + Padding, itemY + 2, fontSize - 1, itemTextColor);
+                    FontManager.DrawText(font, items[actualIndex], (int)Bounds.X + Padding, itemY + 2, fontSize - 1, itemTextColor);
 
                     itemY += ItemHeight;
                 }
+            }
+            
+            // Reset scroll offset when dropdown closes
+            if (!isOpen)
+            {
+                scrollOffset = 0;
             }
         }
 
@@ -290,7 +374,8 @@ namespace Keysharp.Components
             if (isOpen)
             {
                 int dropdownY = (int)(Bounds.Y + Bounds.Height);
-                int dropdownHeight = items.Count * ItemHeight + Padding * 2;
+                int visibleRows = Math.Min(maxVisibleRows, items.Count);
+                int dropdownHeight = visibleRows * ItemHeight + Padding * 2;
                 int dropdownWidth = MinWidth;
                 foreach (var item in items)
                 {

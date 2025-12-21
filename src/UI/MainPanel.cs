@@ -283,16 +283,14 @@ namespace Keysharp.UI
             }
             
             // Check and update stats only when needed (not every frame)
-            if (isStatsActive)
+            // Call this even when stats tab is not active, so stats update when layout changes
+            statsTab?.CheckAndUpdateStats();
+            
+            // After UpdateStats creates new elements, we need to resolve their bounds
+            // Resolve bounds for stats tab content so new elements get proper positions
+            if (isStatsActive && statsTab != null && statsTab.TabContent != null)
             {
-                statsTab?.CheckAndUpdateStats();
-                
-                // After UpdateStats creates new elements, we need to resolve their bounds
-                // Resolve bounds for stats tab content so new elements get proper positions
-                if (statsTab != null && statsTab.TabContent != null)
-                {
-                    statsTab.TabContent.ResolveBounds();
-                }
+                statsTab.TabContent.ResolveBounds();
             }
 
             // Phase 1: Resolve all bounds (converts relative to absolute, calculates AutoSize)

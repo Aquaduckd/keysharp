@@ -15,7 +15,9 @@ namespace Keysharp.Core
         [JsonPropertyName("keys")]
         public List<PhysicalKeyJson> Keys { get; set; } = new List<PhysicalKeyJson>();
 
-        [JsonPropertyName("mappings")]
+        // Mappings are not stored in JSON - they are always regenerated from PrimaryCharacter/ShiftCharacter
+        // This property exists for backward compatibility but is ignored during serialization/deserialization
+        [System.Text.Json.Serialization.JsonIgnore]
         public Dictionary<string, List<string>> Mappings { get; set; } = new Dictionary<string, List<string>>();
 
         /// <summary>
@@ -39,23 +41,8 @@ namespace Keysharp.Core
                 }
             }
 
-            // Serialize string-to-keys mappings using key identifiers
-            var allMappings = layout.GetAllMappings();
-            foreach (var kvp in allMappings)
-            {
-                var identifierList = new List<string>();
-                foreach (var key in kvp.Value)
-                {
-                    if (keyToIdentifier.TryGetValue(key, out var identifier))
-                    {
-                        identifierList.Add(identifier);
-                    }
-                }
-                if (identifierList.Count > 0)
-                {
-                    json.Mappings[kvp.Key] = identifierList;
-                }
-            }
+            // Mappings are not saved - they will be regenerated from PrimaryCharacter/ShiftCharacter when loaded
+            // This ensures mappings are always correct and reduces file size
 
             return json;
         }
@@ -79,63 +66,10 @@ namespace Keysharp.Core
                 }
             }
 
-            // Then, add string-to-keys mappings
-            foreach (var kvp in Mappings)
-            {
-                var keyList = new List<PhysicalKey>();
-                foreach (var identifier in kvp.Value)
-                {
-                    if (identifierToKey.TryGetValue(identifier, out var key))
-                    {
-                        keyList.Add(key);
-                    }
-                }
-                if (keyList.Count > 0)
-                {
-                    layout.AddMapping(kvp.Key, keyList);
-                }
-            }
-
-            // Rebuild mappings from key properties if no mappings were loaded (for backward compatibility)
-            // If mappings exist, we trust them; otherwise rebuild from PrimaryCharacter/ShiftCharacter
-            if (Mappings.Count == 0)
-            {
-                layout.RebuildMappings();
-            }
-            else
-            {
-                // Even if mappings exist, fix space mapping to ensure it's correct (never Shift+Space)
-                // Find the space key and ensure space maps directly to it
-                PhysicalKey? spaceKey = null;
-                foreach (var key in layout.GetPhysicalKeys())
-                {
-                    if (key.PrimaryCharacter == " " || key.ShiftCharacter == " ")
-                    {
-                        spaceKey = key;
-                        break;
-                    }
-                }
-                if (spaceKey != null)
-                {
-                    // Force space to map directly to the space key, not as Shift+Space
-                    layout.AddMapping(" ", new List<PhysicalKey> { spaceKey });
-                }
-
-                // Map newline character (\n) to Enter key
-                PhysicalKey? enterKey = null;
-                foreach (var key in layout.GetPhysicalKeys())
-                {
-                    if (key.Identifier == "Enter")
-                    {
-                        enterKey = key;
-                        break;
-                    }
-                }
-                if (enterKey != null)
-                {
-                    layout.AddMapping("\n", new List<PhysicalKey> { enterKey });
-                }
-            }
+            // Mappings are not loaded from JSON - they are always rebuilt from PrimaryCharacter/ShiftCharacter
+            // This ensures mappings are always correct and matches the current key assignments
+            // RebuildMappings handles space and newline special cases internally
+            layout.RebuildMappings();
 
             return layout;
         }
