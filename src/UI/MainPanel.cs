@@ -301,12 +301,13 @@ namespace Keysharp.UI
             // Constrain canvas width after bounds resolution (for layout tab)
             layoutTab?.ConstrainCanvasWidth(contentArea);
 
+            // Set the correct visibility AFTER bounds are fully resolved but BEFORE input handling
+            // This ensures tabs only become visible when their bounds are already correct
+            // and prevents inactive tabs from receiving input events
+            UpdateTabVisibility();
+
             // Phase 2: Layout and input handling
             base.Update();
-            
-            // Now set the correct visibility AFTER bounds are fully resolved
-            // This ensures tabs only become visible when their bounds are already correct
-            UpdateTabVisibility();
 
         }
 
