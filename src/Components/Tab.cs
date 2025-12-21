@@ -7,10 +7,18 @@ namespace Keysharp.Components
         public string TabName { get; }
         public bool IsActive { get; set; }
         public System.Action? OnClick { get; set; }
+        
+        // Drag state
+        public bool IsDragging { get; private set; }
+        public int DragStartX { get; private set; }
+        public int DragStartY { get; private set; }
 
         private Font font;
         private const int TabPadding = 15;
         private const int TabHeight = 35;
+        private const int DragThreshold = 5; // Pixels to move before drag starts
+        private bool isDragStarted = false;
+        private bool wasClicked = false; // Track if this tab received the initial click
 
         public void UpdateFont(Font newFont)
         {
@@ -33,25 +41,86 @@ namespace Keysharp.Components
 
             // Only process input if enabled and clickable
             if (!IsVisible || !IsEnabled || !IsClickable || IsAnyParentHidden())
+            {
+                // Reset drag state if not enabled
+                if (IsDragging)
+                {
+                    IsDragging = false;
+                    isDragStarted = false;
+                    wasClicked = false;
+                }
                 return;
+            }
 
-            // Handle clicks
+            int mouseX = Raylib.GetMouseX();
+            int mouseY = Raylib.GetMouseY();
+            bool isHovering = IsHovering(mouseX, mouseY);
+
+            // Handle mouse button press
             if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT))
             {
-                int mouseX = Raylib.GetMouseX();
-                int mouseY = Raylib.GetMouseY();
-
-                if (IsHovering(mouseX, mouseY))
+                if (isHovering)
                 {
+                    DragStartX = mouseX;
+                    DragStartY = mouseY;
+                    isDragStarted = false;
+                    wasClicked = true; // Mark that this tab was clicked
+                }
+                else
+                {
+                    wasClicked = false; // Another tab was clicked
+                }
+            }
+
+            // Handle drag start - only if this tab was the one clicked
+            if (Raylib.IsMouseButtonDown(MouseButton.MOUSE_BUTTON_LEFT))
+            {
+                if (wasClicked && !IsDragging && !isDragStarted)
+                {
+                    int deltaX = System.Math.Abs(mouseX - DragStartX);
+                    int deltaY = System.Math.Abs(mouseY - DragStartY);
+                    
+                    if (deltaX > DragThreshold || deltaY > DragThreshold)
+                    {
+                        IsDragging = true;
+                        isDragStarted = true;
+                    }
+                }
+                else if (!wasClicked && IsDragging)
+                {
+                    // If we didn't get the click but somehow are dragging, stop
+                    IsDragging = false;
+                    isDragStarted = false;
+                }
+            }
+
+            // Handle mouse button release
+            if (Raylib.IsMouseButtonReleased(MouseButton.MOUSE_BUTTON_LEFT))
+            {
+                if (IsDragging)
+                {
+                    IsDragging = false;
+                    isDragStarted = false;
+                }
+                else if (isHovering && wasClicked && !isDragStarted)
+                {
+                    // Only trigger click if we were the one clicked and didn't drag
                     OnClick?.Invoke();
                 }
+                wasClicked = false;
+                isDragStarted = false;
             }
         }
 
         protected override void DrawSelf()
         {
-            // Tab background
+            // Tab background (lighter when dragging)
             Color tabColor = IsActive ? UITheme.MainPanelColor : UITheme.SidePanelColor;
+            if (IsDragging)
+            {
+                // Make tab slightly transparent when dragging
+                tabColor = new Color(tabColor.R, tabColor.G, tabColor.B, (byte)(tabColor.A * 0.7f));
+            }
             Raylib.DrawRectangleRec(Bounds, tabColor);
 
             // Tab border

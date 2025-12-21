@@ -75,8 +75,9 @@ namespace Keysharp.UI
             verticalSplitter.ResolveBounds();
             horizontalSplitter.ResolveBounds();
             
-            // MainPanel has a special Update(Rectangle) method that handles ResolveBounds internally
+            // MainPanel and BottomPanel have special Update(Rectangle) methods that handle ResolveBounds internally
             mainPanel.Update(layoutRect.MainPanel);
+            bottomPanel.Update(layoutRect.BottomPanel);
             
             // Phase 2: Layout and input handling
             // Reset dropdown click consumed flag at the start of each frame
@@ -84,7 +85,6 @@ namespace Keysharp.UI
             
             menuBar.Update();
             sidePanel.Update();
-            bottomPanel.Update();
             verticalSplitter.Update();
             horizontalSplitter.Update();
         }

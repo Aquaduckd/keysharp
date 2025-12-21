@@ -133,6 +133,182 @@ namespace Keysharp.UI
             return new List<string>(tabs);
         }
 
+        public void MoveTab(string tabName, int newIndex)
+        {
+            int oldIndex = tabs.IndexOf(tabName);
+            if (oldIndex == -1 || newIndex < 0 || newIndex >= tabs.Count || oldIndex == newIndex)
+                return;
+
+            // Reorder lists
+            tabs.RemoveAt(oldIndex);
+            tabs.Insert(newIndex, tabName);
+
+            var tabElement = tabElements[oldIndex];
+            tabElements.RemoveAt(oldIndex);
+            tabElements.Insert(newIndex, tabElement);
+
+            // Reorder in container (manipulate Children list directly)
+            if (tabsContainer != null)
+            {
+                tabsContainer.Children.Remove(tabElement);
+                tabsContainer.Children.Insert(newIndex, tabElement);
+            }
+
+            // Update active tab index
+            if (activeTabIndex == oldIndex)
+            {
+                activeTabIndex = newIndex;
+            }
+            else if (activeTabIndex > oldIndex && activeTabIndex <= newIndex)
+            {
+                activeTabIndex--;
+            }
+            else if (activeTabIndex < oldIndex && activeTabIndex >= newIndex)
+            {
+                activeTabIndex++;
+            }
+
+            // Rebuild click handlers
+            RebuildTabClickHandlers();
+        }
+
+        private void RebuildTabClickHandlers()
+        {
+            for (int i = 0; i < tabElements.Count; i++)
+            {
+                int tabIndex = i; // Capture for closure
+                tabElements[i].OnClick = () => { activeTabIndex = tabIndex; UpdateTabVisibility(); };
+            }
+        }
+
+        public bool HasTab(string tabName)
+        {
+            return tabs.Contains(tabName);
+        }
+
+        private string? draggedTabName = null;
+        private void HandleTabDragAndDrop(Rectangle bounds)
+        {
+            if (tabsContainer == null)
+                return;
+
+            int mouseX = Raylib.GetMouseX();
+            int mouseY = Raylib.GetMouseY();
+
+            // Check if we're dragging a tab (only one should be dragging at a time)
+            Components.Tab? draggedTab = null;
+            string? newDraggedTabName = null;
+            foreach (var tabElement in tabElements)
+            {
+                if (tabElement.IsDragging)
+                {
+                    draggedTab = tabElement;
+                    newDraggedTabName = tabElement.TabName;
+                    break; // Only one tab should be dragging
+                }
+            }
+
+            // Update draggedTabName only when a drag starts/stops
+            if (newDraggedTabName != draggedTabName)
+            {
+                draggedTabName = newDraggedTabName;
+            }
+
+            // Handle drop
+            if (draggedTab != null && draggedTabName != null)
+            {
+                if (Raylib.IsMouseButtonReleased(MouseButton.MOUSE_BUTTON_LEFT))
+                {
+                    int currentIndex = tabs.IndexOf(draggedTabName);
+                    if (currentIndex == -1)
+                    {
+                        draggedTabName = null;
+                        return;
+                    }
+
+                    // Calculate drop position based on mouse X position
+                    int dropIndex = CalculateDropIndex(mouseX, bounds, currentIndex);
+                    
+                    // Only move if drop index is valid and different from current position
+                    if (dropIndex >= 0 && dropIndex < tabs.Count && dropIndex != currentIndex)
+                    {
+                        MoveTab(draggedTabName, dropIndex);
+                    }
+                    draggedTabName = null;
+                }
+            }
+        }
+
+        private int CalculateDropIndex(int mouseX, Rectangle bounds, int draggedIndex)
+        {
+            if (tabsContainer == null || tabElements.Count == 0 || draggedIndex < 0 || draggedIndex >= tabs.Count)
+                return -1;
+
+            int mouseY = Raylib.GetMouseY();
+            if (mouseY < bounds.Y || mouseY > bounds.Y + TabHeight)
+                return -1;
+
+            // Tabs use auto-layout, so we need to calculate cumulative positions
+            float containerX = tabsContainer.Bounds.X;
+            float currentX = containerX;
+
+            // Find which tab position the mouse is over, excluding the dragged tab
+            for (int i = 0; i < tabElements.Count; i++)
+            {
+                if (!visibleTabs.Contains(tabs[i]))
+                    continue;
+
+                var tabElement = tabElements[i];
+                if (tabElement.Bounds.Width <= 0)
+                    continue;
+
+                // Calculate absolute position based on cumulative width (even for dragged tab, to get correct positions)
+                float left = currentX;
+                float right = left + tabElement.Bounds.Width;
+                
+                // Always advance currentX for next tab (add width + spacing)
+                // This must happen even for the dragged tab, so subsequent tabs have correct positions
+                currentX += tabElement.Bounds.Width + TabSpacing;
+
+                // Skip the dragged tab for comparison logic, but we've already used its width for positioning
+                if (i == draggedIndex)
+                    continue;
+
+                // Check if mouse is before this tab
+                if (mouseX < left)
+                {
+                    // Insert before this tab
+                    return i < draggedIndex ? i : i - 1;
+                }
+
+                // Check if mouse is within this tab - insert AT this tab's position
+                if (mouseX < right)
+                {
+                    // Insert at this tab's position (replacing/pushing it right)
+                    // Always insert at i, regardless of dragged tab position
+                    // After removal, the tab at position i will shift, but we want to insert at the position i represents
+                    return i;
+                }
+            }
+
+            // Mouse is past all tabs - insert at end
+            // Find the last visible tab (excluding dragged tab)
+            int lastVisibleIndex = -1;
+            for (int i = tabElements.Count - 1; i >= 0; i--)
+            {
+                if (visibleTabs.Contains(tabs[i]) && i != draggedIndex)
+                {
+                    lastVisibleIndex = i;
+                    break;
+                }
+            }
+            
+            if (lastVisibleIndex == -1)
+                return draggedIndex; // No other visible tabs
+            
+            return lastVisibleIndex < draggedIndex ? lastVisibleIndex + 1 : lastVisibleIndex;
+        }
+
         /// <summary>
         /// Gets the currently loaded corpus, or null if no corpus is loaded.
         /// </summary>
@@ -303,6 +479,9 @@ namespace Keysharp.UI
             // This ensures tabs only become visible when their bounds are already correct
             // and prevents inactive tabs from receiving input events
             UpdateTabVisibility();
+
+            // Handle tab drag and drop for reordering (after bounds are resolved)
+            HandleTabDragAndDrop(bounds);
 
             // Phase 2: Layout and input handling
             base.Update();
