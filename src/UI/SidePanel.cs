@@ -245,7 +245,7 @@ namespace Keysharp.UI
             keyInfoContainer.AddChild(placeholderLabel);
 
             // Create title label
-            titleLabel = new Components.Label(font, "Key Information", 18);
+            titleLabel = new Components.Label(font, "Key Info (Layout 1)", 18);
             titleLabel.AutoSize = false;
             titleLabel.Bounds = new Rectangle(0, 0, 0, 24);
             titleLabel.PositionMode = Components.PositionMode.Relative;
@@ -257,11 +257,33 @@ namespace Keysharp.UI
             identifierInput = identifierRow.input;
             identifierRowContainer = identifierRow.container;
             identifierInput.OnTextChanged = (text) => {
-                if (!isUpdatingFromKey && selectedKeys.Count == 1)
+                if (!isUpdatingFromKey && selectedKeys.Count > 0)
                 {
-                    // Only allow editing identifier for single selection
-                    var key = selectedKeys.First();
-                    key.Identifier = string.IsNullOrEmpty(text) ? null : text;
+                    if (selectedKeys.Count == 1)
+                    {
+                        // Single selection: assign directly
+                        var key = selectedKeys.First();
+                        key.Identifier = string.IsNullOrEmpty(text) ? null : text;
+                    }
+                    else
+                    {
+                        // Multi-selection: parse space-separated identifiers and assign to keys in order
+                        // Sort keys by position (left to right, top to bottom)
+                        var sortedKeys = selectedKeys.OrderBy(k => k.Y).ThenBy(k => k.X).ToList();
+                        string[] identifiers = text.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+                        
+                        for (int i = 0; i < sortedKeys.Count; i++)
+                        {
+                            if (i < identifiers.Length)
+                            {
+                                sortedKeys[i].Identifier = identifiers[i];
+                            }
+                            else
+                            {
+                                sortedKeys[i].Identifier = null;
+                            }
+                        }
+                    }
                 }
             };
             keyInfoContainer.AddChild(identifierRowContainer);
@@ -795,7 +817,7 @@ namespace Keysharp.UI
             keyInfoContainer2.AddChild(placeholderLabel2);
 
             // Create title label
-            titleLabel2 = new Components.Label(font, "Key Information (Layout 2)", 18);
+            titleLabel2 = new Components.Label(font, "Key Info (Layout 2)", 18);
             titleLabel2.AutoSize = false;
             titleLabel2.Bounds = new Rectangle(0, 0, 0, 24);
             titleLabel2.PositionMode = Components.PositionMode.Relative;
@@ -807,10 +829,33 @@ namespace Keysharp.UI
             identifierInput2 = identifierRow2.input;
             identifierRowContainer2 = identifierRow2.container;
             identifierInput2.OnTextChanged = (text) => {
-                if (!isUpdatingFromKey && selectedKeys2.Count == 1)
+                if (!isUpdatingFromKey && selectedKeys2.Count > 0)
                 {
-                    var key = selectedKeys2.First();
-                    key.Identifier = string.IsNullOrEmpty(text) ? null : text;
+                    if (selectedKeys2.Count == 1)
+                    {
+                        // Single selection: assign directly
+                        var key = selectedKeys2.First();
+                        key.Identifier = string.IsNullOrEmpty(text) ? null : text;
+                    }
+                    else
+                    {
+                        // Multi-selection: parse space-separated identifiers and assign to keys in order
+                        // Sort keys by position (left to right, top to bottom)
+                        var sortedKeys = selectedKeys2.OrderBy(k => k.Y).ThenBy(k => k.X).ToList();
+                        string[] identifiers = text.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+                        
+                        for (int i = 0; i < sortedKeys.Count; i++)
+                        {
+                            if (i < identifiers.Length)
+                            {
+                                sortedKeys[i].Identifier = identifiers[i];
+                            }
+                            else
+                            {
+                                sortedKeys[i].Identifier = null;
+                            }
+                        }
+                    }
                 }
             };
             keyInfoContainer2.AddChild(identifierRowContainer2);
@@ -1773,14 +1818,28 @@ namespace Keysharp.UI
                 titleLabel.IsVisible = hasKey;
             }
 
-            // Hide identifier field container when multiple keys are selected
+            // Identifier: show for both single and multi-selection
             if (identifierRowContainer != null)
             {
-                identifierRowContainer.IsVisible = hasKey && !isMultiSelect;
-                if (hasKey && !isMultiSelect && topLeftKey != null && identifierInput != null)
+                identifierRowContainer.IsVisible = hasKey;
+                if (hasKey && identifierInput != null)
                 {
                     isUpdatingFromKey = true;
-                    identifierInput.SetText(topLeftKey.Identifier ?? "");
+                    if (isMultiSelect)
+                    {
+                        // Multi-selection: combine identifiers from all selected keys
+                        // Sort keys by position (left to right, top to bottom)
+                        var sortedKeys = selectedKeys.OrderBy(k => k.Y).ThenBy(k => k.X).ToList();
+                        var identifiers = sortedKeys
+                            .Select(k => k.Identifier ?? "")
+                            .Where(id => !string.IsNullOrEmpty(id));
+                        identifierInput.SetText(string.Join(" ", identifiers));
+                    }
+                    else if (topLeftKey != null)
+                    {
+                        // Single selection: show single identifier
+                        identifierInput.SetText(topLeftKey.Identifier ?? "");
+                    }
                     isUpdatingFromKey = false;
                 }
             }
@@ -2043,14 +2102,28 @@ namespace Keysharp.UI
                 titleLabel2.IsVisible = hasKey;
             }
 
-            // Hide identifier field container when multiple keys are selected
+            // Identifier: show for both single and multi-selection
             if (identifierRowContainer2 != null)
             {
-                identifierRowContainer2.IsVisible = hasKey && !isMultiSelect;
-                if (hasKey && !isMultiSelect && topLeftKey != null && identifierInput2 != null)
+                identifierRowContainer2.IsVisible = hasKey;
+                if (hasKey && identifierInput2 != null)
                 {
                     isUpdatingFromKey = true;
-                    identifierInput2.SetText(topLeftKey.Identifier ?? "");
+                    if (isMultiSelect)
+                    {
+                        // Multi-selection: combine identifiers from all selected keys
+                        // Sort keys by position (left to right, top to bottom)
+                        var sortedKeys = selectedKeys2.OrderBy(k => k.Y).ThenBy(k => k.X).ToList();
+                        var identifiers = sortedKeys
+                            .Select(k => k.Identifier ?? "")
+                            .Where(id => !string.IsNullOrEmpty(id));
+                        identifierInput2.SetText(string.Join(" ", identifiers));
+                    }
+                    else if (topLeftKey != null)
+                    {
+                        // Single selection: show single identifier
+                        identifierInput2.SetText(topLeftKey.Identifier ?? "");
+                    }
                     isUpdatingFromKey = false;
                 }
             }
@@ -2585,18 +2658,7 @@ namespace Keysharp.UI
                 }
             }
             
-            // Position color controls container below metadata container
-            if (colorControlsContainer != null)
-            {
-                colorControlsContainer.RelativePosition = new System.Numerics.Vector2(15, currentY);
-                colorControlsContainer.ResolveBounds();
-                if (colorControlsContainer.IsVisible && colorControlsContainer.Bounds.Height > 0)
-                {
-                    currentY += colorControlsContainer.Bounds.Height + containerGap;
-                }
-            }
-            
-            // Position key info container (below color controls container or metadata container)
+            // Position key info container (below metadata container)
             if (keyInfoContainer != null)
             {
                 keyInfoContainer.RelativePosition = new System.Numerics.Vector2(15, currentY);
@@ -2612,6 +2674,17 @@ namespace Keysharp.UI
             {
                 keyInfoContainer2.RelativePosition = new System.Numerics.Vector2(15, currentY);
                 keyInfoContainer2.ResolveBounds();
+                if (keyInfoContainer2.IsVisible && keyInfoContainer2.Bounds.Height > 0)
+                {
+                    currentY += keyInfoContainer2.Bounds.Height + containerGap;
+                }
+            }
+            
+            // Position color controls container below key info containers
+            if (colorControlsContainer != null)
+            {
+                colorControlsContainer.RelativePosition = new System.Numerics.Vector2(15, currentY);
+                colorControlsContainer.ResolveBounds();
             }
         }
 
@@ -2658,10 +2731,6 @@ namespace Keysharp.UI
             {
                 totalContentHeight += metadataContainer.Bounds.Height + containerGap;
             }
-            if (colorControlsContainer != null && colorControlsContainer.IsVisible && colorControlsContainer.Bounds.Height > 0)
-            {
-                totalContentHeight += colorControlsContainer.Bounds.Height + containerGap;
-            }
             if (keyInfoContainer != null && keyInfoContainer.IsVisible && keyInfoContainer.Bounds.Height > 0)
             {
                 totalContentHeight += keyInfoContainer.Bounds.Height + containerGap;
@@ -2669,6 +2738,10 @@ namespace Keysharp.UI
             if (keyInfoContainer2 != null && keyInfoContainer2.IsVisible && keyInfoContainer2.Bounds.Height > 0)
             {
                 totalContentHeight += keyInfoContainer2.Bounds.Height + containerGap;
+            }
+            if (colorControlsContainer != null && colorControlsContainer.IsVisible && colorControlsContainer.Bounds.Height > 0)
+            {
+                totalContentHeight += colorControlsContainer.Bounds.Height + containerGap;
             }
             
             float maxScroll = System.Math.Max(0, totalContentHeight - Bounds.Height);
@@ -2767,12 +2840,12 @@ namespace Keysharp.UI
             const float containerGap = 20f;
             if (metadataContainer != null && metadataContainer.IsVisible && metadataContainer.Bounds.Height > 0)
                 totalContentHeight += metadataContainer.Bounds.Height + containerGap;
-            if (colorControlsContainer != null && colorControlsContainer.IsVisible && colorControlsContainer.Bounds.Height > 0)
-                totalContentHeight += colorControlsContainer.Bounds.Height + containerGap;
             if (keyInfoContainer != null && keyInfoContainer.IsVisible && keyInfoContainer.Bounds.Height > 0)
                 totalContentHeight += keyInfoContainer.Bounds.Height + containerGap;
             if (keyInfoContainer2 != null && keyInfoContainer2.IsVisible && keyInfoContainer2.Bounds.Height > 0)
                 totalContentHeight += keyInfoContainer2.Bounds.Height + containerGap;
+            if (colorControlsContainer != null && colorControlsContainer.IsVisible && colorControlsContainer.Bounds.Height > 0)
+                totalContentHeight += colorControlsContainer.Bounds.Height + containerGap;
             
             int clipWidth = (int)Bounds.Width;
             if (totalContentHeight > Bounds.Height)
@@ -2820,10 +2893,6 @@ namespace Keysharp.UI
             {
                 totalContentHeight += metadataContainer.Bounds.Height + containerGap;
             }
-            if (colorControlsContainer != null && colorControlsContainer.IsVisible && colorControlsContainer.Bounds.Height > 0)
-            {
-                totalContentHeight += colorControlsContainer.Bounds.Height + containerGap;
-            }
             if (keyInfoContainer != null && keyInfoContainer.IsVisible && keyInfoContainer.Bounds.Height > 0)
             {
                 totalContentHeight += keyInfoContainer.Bounds.Height + containerGap;
@@ -2831,6 +2900,10 @@ namespace Keysharp.UI
             if (keyInfoContainer2 != null && keyInfoContainer2.IsVisible && keyInfoContainer2.Bounds.Height > 0)
             {
                 totalContentHeight += keyInfoContainer2.Bounds.Height + containerGap;
+            }
+            if (colorControlsContainer != null && colorControlsContainer.IsVisible && colorControlsContainer.Bounds.Height > 0)
+            {
+                totalContentHeight += colorControlsContainer.Bounds.Height + containerGap;
             }
             
             // Only show scrollbar if content exceeds visible area
