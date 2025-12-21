@@ -176,16 +176,8 @@ namespace Keysharp.UI
 
         private void UpdateTabVisibility()
         {
-            // Update tab elements visibility
-            for (int i = 0; i < tabElements.Count; i++)
-            {
-                var tabElement = tabElements[i];
-                bool isVisible = visibleTabs.Contains(tabs[i]);
-                tabElement.IsVisible = isVisible;
-                tabElement.IsActive = (i == activeTabIndex);
-            }
-            
             // Update tab content visibility based on active tab and visibility state
+            // Note: Tab element visibility is updated separately earlier in Update()
             bool layoutVisible = activeTabIndex == 0 && visibleTabs.Contains("layout");
             bool corpusVisible = activeTabIndex == 1 && visibleTabs.Contains("corpus");
             bool statsVisible = activeTabIndex == 2 && visibleTabs.Contains("stats");
@@ -228,8 +220,14 @@ namespace Keysharp.UI
                 }
             }
             
-            // Update tab visibility (this will update both tab elements and tab content)
-            UpdateTabVisibility();
+            // Update tab element visibility only (not tab content - that happens after bounds are resolved)
+            for (int i = 0; i < tabElements.Count; i++)
+            {
+                var tabElement = tabElements[i];
+                bool isVisible = visibleTabs.Contains(tabs[i]);
+                tabElement.IsVisible = isVisible;
+                tabElement.IsActive = (i == activeTabIndex);
+            }
 
             // Calculate content area
             Rectangle contentArea = new Rectangle(
@@ -256,6 +254,34 @@ namespace Keysharp.UI
             statsTab?.Update(contentArea);
             settingsTab?.Update(contentArea);
             
+            // Temporarily make all tabs visible so ResolveBounds() can process them
+            // (ResolveBounds() skips invisible elements, so we need them visible to resolve bounds)
+            // We'll set correct visibility after bounds are resolved to prevent flicker
+            if (layoutTab?.TabContent != null) layoutTab.TabContent.IsVisible = true;
+            if (corpusTab?.TabContent != null) corpusTab.TabContent.IsVisible = true;
+            if (statsTab?.TabContent != null) statsTab.TabContent.IsVisible = true;
+            if (settingsTab?.TabContent != null) settingsTab.TabContent.IsVisible = true;
+            
+            // Resolve bounds for tab contents immediately after updating them
+            // This prevents flicker when switching tabs - ensures bounds are resolved
+            // before the element is drawn, especially important for newly visible tabs
+            if (layoutTab?.TabContent != null)
+            {
+                layoutTab.TabContent.ResolveBounds();
+            }
+            if (corpusTab?.TabContent != null)
+            {
+                corpusTab.TabContent.ResolveBounds();
+            }
+            if (statsTab?.TabContent != null)
+            {
+                statsTab.TabContent.ResolveBounds();
+            }
+            if (settingsTab?.TabContent != null)
+            {
+                settingsTab.TabContent.ResolveBounds();
+            }
+            
             // Check and update stats only when needed (not every frame)
             if (isStatsActive)
             {
@@ -278,7 +304,8 @@ namespace Keysharp.UI
             // Phase 2: Layout and input handling
             base.Update();
             
-            // Update tab visibility again after content updates
+            // Now set the correct visibility AFTER bounds are fully resolved
+            // This ensures tabs only become visible when their bounds are already correct
             UpdateTabVisibility();
 
         }
