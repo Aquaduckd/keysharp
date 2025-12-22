@@ -145,6 +145,12 @@ namespace Keysharp.Components
                     return;
                 }
 
+                // Don't process if mouse is over BottomPanel AND this element is NOT in the BottomPanel (to prevent click-through)
+                if (UI.Panel.IsMouseOverBottomPanel() && !UI.Panel.IsElementInBottomPanel(this))
+                {
+                    return;
+                }
+
                 bool handledClick = false;
 
                 // Check if clicking on the dropdown button

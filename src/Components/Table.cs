@@ -325,8 +325,18 @@ namespace Keysharp.Components
             // Handle row clicks first (before scrollbar check)
             if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT))
             {
+                // Don't process if click was consumed by a dropdown
+                if (Dropdown.WasClickConsumed())
+                {
+                    // Continue to scrollbar handling below
+                }
+                // Don't process if mouse is over BottomPanel AND this element is NOT in the BottomPanel (to prevent click-through)
+                else if (UI.Panel.IsMouseOverBottomPanel() && !UI.Panel.IsElementInBottomPanel(this))
+                {
+                    // Continue to scrollbar handling below
+                }
                 // Check if click is within table content area (not header)
-                if (mouseY >= Bounds.Y + HeaderHeight && mouseY < Bounds.Y + Bounds.Height)
+                else if (mouseY >= Bounds.Y + HeaderHeight && mouseY < Bounds.Y + Bounds.Height)
                 {
                     // Calculate if we're clicking on scrollbar
                     bool hoveringScrollbar = false;
@@ -368,8 +378,13 @@ namespace Keysharp.Components
                 // Handle row clicks (but not when clicking on scrollbar)
                 if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT) && !hoveringScrollbar)
                 {
+                    // Don't process if click was consumed by a dropdown or (mouse is over BottomPanel AND this element is NOT in the BottomPanel)
+                    if (Dropdown.WasClickConsumed() || (UI.Panel.IsMouseOverBottomPanel() && !UI.Panel.IsElementInBottomPanel(this)))
+                    {
+                        // Skip row click handling
+                    }
                     // Check if click is within table content area (not header)
-                    if (mouseY >= Bounds.Y + HeaderHeight && mouseY < Bounds.Y + Bounds.Height)
+                    else if (mouseY >= Bounds.Y + HeaderHeight && mouseY < Bounds.Y + Bounds.Height)
                     {
                         int clickRelativeY = mouseY - (int)(Bounds.Y + HeaderHeight);
                         int clickedRowIndex = scrollOffset + (clickRelativeY / RowHeight);

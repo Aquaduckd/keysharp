@@ -386,6 +386,12 @@ namespace Keysharp.Components
                     return;
                 }
 
+                // Don't process if mouse is over BottomPanel AND this element is NOT in the BottomPanel (to prevent click-through)
+                if (UI.Panel.IsMouseOverBottomPanel() && !UI.Panel.IsElementInBottomPanel(this))
+                {
+                    return;
+                }
+
                 bool wasFocused = IsFocused;
                 // Only allow focus if enabled
                 IsFocused = isHovered && IsEnabled;

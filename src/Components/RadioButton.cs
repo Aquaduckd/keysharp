@@ -54,6 +54,18 @@ namespace Keysharp.Components
             // Allow clicking anywhere on the radio button component (not just the circle)
             if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT) && IsHovered)
             {
+                // Don't process if click was consumed by a dropdown
+                if (Dropdown.WasClickConsumed())
+                {
+                    return;
+                }
+
+                // Don't process if mouse is over BottomPanel AND this element is NOT in the BottomPanel (to prevent click-through)
+                if (UI.Panel.IsMouseOverBottomPanel() && !UI.Panel.IsElementInBottomPanel(this))
+                {
+                    return;
+                }
+
                 // If not already selected, select this radio button
                 if (!IsSelected)
                 {
