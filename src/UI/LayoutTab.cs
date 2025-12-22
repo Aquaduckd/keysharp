@@ -13,7 +13,6 @@ namespace Keysharp.UI
     public class LayoutTab
     {
         private Components.TabContent tabContent;
-        private Components.Label titleLabel;
         private Components.Container? viewControlsContainer;
         private Components.Container? radioButtonsContainer;
         private Components.RadioButton? regularRadioButton;
@@ -206,12 +205,6 @@ namespace Keysharp.UI
             tabContent.ChildJustification = Components.ChildJustification.Left;
             tabContent.ChildPadding = 20;
             tabContent.ChildGap = 10; // Gap between title, controls, and keyboard
-
-            // Create title label
-            titleLabel = new Components.Label(font, "Layout", 24);
-            titleLabel.AutoSize = false;
-            titleLabel.Bounds = new Rectangle(0, 0, 0, 40); // Height for title
-            titleLabel.PositionMode = Components.PositionMode.Relative;
 
             // Create view controls container
             viewControlsContainer = new Components.Container("ViewControlsContainer");
@@ -576,7 +569,6 @@ namespace Keysharp.UI
             
             keyboardCanvas2.AddChild(keyboardView2);
             
-            tabContent.AddChild(titleLabel);
             tabContent.AddChild(radioButtonsContainer);
             tabContent.AddChild(viewControlsContainer);
             tabContent.AddChild(keyboardCanvas);
@@ -623,11 +615,8 @@ namespace Keysharp.UI
             tabContent.RelativePosition = new System.Numerics.Vector2(0, 0);
             tabContent.TargetHeight = contentArea.Height; // Set target height for vertical layout
 
-            // Set title label width to fill available space (accounting for padding)
-            float availableWidth = contentArea.Width - (tabContent.ChildPadding * 2);
-            titleLabel.Bounds = new Rectangle(0, 0, availableWidth, 40);
-
             // Set view controls container width
+            float availableWidth = contentArea.Width - (tabContent.ChildPadding * 2);
             if (viewControlsContainer != null)
             {
                 viewControlsContainer.Bounds = new Rectangle(0, 0, availableWidth, 30);

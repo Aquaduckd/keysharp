@@ -13,8 +13,6 @@ namespace Keysharp.UI
         private Font font;
 
         private Components.Container? statsMainContainer;
-        private Components.Container? statsHeaderContainer;
-        private Components.Label? statsHeaderLabel;
         private Components.Container? statsControlsContainer;
         private Components.Container? statsContentContainer;
         
@@ -102,17 +100,6 @@ namespace Keysharp.UI
             statsMainContainer.ChildGap = 15;
             tabContent.AddChild(statsMainContainer);
 
-            // Create header container
-            statsHeaderContainer = new Components.Container("StatsHeader");
-            statsHeaderContainer.AutoSize = true;
-            statsHeaderContainer.ChildPadding = 0;
-            statsMainContainer.AddChild(statsHeaderContainer);
-
-            // Create header label
-            statsHeaderLabel = new Components.Label(font, "Stats", 24);
-            statsHeaderLabel.Bounds = new Rectangle(0, 0, 0, 40);
-            statsHeaderContainer.AddChild(statsHeaderLabel);
-
             // Create controls container
             statsControlsContainer = new Components.Container("StatsControls");
             statsControlsContainer.AutoLayoutChildren = true;
@@ -183,30 +170,6 @@ namespace Keysharp.UI
                 
                 // Calculate available width accounting for parent padding
                 int availableWidth = (int)contentArea.Width - (int)(statsMainContainer.ChildPadding * 2.0f);
-                
-                // Update header container width
-                if (statsHeaderContainer != null)
-                {
-                    int headerHeight = 40;
-                    statsHeaderContainer.Bounds = new Rectangle(
-                        statsHeaderContainer.Bounds.X,
-                        statsHeaderContainer.Bounds.Y,
-                        availableWidth,
-                        headerHeight
-                    );
-                    statsHeaderContainer.IsVisible = true;
-                    
-                    // Update header label bounds
-                    if (statsHeaderLabel != null)
-                    {
-                        statsHeaderLabel.Bounds = new Rectangle(
-                            0, 0,
-                            availableWidth,
-                            headerHeight
-                        );
-                        statsHeaderLabel.IsVisible = true;
-                    }
-                }
                 
                 // Update controls container width
                 if (statsControlsContainer != null)

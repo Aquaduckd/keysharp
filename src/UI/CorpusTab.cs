@@ -26,11 +26,9 @@ namespace Keysharp.UI
         private MetricAnalyzer? metricAnalyzer = null;
         private Components.Container? corpusControlsContainer;
         private Components.Container? corpusRowContainer;
-        private Components.Container? corpusHeaderContainer;
         private Components.Container? corpusContentContainer;
         private Components.Container? corpusMainContainer;
         private Components.Container? ngramSelectorContainer;
-        private Components.Label? corpusHeaderLabel;
         private Components.Dropdown? ngramSizeDropdown;
         private Components.CorpusTable? ngramTable;
         private Components.TextInput? limitInput;
@@ -202,17 +200,6 @@ namespace Keysharp.UI
             corpusMainContainer.ChildPadding = 20;
             corpusMainContainer.ChildGap = 10;
             tabContent.AddChild(corpusMainContainer);
-
-            // Create header container for corpus tab (will display centered text)
-            corpusHeaderContainer = new Components.Container("CorpusHeader");
-            corpusHeaderContainer.AutoSize = true; // Auto-size based on label + padding
-            corpusHeaderContainer.ChildPadding = 0; // No padding needed since label fills it
-            corpusMainContainer.AddChild(corpusHeaderContainer);
-
-            // Create header label with centered text
-            corpusHeaderLabel = new Components.Label(font, "Corpus", 24);
-            corpusHeaderLabel.Bounds = new Rectangle(0, 0, 0, 40); // Height for header text
-            corpusHeaderContainer.AddChild(corpusHeaderLabel);
 
             // Create a container for the entire corpus controls row (button, dropdown, and info text)
             corpusRowContainer = new Components.Container("CorpusRow");
@@ -431,7 +418,6 @@ namespace Keysharp.UI
                 // Update corpus containers if corpus tab is active
                 // With auto-layout, we only need to set sizes, not positions
                 const int elementHeight = 35;
-                const int headerHeight = 40; // Height for header text
 
                 // Set main container bounds (fills parent, uses auto-layout)
                 if (corpusMainContainer != null)
@@ -451,29 +437,6 @@ namespace Keysharp.UI
                 if (corpusMainContainer != null)
                 {
                     availableWidth = (int)contentArea.Width - (int)(corpusMainContainer.ChildPadding * 2);
-                }
-
-                // Set header container bounds (width accounts for parent padding, fixed height for label)
-                // Position will be handled by auto-layout
-                if (corpusHeaderContainer != null)
-                {
-                    corpusHeaderContainer.Bounds = new Rectangle(
-                        0, 0,
-                        availableWidth,
-                        headerHeight
-                    );
-                    corpusHeaderContainer.IsVisible = true;
-
-                    // Update header label bounds (fills header container)
-                    if (corpusHeaderLabel != null)
-                    {
-                        corpusHeaderLabel.Bounds = new Rectangle(
-                            0, 0,
-                            availableWidth,
-                            headerHeight
-                        );
-                        corpusHeaderLabel.IsVisible = true;
-                    }
                 }
 
                 // Update corpus row container bounds (width accounts for parent padding)
@@ -517,11 +480,10 @@ namespace Keysharp.UI
                 {
                     // Calculate available height for the content container
                     // Use actual heights from containers if available, otherwise use expected values
-                    // We need to account for: top padding, header, gap, row, gap, and bottom padding
-                    int actualHeaderHeight = corpusHeaderContainer != null && corpusHeaderContainer.Bounds.Height > 0 ? (int)corpusHeaderContainer.Bounds.Height : 40;
+                    // We need to account for: top padding, row, gap, and bottom padding
                     int actualRowHeight = corpusRowContainer != null && corpusRowContainer.Bounds.Height > 0 ? (int)corpusRowContainer.Bounds.Height : 75;
-                    int gaps = (int)corpusMainContainer.ChildGap * 2; // Gap between header->row and row->content
-                    int availableHeight = (int)contentArea.Height - (int)(corpusMainContainer.ChildPadding * 2) - actualHeaderHeight - actualRowHeight - gaps;
+                    int gaps = (int)corpusMainContainer.ChildGap; // Gap between row and content
+                    int availableHeight = (int)contentArea.Height - (int)(corpusMainContainer.ChildPadding * 2) - actualRowHeight - gaps;
 
                     corpusContentContainer.Bounds = new Rectangle(
                         0, 0,
