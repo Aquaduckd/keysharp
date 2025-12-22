@@ -12,6 +12,14 @@ namespace Keysharp.UI
 {
     public class LayoutTab
     {
+        // Scrolling
+        private float scrollOffset = 0f; // Current scroll offset (positive = scrolled down)
+        private const float ScrollSpeed = 20f; // Pixels per scroll wheel tick
+        private const int ScrollbarWidth = 12; // Width of the scrollbar
+        private bool isDraggingScrollbar = false;
+        private int scrollbarDragStartY = 0;
+        private float scrollbarDragStartOffset = 0f;
+        
         private Components.TabContent tabContent;
         private Components.Container? viewControlsContainer;
         private Components.Container? radioButtonsContainer;
@@ -200,7 +208,7 @@ namespace Keysharp.UI
             // Create tab content without title (we'll use a Label element instead)
             tabContent = new Components.TabContent(font, "", null);
             tabContent.PositionMode = Components.PositionMode.Relative;
-            tabContent.AutoLayoutChildren = true;
+            tabContent.AutoLayoutChildren = false; // Disable auto-layout to manually position children with scroll offset
             tabContent.LayoutDirection = Components.LayoutDirection.Vertical;
             tabContent.ChildJustification = Components.ChildJustification.Left;
             tabContent.ChildPadding = 20;
@@ -615,24 +623,51 @@ namespace Keysharp.UI
             tabContent.RelativePosition = new System.Numerics.Vector2(0, 0);
             tabContent.TargetHeight = contentArea.Height; // Set target height for vertical layout
 
-            // Set view controls container width
+            // Set view controls container width and position with scroll offset
             float availableWidth = contentArea.Width - (tabContent.ChildPadding * 2);
+            float currentY = (float)tabContent.ChildPadding - scrollOffset;
+            
             if (viewControlsContainer != null)
             {
                 viewControlsContainer.Bounds = new Rectangle(0, 0, availableWidth, 30);
+                viewControlsContainer.RelativePosition = new System.Numerics.Vector2(tabContent.ChildPadding, currentY);
                 // Note: showDisabledCheckbox width is set in InitializeUI, no need to update here
+                if (viewControlsContainer.Bounds.Height > 0)
+                {
+                    currentY += viewControlsContainer.Bounds.Height + tabContent.ChildGap;
+                }
             }
 
-            // Set radio buttons container width
+            // Set radio buttons container width and position
             if (radioButtonsContainer != null)
             {
                 radioButtonsContainer.Bounds = new Rectangle(0, 0, availableWidth, 30);
+                radioButtonsContainer.RelativePosition = new System.Numerics.Vector2(tabContent.ChildPadding, currentY);
+                if (radioButtonsContainer.Bounds.Height > 0)
+                {
+                    currentY += radioButtonsContainer.Bounds.Height + tabContent.ChildGap;
+                }
             }
 
-            // Set second layout controls container width
+            // Position keyboard canvas with scroll offset (comes before layoutControlsContainer2 in visual order)
+            if (keyboardCanvas != null)
+            {
+                keyboardCanvas.RelativePosition = new System.Numerics.Vector2(tabContent.ChildPadding, currentY);
+                if (keyboardCanvas.Bounds.Height > 0)
+                {
+                    currentY += keyboardCanvas.Bounds.Height + tabContent.ChildGap;
+                }
+            }
+
+            // Set second layout controls container width and position
             if (layoutControlsContainer2 != null)
             {
                 layoutControlsContainer2.Bounds = new Rectangle(0, 0, availableWidth, 30);
+                layoutControlsContainer2.RelativePosition = new System.Numerics.Vector2(tabContent.ChildPadding, currentY);
+                if (layoutControlsContainer2.Bounds.Height > 0)
+                {
+                    currentY += layoutControlsContainer2.Bounds.Height + tabContent.ChildGap;
+                }
             }
 
             // Set keyboard view initial size calculation (width/height will be calculated in ResolveBounds)
@@ -656,30 +691,209 @@ namespace Keysharp.UI
             }
 
             // Set second keyboard view initial size calculation
-            if (keyboardView2 != null && keyboardView2.Layout != null && keyboardView2.Bounds.Width <= 0)
+            // This needs to happen before positioning keyboardCanvas2 so that AutoSize can work correctly
+            if (keyboardView2 != null && keyboardView2.Layout != null)
             {
-                // Calculate the bounding box of all keys to set initial size
-                float maxX = 0;
-                float maxY = 0;
-                foreach (var key in keyboardView2.Layout.GetPhysicalKeys())
+                // Only calculate if bounds aren't set yet, or if keyboardCanvas2 is visible (to ensure bounds are correct)
+                if (keyboardView2.Bounds.Width <= 0 || (keyboardCanvas2 != null && keyboardCanvas2.IsVisible))
                 {
-                    float keyRight = key.X + key.Width;
-                    float keyBottom = key.Y + key.Height;
-                    if (keyRight > maxX) maxX = keyRight;
-                    if (keyBottom > maxY) maxY = keyBottom;
-                }
-                if (maxX > 0 && maxY > 0)
-                {
-                    keyboardView2.Bounds = new Rectangle(0, 0, maxX * keyboardView2.PixelsPerU + 40, maxY * keyboardView2.PixelsPerU + 40);
+                    // Calculate the bounding box of all keys to set initial size
+                    float maxX = 0;
+                    float maxY = 0;
+                    foreach (var key in keyboardView2.Layout.GetPhysicalKeys())
+                    {
+                        float keyRight = key.X + key.Width;
+                        float keyBottom = key.Y + key.Height;
+                        if (keyRight > maxX) maxX = keyRight;
+                        if (keyBottom > maxY) maxY = keyBottom;
+                    }
+                    if (maxX > 0 && maxY > 0)
+                    {
+                        keyboardView2.Bounds = new Rectangle(0, 0, maxX * keyboardView2.PixelsPerU + 40, maxY * keyboardView2.PixelsPerU + 40);
+                    }
                 }
             }
 
+            // Position second keyboard canvas with scroll offset (if visible)
+            if (keyboardCanvas2 != null && layoutControlsContainer2 != null && layoutControlsContainer2.IsVisible)
+            {
+                // Always set RelativePosition - it will be used by ResolveBounds() to calculate absolute position
+                // This ensures correct positioning even on the first frame when the element becomes visible
+                keyboardCanvas2.RelativePosition = new System.Numerics.Vector2(tabContent.ChildPadding, currentY);
+            }
+            
             // Align the keyboard views to top-left within their canvases using relative position
             keyboardView.RelativePosition = new System.Numerics.Vector2(0, 0);
             if (keyboardView2 != null)
             {
                 keyboardView2.RelativePosition = new System.Numerics.Vector2(0, 0);
             }
+            
+            // Handle scrolling input
+            HandleScrolling(contentArea);
+        }
+        
+        private void HandleScrolling(Rectangle contentArea)
+        {
+            // Calculate total content height for scrollbar and scrolling
+            float totalContentHeight = (float)tabContent.ChildPadding; // Top padding
+            float currentY = (float)tabContent.ChildPadding;
+            
+            if (viewControlsContainer != null && viewControlsContainer.IsVisible && viewControlsContainer.Bounds.Height > 0)
+            {
+                totalContentHeight += viewControlsContainer.Bounds.Height + tabContent.ChildGap;
+                currentY += viewControlsContainer.Bounds.Height + tabContent.ChildGap;
+            }
+            if (radioButtonsContainer != null && radioButtonsContainer.IsVisible && radioButtonsContainer.Bounds.Height > 0)
+            {
+                totalContentHeight += radioButtonsContainer.Bounds.Height + tabContent.ChildGap;
+                currentY += radioButtonsContainer.Bounds.Height + tabContent.ChildGap;
+            }
+            if (keyboardCanvas != null && keyboardCanvas.IsVisible && keyboardCanvas.Bounds.Height > 0)
+            {
+                totalContentHeight += keyboardCanvas.Bounds.Height + tabContent.ChildGap;
+                currentY += keyboardCanvas.Bounds.Height + tabContent.ChildGap;
+            }
+            if (layoutControlsContainer2 != null && layoutControlsContainer2.IsVisible && layoutControlsContainer2.Bounds.Height > 0)
+            {
+                totalContentHeight += layoutControlsContainer2.Bounds.Height + tabContent.ChildGap;
+                currentY += layoutControlsContainer2.Bounds.Height + tabContent.ChildGap;
+            }
+            if (keyboardCanvas2 != null && keyboardCanvas2.IsVisible && keyboardCanvas2.Bounds.Height > 0)
+            {
+                totalContentHeight += keyboardCanvas2.Bounds.Height + tabContent.ChildGap;
+            }
+            
+            float maxScroll = System.Math.Max(0, totalContentHeight - contentArea.Height);
+            
+            // Handle mouse wheel scrolling and scrollbar dragging
+            int mouseX = Raylib.GetMouseX();
+            int mouseY = Raylib.GetMouseY();
+            bool isMouseOverContent = mouseX >= contentArea.X && mouseX <= contentArea.X + contentArea.Width - ScrollbarWidth &&
+                                      mouseY >= contentArea.Y && mouseY <= contentArea.Y + contentArea.Height;
+            
+            // Handle scrollbar dragging (continue even when mouse leaves content area)
+            if (isDraggingScrollbar)
+            {
+                if (Raylib.IsMouseButtonDown(MouseButton.MOUSE_BUTTON_LEFT))
+                {
+                    float deltaY = mouseY - scrollbarDragStartY;
+                    float scrollbarHeight = contentArea.Height;
+                    float visibleRatio = contentArea.Height / totalContentHeight;
+                    float thumbHeight = scrollbarHeight * visibleRatio;
+                    float maxThumbY = scrollbarHeight - thumbHeight;
+                    if (maxThumbY > 0 && maxScroll > 0)
+                    {
+                        float scrollRatio = deltaY / maxThumbY;
+                        scrollOffset = System.Math.Clamp(scrollbarDragStartOffset + scrollRatio * maxScroll, 0, maxScroll);
+                    }
+                }
+                else
+                {
+                    isDraggingScrollbar = false;
+                }
+            }
+            else if (maxScroll > 0 && isMouseOverContent)
+            {
+                // Check if clicking on scrollbar
+                float scrollbarX = contentArea.X + contentArea.Width - ScrollbarWidth;
+                Rectangle scrollbarArea = new Rectangle(scrollbarX, contentArea.Y, ScrollbarWidth, contentArea.Height);
+                bool hoveringScrollbar = mouseX >= scrollbarArea.X && mouseX <= scrollbarArea.X + scrollbarArea.Width &&
+                                        mouseY >= scrollbarArea.Y && mouseY <= scrollbarArea.Y + scrollbarArea.Height;
+                
+                if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT) && hoveringScrollbar)
+                {
+                    isDraggingScrollbar = true;
+                    scrollbarDragStartY = mouseY;
+                    scrollbarDragStartOffset = scrollOffset;
+                }
+            }
+            
+            // Don't handle mouse wheel scrolling if we're dragging the scrollbar
+            if (isDraggingScrollbar)
+            {
+                return;
+            }
+            
+            // Handle mouse wheel scrolling
+            if (isMouseOverContent)
+            {
+                float wheelMove = Raylib.GetMouseWheelMove();
+                if (wheelMove != 0)
+                {
+                    scrollOffset -= wheelMove * ScrollSpeed; // Negate to scroll down when wheel moves down
+                    scrollOffset = System.Math.Clamp(scrollOffset, 0, maxScroll);
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Calculates the total content height for scrolling calculations.
+        /// </summary>
+        private float CalculateTotalContentHeight()
+        {
+            float totalContentHeight = (float)tabContent.ChildPadding; // Top padding
+            
+            if (viewControlsContainer != null && viewControlsContainer.IsVisible && viewControlsContainer.Bounds.Height > 0)
+            {
+                totalContentHeight += viewControlsContainer.Bounds.Height + tabContent.ChildGap;
+            }
+            if (radioButtonsContainer != null && radioButtonsContainer.IsVisible && radioButtonsContainer.Bounds.Height > 0)
+            {
+                totalContentHeight += radioButtonsContainer.Bounds.Height + tabContent.ChildGap;
+            }
+            if (keyboardCanvas != null && keyboardCanvas.IsVisible && keyboardCanvas.Bounds.Height > 0)
+            {
+                totalContentHeight += keyboardCanvas.Bounds.Height + tabContent.ChildGap;
+            }
+            if (layoutControlsContainer2 != null && layoutControlsContainer2.IsVisible && layoutControlsContainer2.Bounds.Height > 0)
+            {
+                totalContentHeight += layoutControlsContainer2.Bounds.Height + tabContent.ChildGap;
+            }
+            if (keyboardCanvas2 != null && keyboardCanvas2.IsVisible && keyboardCanvas2.Bounds.Height > 0)
+            {
+                totalContentHeight += keyboardCanvas2.Bounds.Height + tabContent.ChildGap;
+            }
+            
+            return totalContentHeight;
+        }
+        
+        /// <summary>
+        /// Checks if scrollbar should be visible (content exceeds visible area).
+        /// </summary>
+        public bool ShouldShowScrollbar(Rectangle contentArea)
+        {
+            float totalContentHeight = CalculateTotalContentHeight();
+            return totalContentHeight > contentArea.Height;
+        }
+        
+        public void DrawScrollbar(Rectangle contentArea)
+        {
+            // Calculate total content height
+            float totalContentHeight = CalculateTotalContentHeight();
+            
+            // Only show scrollbar if content exceeds visible area
+            if (totalContentHeight <= contentArea.Height)
+                return;
+            
+            float scrollbarX = contentArea.X + contentArea.Width - ScrollbarWidth;
+            float scrollbarY = contentArea.Y;
+            float scrollbarHeight = contentArea.Height;
+            
+            // Draw scrollbar track
+            Rectangle trackRect = new Rectangle(scrollbarX, scrollbarY, ScrollbarWidth, scrollbarHeight);
+            Raylib.DrawRectangleRec(trackRect, new Color(40, 40, 40, 255)); // Dark gray track
+            
+            // Calculate scrollbar thumb size and position
+            float visibleRatio = contentArea.Height / totalContentHeight;
+            float thumbHeight = scrollbarHeight * visibleRatio;
+            float maxThumbY = scrollbarHeight - thumbHeight;
+            float thumbY = scrollbarY + (scrollOffset / (totalContentHeight - contentArea.Height)) * maxThumbY;
+            thumbY = System.Math.Clamp(thumbY, scrollbarY, scrollbarY + maxThumbY);
+            
+            Rectangle thumbRect = new Rectangle(scrollbarX + 2, (int)thumbY, ScrollbarWidth - 4, (int)thumbHeight);
+            Color thumbColor = isDraggingScrollbar ? new Color(120, 120, 120, 255) : new Color(100, 100, 100, 255);
+            Raylib.DrawRectangleRec(thumbRect, thumbColor);
         }
 
         /// <summary>

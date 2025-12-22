@@ -750,6 +750,74 @@ namespace Keysharp.UI
 
         }
 
+        public override void Draw()
+        {
+            // Only draw if visible
+            if (!IsVisible)
+                return;
+
+            // Calculate content area for clipping
+            Rectangle contentArea = new Rectangle(
+                Bounds.X,
+                Bounds.Y + TabHeight,
+                Bounds.Width,
+                Bounds.Height - TabHeight
+            );
+            
+            // Check if layout tab is active and needs scissor mode
+            bool isLayoutTab = tabs.Count > activeTabIndex && tabs[activeTabIndex] == "layout";
+            bool needsScissorMode = false;
+            int clipWidth = (int)contentArea.Width;
+            
+            if (isLayoutTab && layoutTab != null)
+            {
+                // Check if scrollbar should be visible (to exclude it from clipping area)
+                if (layoutTab.ShouldShowScrollbar(contentArea))
+                {
+                    clipWidth -= 12; // ScrollbarWidth constant from LayoutTab
+                    needsScissorMode = true;
+                }
+                else
+                {
+                    needsScissorMode = true; // Still need scissor mode even without scrollbar
+                }
+            }
+            
+            // Draw panel background and borders first (via DrawSelf)
+            DrawSelf();
+            
+            // Draw tab bar first (outside scissor mode so it's never clipped)
+            if (tabsContainer != null)
+            {
+                tabsContainer.Draw();
+            }
+            
+            // Draw tab content with scissor mode if needed (to clip content when scrolling)
+            if (needsScissorMode)
+            {
+                // Begin scissor mode to clip content to content area
+                ScissorModeManager.BeginScissorMode((int)contentArea.X, (int)contentArea.Y, clipWidth, (int)contentArea.Height);
+            }
+            
+            // Draw tab content container (will be clipped by scissor mode if enabled)
+            if (tabContentContainer != null)
+            {
+                tabContentContainer.Draw();
+            }
+            
+            // End scissor mode if we started it (before drawing scrollbar so it's not clipped)
+            if (needsScissorMode)
+            {
+                ScissorModeManager.EndScissorMode();
+            }
+            
+            // Draw scrollbar outside scissor mode so it's always visible
+            if (isLayoutTab && layoutTab != null)
+            {
+                layoutTab.DrawScrollbar(contentArea);
+            }
+        }
+
         protected override void DrawPanelContent(Rectangle bounds)
         {
             // Draw background
@@ -762,15 +830,7 @@ namespace Keysharp.UI
                 new System.Numerics.Vector2(bounds.X + bounds.Width, bounds.Y + bounds.Height),
                 1, UITheme.BorderColor);
 
-            // Draw tab content area (tabs are drawn by their UI elements)
-            Rectangle contentArea = new Rectangle(
-                bounds.X,
-                bounds.Y + TabHeight,
-                bounds.Width,
-                bounds.Height - TabHeight
-            );
-
-            // Tab content is drawn by their container children
+            // Tab content and scrollbar are drawn in Draw() method (scrollbar outside scissor mode)
         }
 
 
