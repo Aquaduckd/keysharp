@@ -29,8 +29,13 @@ namespace Keysharp.UI
         private bool ignoreDisabled = false;
         
         private CorpusTab? corpusTab;
+        private LayoutTab? layoutTab; // Reference to LayoutTab to access layout 2
         private bool statsNeedUpdate = true; // Track if stats need recomputation
         private bool shouldUpdateBaseline = false; // Track if baseline should be updated after recomputation
+        private bool useLayout2 = false; // Track which layout to use for stats (false = Layout 1, true = Layout 2)
+        private Components.Dropdown? layoutSelectorDropdown;
+        private Core.MetricAnalyzer? currentMetricAnalyzer = null; // Cached metric analyzer for the currently selected layout
+        private bool currentMetricAnalyzerUsesLayout2 = false; // Track which layout the cached analyzer uses
         
         // Baseline metric counts for comparison (stored per ngram type)
         private Dictionary<string, long>? baselineMonogramCounts = null;
@@ -45,6 +50,7 @@ namespace Keysharp.UI
         private long? baselineTrigramTotal = null;
 
         public Components.TabContent TabContent => tabContent;
+        public Components.Dropdown? LayoutSelectorDropdown => layoutSelectorDropdown;
 
         public CorpusTab? CorpusTab
         {
@@ -58,6 +64,7 @@ namespace Keysharp.UI
                 }
                 
                 corpusTab = value;
+                currentMetricAnalyzer = null; // Invalidate analyzer when corpus tab changes
                 statsNeedUpdate = true;
                 
                 // Subscribe to new corpus tab's callbacks
@@ -67,8 +74,40 @@ namespace Keysharp.UI
                     { 
                         // When layout changes, mark that we need to update the baseline
                         // This will be done after recomputing stats in UpdateStats
+                        currentMetricAnalyzer = null; // Invalidate analyzer when corpus/layout changes
                         shouldUpdateBaseline = true;
                         statsNeedUpdate = true;
+                    };
+                }
+            }
+        }
+
+        public LayoutTab? LayoutTab
+        {
+            get => layoutTab;
+            set
+            {
+                // Unsubscribe from old layout tab's callbacks
+                if (layoutTab != null)
+                {
+                    layoutTab.OnLayout2Changed = null;
+                }
+                
+                layoutTab = value;
+                currentMetricAnalyzer = null; // Invalidate analyzer when layout tab changes
+                statsNeedUpdate = true;
+                
+                // Subscribe to new layout tab's callbacks
+                if (layoutTab != null)
+                {
+                    layoutTab.OnLayout2Changed = () => 
+                    { 
+                        // When layout 2 changes, invalidate analyzer if we're using layout 2
+                        if (useLayout2)
+                        {
+                            currentMetricAnalyzer = null;
+                            statsNeedUpdate = true;
+                        }
                     };
                 }
             }
@@ -147,6 +186,20 @@ namespace Keysharp.UI
             ignoreDisabledCheckbox.IsVisible = false; // Hidden by default, shown only if disabled keys exist
             statsControlsContainer.AddChild(ignoreDisabledCheckbox);
 
+            // Create layout selector dropdown (for switching between Layout 1 and Layout 2)
+            var layoutSelectorItems = new List<string> { "Layout 1", "Layout 2" };
+            layoutSelectorDropdown = new Components.Dropdown(font, layoutSelectorItems, 14);
+            layoutSelectorDropdown.Bounds = new Rectangle(0, 0, 140, 35);
+            layoutSelectorDropdown.PositionMode = Components.PositionMode.Absolute;
+            layoutSelectorDropdown.SetSelectedIndex(0); // Default to Layout 1
+            layoutSelectorDropdown.IsVisible = false; // Hidden by default, shown only if second layout is enabled
+            layoutSelectorDropdown.OnSelectionChanged = (selectedItem) => {
+                useLayout2 = selectedItem == "Layout 2";
+                currentMetricAnalyzer = null; // Invalidate cached analyzer so it gets recreated with new layout
+                statsNeedUpdate = true;
+            };
+            statsControlsContainer.AddChild(layoutSelectorDropdown);
+
             // Create content container
             statsContentContainer = new Components.Container("StatsContent");
             statsContentContainer.AutoLayoutChildren = true;
@@ -184,7 +237,7 @@ namespace Keysharp.UI
                     statsControlsContainer.IsVisible = true;
                     
                     // Update ignore disabled checkbox visibility based on layout
-                    var layout = corpusTab?.GetLayout();
+                    var layout = GetCurrentLayout();
                     if (ignoreDisabledCheckbox != null && layout != null)
                     {
                         bool hasDisabledKeys = layout.GetPhysicalKeys().Any(key => key.Disabled);
@@ -193,6 +246,14 @@ namespace Keysharp.UI
                     else if (ignoreDisabledCheckbox != null)
                     {
                         ignoreDisabledCheckbox.IsVisible = false;
+                    }
+                    
+                    // Update layout selector dropdown visibility based on whether second layout is enabled
+                    if (layoutSelectorDropdown != null)
+                    {
+                        // Check if second layout is enabled via LayoutTab's checkbox state
+                        bool isSecondLayoutEnabled = layoutTab != null && layoutTab.IsSecondLayoutEnabled;
+                        layoutSelectorDropdown.IsVisible = isSecondLayoutEnabled;
                     }
                 }
                 
@@ -274,6 +335,49 @@ namespace Keysharp.UI
             tabContent.IsVisible = visible;
         }
 
+        /// <summary>
+        /// Resets the layout selector dropdown to Layout 1.
+        /// Called when the second layout checkbox is unchecked.
+        /// </summary>
+        public void ResetToLayout1()
+        {
+            System.Console.WriteLine($"[StatsTab.ResetToLayout1] Called. Current useLayout2: {useLayout2}");
+            
+            // Always reset useLayout2 first, regardless of dropdown state
+            useLayout2 = false;
+            currentMetricAnalyzer = null; // Invalidate analyzer so it gets recreated with Layout 1
+            statsNeedUpdate = true;
+            
+            // Update dropdown selection if it exists
+            if (layoutSelectorDropdown != null)
+            {
+                System.Console.WriteLine($"[StatsTab.ResetToLayout1] Dropdown exists. Current SelectedItem: {layoutSelectorDropdown.SelectedItem ?? "null"}");
+                layoutSelectorDropdown.SetSelectedIndex(0, triggerCallback: false); // Set to Layout 1 without triggering callback
+                System.Console.WriteLine($"[StatsTab.ResetToLayout1] After SetSelectedIndex(0). SelectedItem: {layoutSelectorDropdown.SelectedItem ?? "null"}");
+            }
+            else
+            {
+                System.Console.WriteLine("[StatsTab.ResetToLayout1] Dropdown is null!");
+            }
+            
+            System.Console.WriteLine($"[StatsTab.ResetToLayout1] Finished. useLayout2: {useLayout2}");
+        }
+
+        /// <summary>
+        /// Gets the current layout based on the selected layout (Layout 1 or Layout 2).
+        /// </summary>
+        private Layout? GetCurrentLayout()
+        {
+            if (useLayout2 && layoutTab != null)
+            {
+                return layoutTab.Layout2;
+            }
+            else
+            {
+                return corpusTab?.GetLayout();
+            }
+        }
+
         public void UpdateStats()
         {
             if (statsContentContainer == null)
@@ -282,19 +386,31 @@ namespace Keysharp.UI
             // Clear existing stats content
             statsContentContainer.Children.Clear();
 
-            // Get metric analyzer, corpus, and layout from corpus tab
-            var metricAnalyzer = corpusTab?.GetMetricAnalyzer();
+            // Get corpus and layout
             var corpus = corpusTab?.LoadedCorpus;
-            var layout = corpusTab?.GetLayout();
+            var layout = GetCurrentLayout();
             
-            if (metricAnalyzer == null || corpus == null || layout == null)
+            if (corpus == null || layout == null)
             {
                 // Show message when no data available
                 var noDataLabel = new Components.Label(font, "Load a corpus and layout to see statistics.", 16);
                 noDataLabel.Bounds = new Rectangle(0, 0, 0, 30);
                 statsContentContainer.AddChild(noDataLabel);
+                currentMetricAnalyzer = null; // Clear analyzer if data is missing
                 return;
             }
+
+            // Create or update metric analyzer with the current layout
+            // Recreate if layout changed (switched between Layout 1 and Layout 2) or if analyzer doesn't exist
+            if (currentMetricAnalyzer == null || currentMetricAnalyzerUsesLayout2 != useLayout2)
+            {
+                // Create new analyzer with the selected layout
+                currentMetricAnalyzer = new Core.MetricAnalyzer(layout, corpus);
+                currentMetricAnalyzer.ComputeAllMetrics();
+                currentMetricAnalyzerUsesLayout2 = useLayout2;
+            }
+            
+            var metricAnalyzer = currentMetricAnalyzer;
 
             // Compute filtered metric counts based on filter settings
             // Use MetricAnalyzer like CorpusTab does, but filter ngrams first
@@ -815,7 +931,7 @@ namespace Keysharp.UI
                 _ => corpus.GetMonograms()
             };
             
-            var layout = corpusTab?.GetLayout();
+            var layout = GetCurrentLayout();
             if (layout == null)
                 return 0;
             

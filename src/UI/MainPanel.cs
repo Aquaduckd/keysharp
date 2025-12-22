@@ -2,6 +2,7 @@ using Raylib_cs;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using Keysharp.Components;
 using Keysharp.Core;
 
@@ -120,8 +121,45 @@ namespace Keysharp.UI
 
             statsTab = new StatsTab(font);
             statsTab.CorpusTab = corpusTab;
+            statsTab.LayoutTab = layoutTab; // Connect LayoutTab so StatsTab can access layout 2
             statsTab.SetVisible(activeTabIndex == 2);
             tabContentContainer.AddChild(statsTab.TabContent);
+            
+            // Subscribe to layout tab callbacks
+            if (layoutTab != null)
+            {
+                layoutTab.OnSecondLayoutDisabled = () => {
+                    System.Console.WriteLine($"[MainPanel] OnSecondLayoutDisabled callback invoked. statsTab is {(statsTab != null ? "not null" : "null")}");
+                    // Reset StatsTab dropdown to Layout 1 when second layout is disabled
+                    // Check both MainPanel and BottomPanel for StatsTab instance
+                    StatsTab? statsTabInstance = statsTab;
+                    if (statsTabInstance == null && bottomPanel != null)
+                    {
+                        // Try to find StatsTab in BottomPanel using reflection
+                        var bottomPanelType = bottomPanel.GetType();
+                        var tabInstancesField = bottomPanelType.GetField("tabInstances", BindingFlags.NonPublic | BindingFlags.Instance);
+                        if (tabInstancesField != null)
+                        {
+                            var tabInstances = tabInstancesField.GetValue(bottomPanel) as Dictionary<string, object>;
+                            if (tabInstances != null && tabInstances.TryGetValue("stats", out var tabInstance))
+                            {
+                                statsTabInstance = tabInstance as StatsTab;
+                                System.Console.WriteLine($"[MainPanel] Found StatsTab in BottomPanel: {(statsTabInstance != null ? "not null" : "null")}");
+                            }
+                        }
+                    }
+                    
+                    if (statsTabInstance != null)
+                    {
+                        System.Console.WriteLine("[MainPanel] Calling statsTabInstance.ResetToLayout1()");
+                        statsTabInstance.ResetToLayout1();
+                    }
+                    else
+                    {
+                        System.Console.WriteLine("[MainPanel] StatsTab not found in either panel, cannot reset dropdown");
+                    }
+                };
+            }
 
             settingsTab = new SettingsTab(font);
             settingsTab.SetVisible(activeTabIndex == 3);
@@ -856,6 +894,7 @@ namespace Keysharp.UI
             corpusTab?.NgramSizeDropdown?.DrawDropdown();
             layoutTab?.LayoutsDropdown?.DrawDropdown();
             layoutTab?.LayoutsDropdown2?.DrawDropdown();
+            statsTab?.LayoutSelectorDropdown?.DrawDropdown();
         }
 
         public void DrawHelpScreen()

@@ -1321,7 +1321,7 @@ namespace Keysharp.UI
                         }
                     }
                     layout?.RebuildMappings();
-                    layoutTab?.NotifyLayoutChanged();
+                    layoutTab?.NotifyLayout2Changed(); // Notify that layout 2 has changed
                 }
             };
             keyInfoContainer2.AddChild(primaryCharacterRowContainer2);
@@ -1356,7 +1356,7 @@ namespace Keysharp.UI
                         }
                     }
                     layout?.RebuildMappings();
-                    layoutTab?.NotifyLayoutChanged();
+                    layoutTab?.NotifyLayout2Changed(); // Notify that layout 2 has changed
                 }
             };
             keyInfoContainer2.AddChild(shiftCharacterRowContainer2);
@@ -1384,7 +1384,7 @@ namespace Keysharp.UI
                         }
                         UpdateShiftInputDisplay2();
                         layout?.RebuildMappings();
-                        layoutTab?.NotifyLayoutChanged();
+                        layoutTab?.NotifyLayout2Changed(); // Notify that layout 2 has changed
                     }
                     if (shiftCharacterInput2 != null)
                     {
@@ -2439,7 +2439,7 @@ namespace Keysharp.UI
                 keyMappings.ApplyMappings(layoutTab.Layout, layoutTab.Layout2);
                 
                 // Notify layout tab that layout 2 has changed
-                layoutTab.NotifyLayoutChanged();
+                layoutTab.NotifyLayout2Changed();
                 
                 System.Console.WriteLine("Mappings applied successfully");
             }
@@ -2732,7 +2732,7 @@ namespace Keysharp.UI
                     layout.RemovePhysicalKey(key);
                 }
                 layout.RebuildMappings();
-                layoutTab?.NotifyLayoutChanged();
+                layoutTab?.NotifyLayout2Changed(); // Notify that layout 2 has changed
                 selectedKeys2.Clear();
                 if (keyboardView2 != null)
                 {

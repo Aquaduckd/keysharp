@@ -107,13 +107,20 @@ namespace Keysharp.Components
 
         public void SetSelectedIndex(int index, bool triggerCallback = true)
         {
+            System.Console.WriteLine($"[Dropdown.SetSelectedIndex] Called with index: {index}, triggerCallback: {triggerCallback}, items.Count: {items.Count}, current selectedIndex: {selectedIndex}");
             if (index >= 0 && index < items.Count)
             {
                 selectedIndex = index;
+                System.Console.WriteLine($"[Dropdown.SetSelectedIndex] Set selectedIndex to {index}, selectedItem: {SelectedItem ?? "null"}");
                 if (triggerCallback)
                 {
+                    System.Console.WriteLine($"[Dropdown.SetSelectedIndex] Invoking OnSelectionChanged with: {items[index]}");
                     OnSelectionChanged?.Invoke(items[index]);
                 }
+            }
+            else
+            {
+                System.Console.WriteLine($"[Dropdown.SetSelectedIndex] Index {index} out of range (0-{items.Count - 1})");
             }
         }
 

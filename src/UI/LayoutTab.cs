@@ -120,6 +120,21 @@ namespace Keysharp.UI
         /// Gets the second layout.
         /// </summary>
         public Layout Layout2 => layout2;
+        
+        /// <summary>
+        /// Gets whether the second layout is enabled (checkbox is checked).
+        /// </summary>
+        public bool IsSecondLayoutEnabled => enableSecondLayoutCheckbox?.IsChecked ?? false;
+
+        /// <summary>
+        /// Callback invoked when layout 2 changes (keys swapped, edited, etc.)
+        /// </summary>
+        public Action? OnLayout2Changed { get; set; }
+
+        /// <summary>
+        /// Callback invoked when the second layout checkbox is unchecked (layout 2 is disabled).
+        /// </summary>
+        public Action? OnSecondLayoutDisabled { get; set; }
 
         /// <summary>
         /// Notifies dependent tabs that the layout has changed (e.g., keys swapped, mappings rebuilt).
@@ -128,6 +143,15 @@ namespace Keysharp.UI
         {
             // Update corpus tab with current layout reference
             corpusTab?.SetLayout(layout);
+        }
+        
+        /// <summary>
+        /// Notifies dependent tabs that layout 2 has changed (e.g., keys swapped, edited, etc.).
+        /// </summary>
+        public void NotifyLayout2Changed()
+        {
+            // Notify subscribers (e.g., StatsTab) that layout 2 has changed
+            OnLayout2Changed?.Invoke();
         }
 
         public LayoutTab(Font font)
@@ -364,12 +388,16 @@ namespace Keysharp.UI
             enableSecondLayoutCheckbox.AutoSize = false;
             enableSecondLayoutCheckbox.IsChecked = false; // Default: second layout disabled
             enableSecondLayoutCheckbox.OnCheckedChanged = (isChecked) => {
+                System.Console.WriteLine($"[LayoutTab] Enable Second Layout checkbox changed to: {isChecked}");
                 UpdateSecondLayoutVisibility(isChecked);
                 sidePanel?.SetSecondLayoutVisibility(isChecked);
                 // Switch back to Layout 1 metadata and hide dropdown if second layout is disabled
                 if (!isChecked)
                 {
+                    System.Console.WriteLine("[LayoutTab] Second layout disabled, invoking OnSecondLayoutDisabled callback");
                     sidePanel?.SwitchToLayout1MetadataAndHideDropdown();
+                    // Notify that second layout was disabled (e.g., for StatsTab to reset dropdown)
+                    OnSecondLayoutDisabled?.Invoke();
                 }
                 else
                 {
@@ -571,8 +599,8 @@ namespace Keysharp.UI
             
             // Notify when keys are swapped in second layout
             keyboardView2.OnKeysSwapped = () => {
-                // Only update corpus tab if layout2 changes? Actually, corpus tab uses first layout only
-                // So we don't need to call NotifyLayoutChanged() here
+                // Notify that layout 2 has changed (e.g., for StatsTab to update)
+                NotifyLayout2Changed();
             };
             
             keyboardCanvas2.AddChild(keyboardView2);
