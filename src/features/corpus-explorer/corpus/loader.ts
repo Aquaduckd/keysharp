@@ -19,7 +19,7 @@ export function createCorpusLoader(): CorpusLoader {
   return {
     async loadPreset(name: string): Promise<string> {
       try {
-        const response = await fetch(`/public/corpus/${name}`);
+        const response = await fetch(`./public/corpus/${name}`);
         if (!response.ok) {
           throw new Error(`Failed to load corpus: ${response.statusText}`);
         }
