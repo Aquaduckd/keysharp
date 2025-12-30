@@ -8,6 +8,7 @@ import { calculateFilteredNGrams } from './analysis/ngrams';
 import { applyContainerStyles, applySectionStyles } from './styles';
 import { exportToCSV } from './export/csv';
 import { matchesSearch } from './search/matcher';
+import { getCurrentURLState, updateURL } from './url-state';
 import type { CorpusExplorerState, SearchSettings, AnalysisResults, NGramType, FilterSettings, NGramData } from './types';
 
 let currentState: CorpusExplorerState = {
@@ -35,6 +36,7 @@ let corpusLoader = createCorpusLoader();
  */
 function handleNGramTypeChange(type: NGramType): void {
   currentState.selectedNGramType = type;
+  updateURL(currentState);
   if (currentState.analysis && analysisSection) {
     updateAnalysisDisplay(analysisSection, currentState.analysis, currentState.selectedNGramType, handleNGramTypeChange, currentState.search, currentState.search.filters, handleFilterChange, handleSearchChange);
   }
@@ -45,6 +47,7 @@ function handleNGramTypeChange(type: NGramType): void {
  */
 function handleFilterChange(filters: FilterSettings): void {
   currentState.search.filters = filters;
+  updateURL(currentState);
   // Filters affect n-gram calculation, so we need to recalculate
   performAnalysis();
 }
@@ -59,6 +62,7 @@ function handleSearchChange(settings: SearchSettings): void {
     limit: settings.limit,
     filters: currentState.search.filters, // Preserve existing filters
   };
+  updateURL(currentState);
   // If we have existing analysis, just update the display with search filter
   if (currentState.analysis && analysisSection) {
     updateAnalysisDisplay(analysisSection, currentState.analysis, currentState.selectedNGramType, handleNGramTypeChange, currentState.search, currentState.search.filters, handleFilterChange, handleSearchChange);
@@ -133,6 +137,7 @@ function updateControlsPanel(): void {
     (text, name, isCustom) => {
       // Handle corpus load
       currentState.corpus = { name, text, isCustom: isCustom || false };
+      updateURL(currentState);
       performAnalysis();
       updateControlsPanel(); // Update to show export button
     },
@@ -156,13 +161,31 @@ export function initializeCorpusExplorer(container: HTMLElement): void {
   // Create corpus loader
   corpusLoader = createCorpusLoader();
 
+  // Load state from URL if present
+  const urlState = getCurrentURLState();
+  
+  // Apply URL state to current state
+  if (urlState.selectedNGramType) {
+    currentState.selectedNGramType = urlState.selectedNGramType;
+  }
+  
+  if (urlState.search) {
+    currentState.search = {
+      ...currentState.search,
+      ...urlState.search,
+      filters: {
+        ...currentState.search.filters,
+        ...urlState.search.filters,
+      },
+    };
+  }
+
   // Create controls section
   controlsSection = document.createElement('div');
   controlsSection.id = 'corpus-controls';
   // No padding or border - removed
   updateControlsPanel();
   container.appendChild(controlsSection);
-
 
   // Create analysis section
   analysisSection = document.createElement('div');
@@ -175,6 +198,20 @@ export function initializeCorpusExplorer(container: HTMLElement): void {
   analysisSection.style.flexDirection = 'column';
   createAnalysisDisplay(analysisSection, null, currentState.selectedNGramType, handleNGramTypeChange, currentState.search, currentState.search.filters, handleFilterChange, handleSearchChange);
   container.appendChild(analysisSection);
+
+  // Load corpus from URL if specified
+  if (urlState.corpus && !urlState.corpus.isCustom) {
+    // Load the preset corpus
+    corpusLoader.loadPreset(urlState.corpus.name)
+      .then((text) => {
+        currentState.corpus = { name: urlState.corpus!.name, text, isCustom: false };
+        performAnalysis();
+        updateControlsPanel();
+      })
+      .catch((error) => {
+        console.error('Failed to load corpus from URL:', error);
+      });
+  }
 }
 
 /**
