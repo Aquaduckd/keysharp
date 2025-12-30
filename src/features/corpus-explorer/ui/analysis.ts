@@ -484,31 +484,17 @@ export function createAnalysisDisplay(
   const percentage = preFilterCount > 0 ? (displayedCount / preFilterCount) * 100 : 0;
 
   // Update stats display in search panel if it exists
-  // Only show stats if search or limit filters are applied
+  // Total is always shown, Displayed and Percentage are only shown when filters are applied
   const hasFilters = searchSettings && (searchSettings.query || (searchSettings.limit > 0));
   
   if (searchSettings) {
-    const statsContainer = container.querySelector('#stats-container') as HTMLElement;
-    if (statsContainer) {
-      if (hasFilters) {
-        // Update existing stats
-        const finalCountSpan = statsContainer.querySelector('#final-count') as HTMLElement;
-        const preFilterCountSpan = statsContainer.querySelector('#pre-filter-count') as HTMLElement;
-        const percentageSpan = statsContainer.querySelector('#percentage') as HTMLElement;
-        
-        if (finalCountSpan) finalCountSpan.textContent = `Displayed: ${displayedCount.toLocaleString()}`;
-        if (preFilterCountSpan) preFilterCountSpan.textContent = `Total: ${preFilterCount.toLocaleString()}`;
-        if (percentageSpan) percentageSpan.textContent = `${percentage.toFixed(3)}%`;
-        statsContainer.style.display = 'flex';
-      } else {
-        // Hide stats if no filters are applied
-        statsContainer.style.display = 'none';
-      }
-    } else if (hasFilters) {
-      // Create stats container if it doesn't exist and filters are applied (on the right side)
-      const searchInputContainer = container.querySelector('#search-input-container') as HTMLElement;
-      if (searchInputContainer) {
-        const statsContainer = document.createElement('div');
+    const searchInputContainer = container.querySelector('#search-input-container') as HTMLElement;
+    if (searchInputContainer) {
+      let statsContainer = container.querySelector('#stats-container') as HTMLElement;
+      
+      if (!statsContainer) {
+        // Create stats container if it doesn't exist
+        statsContainer = document.createElement('div');
         statsContainer.id = 'stats-container';
         statsContainer.style.display = 'flex';
         statsContainer.style.alignItems = 'center';
@@ -516,24 +502,52 @@ export function createAnalysisDisplay(
 
         const finalCountSpan = document.createElement('span');
         finalCountSpan.id = 'final-count';
-        finalCountSpan.textContent = `Displayed: ${displayedCount.toLocaleString()}`;
         finalCountSpan.style.fontSize = '14px';
         statsContainer.appendChild(finalCountSpan);
 
         const preFilterCountSpan = document.createElement('span');
         preFilterCountSpan.id = 'pre-filter-count';
-        preFilterCountSpan.textContent = `Total: ${preFilterCount.toLocaleString()}`;
         preFilterCountSpan.style.fontSize = '14px';
         statsContainer.appendChild(preFilterCountSpan);
 
         const percentageSpan = document.createElement('span');
         percentageSpan.id = 'percentage';
-        percentageSpan.textContent = `${percentage.toFixed(3)}%`;
         percentageSpan.style.fontSize = '14px';
         percentageSpan.style.fontWeight = 'bold';
         statsContainer.appendChild(percentageSpan);
 
         searchInputContainer.appendChild(statsContainer);
+      }
+      
+      // Always show stats container and update Total
+      statsContainer.style.display = 'flex';
+      const finalCountSpan = statsContainer.querySelector('#final-count') as HTMLElement;
+      const preFilterCountSpan = statsContainer.querySelector('#pre-filter-count') as HTMLElement;
+      const percentageSpan = statsContainer.querySelector('#percentage') as HTMLElement;
+      
+      // Always update and show Total
+      if (preFilterCountSpan) {
+        preFilterCountSpan.textContent = `Total: ${preFilterCount.toLocaleString()}`;
+        preFilterCountSpan.style.display = 'inline';
+      }
+      
+      // Conditionally show/hide Displayed and Percentage
+      if (hasFilters) {
+        if (finalCountSpan) {
+          finalCountSpan.textContent = `Displayed: ${displayedCount.toLocaleString()}`;
+          finalCountSpan.style.display = 'inline';
+        }
+        if (percentageSpan) {
+          percentageSpan.textContent = `${percentage.toFixed(3)}%`;
+          percentageSpan.style.display = 'inline';
+        }
+      } else {
+        if (finalCountSpan) {
+          finalCountSpan.style.display = 'none';
+        }
+        if (percentageSpan) {
+          percentageSpan.style.display = 'none';
+        }
       }
     }
   }
