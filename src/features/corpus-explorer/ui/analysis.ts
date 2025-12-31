@@ -16,6 +16,8 @@ function getNGramTypeLabel(type: NGramType): string {
       return 'Bigrams';
     case 'trigrams':
       return 'Trigrams';
+    case 'skipgrams':
+      return 'Skipgrams';
     case 'words':
       return 'Words';
   }
@@ -32,6 +34,8 @@ function getSequenceColumnLabel(type: NGramType): string {
       return 'Bigram';
     case 'trigrams':
       return 'Trigram';
+    case 'skipgrams':
+      return 'Skipgram';
     case 'words':
       return 'Word';
   }
@@ -323,6 +327,7 @@ export function createNGramSelector(
     { value: 'monograms', label: 'Monograms' },
     { value: 'bigrams', label: 'Bigrams' },
     { value: 'trigrams', label: 'Trigrams' },
+    { value: 'skipgrams', label: 'Skipgrams' },
     { value: 'words', label: 'Words' },
   ];
 

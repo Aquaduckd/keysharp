@@ -6,6 +6,7 @@ interface RawNGramCounts {
   monograms: Map<string, number>;
   bigrams: Map<string, number>;
   trigrams: Map<string, number>;
+  skipgrams: Map<string, number>;
   words: Map<string, number>;
 }
 
@@ -33,6 +34,7 @@ export function calculateNGrams(text: string): RawNGramCounts {
   const monogramCounts = new Map<string, number>();
   const bigramCounts = new Map<string, number>();
   const trigramCounts = new Map<string, number>();
+  const skipgramCounts = new Map<string, number>();
   const wordCounts = new Map<string, number>();
 
   let currentWord = '';
@@ -54,6 +56,10 @@ export function calculateNGrams(text: string): RawNGramCounts {
     if (i + 2 < text.length) {
       const trigram = text[i] + text[i + 1] + text[i + 2];
       trigramCounts.set(trigram, (trigramCounts.get(trigram) || 0) + 1);
+      
+      // Count skipgram (first and last character of trigram)
+      const skipgram = text[i] + text[i + 2];
+      skipgramCounts.set(skipgram, (skipgramCounts.get(skipgram) || 0) + 1);
     }
 
     // Extract words: split by whitespace (words can contain punctuation)
@@ -78,6 +84,7 @@ export function calculateNGrams(text: string): RawNGramCounts {
     monograms: monogramCounts,
     bigrams: bigramCounts,
     trigrams: trigramCounts,
+    skipgrams: skipgramCounts,
     words: wordCounts,
   };
 }
@@ -172,11 +179,13 @@ export function calculateFilteredNGrams(
   monograms: NGramData[];
   bigrams: NGramData[];
   trigrams: NGramData[];
+  skipgrams: NGramData[];
   words: NGramData[];
   totals: {
     monograms: number;
     bigrams: number;
     trigrams: number;
+    skipgrams: number;
     words: number;
   };
 } {
@@ -187,6 +196,7 @@ export function calculateFilteredNGrams(
   const filteredMonograms = filterAndReaggregate(rawCounts.monograms, filters);
   const filteredBigrams = filterAndReaggregate(rawCounts.bigrams, filters);
   const filteredTrigrams = filterAndReaggregate(rawCounts.trigrams, filters);
+  const filteredSkipgrams = filterAndReaggregate(rawCounts.skipgrams, filters);
   const filteredWords = filterAndReaggregate(rawCounts.words, filters);
 
   // Extract totals from CountMap structures
@@ -194,6 +204,7 @@ export function calculateFilteredNGrams(
     monograms: filteredMonograms.total,
     bigrams: filteredBigrams.total,
     trigrams: filteredTrigrams.total,
+    skipgrams: filteredSkipgrams.total,
     words: filteredWords.total,
   };
 
@@ -202,6 +213,7 @@ export function calculateFilteredNGrams(
     monograms: mapToRankedArray(filteredMonograms),
     bigrams: mapToRankedArray(filteredBigrams),
     trigrams: mapToRankedArray(filteredTrigrams),
+    skipgrams: mapToRankedArray(filteredSkipgrams),
     words: mapToRankedArray(filteredWords),
     totals,
   };

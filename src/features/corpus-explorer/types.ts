@@ -29,16 +29,18 @@ export interface AnalysisResults {
   monograms: NGramData[];
   bigrams: NGramData[];
   trigrams: NGramData[];
+  skipgrams: NGramData[];
   words: NGramData[];
   totals: {
     monograms: number;
     bigrams: number;
     trigrams: number;
+    skipgrams: number;
     words: number;
   };
 }
 
-export type NGramType = 'monograms' | 'bigrams' | 'trigrams' | 'words';
+export type NGramType = 'monograms' | 'bigrams' | 'trigrams' | 'skipgrams' | 'words';
 
 export interface CorpusExplorerState {
   corpus: CorpusData | null;

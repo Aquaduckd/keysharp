@@ -29,7 +29,7 @@ export function deserializeState(params: URLSearchParams): Partial<CorpusExplore
   // N-gram type
   const typeParam = params.get('type');
   if (typeParam) {
-    const validTypes: NGramType[] = ['monograms', 'bigrams', 'trigrams', 'words'];
+    const validTypes: NGramType[] = ['monograms', 'bigrams', 'trigrams', 'skipgrams', 'words'];
     if (validTypes.includes(typeParam as NGramType)) {
       partialState.selectedNGramType = typeParam as NGramType;
     }

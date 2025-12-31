@@ -13,6 +13,8 @@ function getSequenceColumnLabel(type: NGramType): string {
       return 'Bigram';
     case 'trigrams':
       return 'Trigram';
+    case 'skipgrams':
+      return 'Skipgram';
     case 'words':
       return 'Word';
   }

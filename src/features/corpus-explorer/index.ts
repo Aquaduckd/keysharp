@@ -5,7 +5,7 @@ import { createCorpusLoader } from './corpus/loader';
 import { createControlsPanel } from './ui/controls';
 import { createAnalysisDisplay, updateAnalysisDisplay } from './ui/analysis';
 import { calculateFilteredNGrams } from './analysis/ngrams';
-import { applyContainerStyles, applySectionStyles } from './styles';
+import { applyContainerStyles } from './styles';
 import { exportToCSV } from './export/csv';
 import { matchesSearch } from './search/matcher';
 import { getCurrentURLState, updateURL } from './url-state';
@@ -233,6 +233,7 @@ function performAnalysis(): void {
     monograms: ngramResults.monograms,
     bigrams: ngramResults.bigrams,
     trigrams: ngramResults.trigrams,
+    skipgrams: ngramResults.skipgrams,
     words: ngramResults.words,
     totals: ngramResults.totals,
   };
